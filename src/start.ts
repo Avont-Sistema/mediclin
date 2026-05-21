@@ -1,5 +1,7 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
-import { getWebRequest } from "vinxi/http";
+// getRequest() é o equivalente de vinxi/http getWebRequest() mas compatível com Nitro.
+// getWebRequest() de vinxi/http acessa globalThis.app.config (Vinxi-only) e quebra no Nitro.
+import { getRequest } from "@tanstack/react-start/server";
 
 import { renderErrorPage } from "./lib/error-page";
 import { handleClerkWebhook } from "./server/clerk-webhook";
@@ -7,7 +9,7 @@ import { handleMPWebhook } from "./server/mp-webhook";
 import { handleReminders } from "./server/reminders";
 
 const webhookMiddleware = createMiddleware().server(async ({ next }) => {
-  const req = getWebRequest();
+  const req = getRequest();
   const url = new URL(req.url);
 
   if (url.pathname === "/api/webhooks/clerk" && req.method === "POST") {
