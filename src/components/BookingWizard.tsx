@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
 import { Calendar } from "./ui/calendar";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { ChevronLeft, Clock, MapPin, CheckCircle2, Loader2 } from "lucide-react";
+import { ChevronLeft, Clock, CheckCircle2, Loader2, CreditCard } from "lucide-react";
 import { fetchAvailableDays, fetchAvailableSlots, createBooking } from "../lib/availability";
+import { createPaymentIntent } from "../lib/stripe";
 import type { InferSelectModel } from "drizzle-orm";
 import type { services } from "../db/schema";
 
@@ -15,10 +18,16 @@ interface BookingWizardProps {
   professionalId: string;
   service: Service;
   professionalNome: string;
+  stripeEnabled: boolean;
   onBack: () => void;
 }
 
-type Step = "data" | "hora" | "paciente" | "confirmado";
+type Step = "data" | "hora" | "paciente" | "pagamento" | "confirmado";
+
+const stripePromise =
+  typeof window !== "undefined"
+    ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "")
+    : null;
 
 function toDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -36,6 +45,7 @@ export function BookingWizard({
   professionalId,
   service,
   professionalNome,
+  stripeEnabled,
   onBack,
 }: BookingWizardProps) {
   const [step, setStep] = useState<Step>("data");
@@ -44,7 +54,7 @@ export function BookingWizard({
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
-  const [appointmentId, setAppointmentId] = useState<string | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
 
   const { data: availableDays = [] } = useQuery({
     queryKey: ["availableDays", professionalId],
@@ -64,6 +74,14 @@ export function BookingWizard({
       }),
   });
 
+  const paymentIntentMutation = useMutation({
+    mutationFn: (appointmentId: string) => createPaymentIntent({ data: { appointmentId } }),
+    onSuccess: (result) => {
+      setClientSecret(result.clientSecret);
+      setStep("pagamento");
+    },
+  });
+
   const booking = useMutation({
     mutationFn: () =>
       createBooking({
@@ -77,8 +95,11 @@ export function BookingWizard({
         },
       }),
     onSuccess: (result) => {
-      setAppointmentId(result.appointmentId);
-      setStep("confirmado");
+      if (stripeEnabled) {
+        paymentIntentMutation.mutate(result.appointmentId);
+      } else {
+        setStep("confirmado");
+      }
     },
   });
 
@@ -90,6 +111,8 @@ export function BookingWizard({
     if (day < today) return true;
     return !availableDays.includes(day.getDay());
   };
+
+  const isPendingBooking = booking.isPending || paymentIntentMutation.isPending;
 
   return (
     <div className="flex flex-col gap-6">
@@ -236,23 +259,58 @@ export function BookingWizard({
             <div className="font-semibold text-slate-900">{formatCurrency(service.preco)}</div>
           </div>
 
-          {booking.error && (
-            <p className="mt-3 text-sm text-rose-600">Erro ao agendar. Tente novamente.</p>
+          {(booking.error || paymentIntentMutation.error) && (
+            <p className="mt-3 text-sm text-rose-600">
+              {paymentIntentMutation.error
+                ? "Pagamento indisponível. Tente novamente."
+                : "Erro ao agendar. Tente novamente."}
+            </p>
           )}
 
           <Button
             className="mt-4 w-full bg-teal-600 hover:bg-teal-700"
-            disabled={!nome || !email || !telefone || booking.isPending}
+            disabled={!nome || !email || !telefone || isPendingBooking}
             onClick={() => booking.mutate()}
           >
-            {booking.isPending ? (
+            {isPendingBooking ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" /> Confirmando...
+                <Loader2 className="h-4 w-4 animate-spin mr-2" /> Aguarde...
+              </>
+            ) : stripeEnabled ? (
+              <>
+                <CreditCard className="h-4 w-4 mr-2" /> Ir para pagamento
               </>
             ) : (
               "Confirmar agendamento"
             )}
           </Button>
+        </div>
+      )}
+
+      {/* Step: Pagamento */}
+      {step === "pagamento" && clientSecret && (
+        <div>
+          <button
+            onClick={() => setStep("paciente")}
+            className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 mb-4"
+          >
+            <ChevronLeft className="h-4 w-4" /> Voltar
+          </button>
+          <h3 className="text-base font-semibold text-slate-900 mb-1">Pagamento</h3>
+          <p className="text-sm text-slate-500 mb-4">
+            Valor:{" "}
+            <span className="font-semibold text-slate-800">{formatCurrency(service.preco)}</span>
+          </p>
+          <Elements
+            stripe={stripePromise}
+            options={{
+              clientSecret,
+              locale: "pt-BR",
+              appearance: { theme: "stripe", variables: { colorPrimary: "#0d9488" } },
+            }}
+          >
+            <StripePaymentForm onSuccess={() => setStep("confirmado")} />
+          </Elements>
         </div>
       )}
 
@@ -280,6 +338,52 @@ export function BookingWizard({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function StripePaymentForm({ onSuccess }: { onSuccess: () => void }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!stripe || !elements) return;
+    setLoading(true);
+    setError(null);
+
+    const { error: stripeError } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {},
+      redirect: "if_required",
+    });
+
+    if (stripeError) {
+      setError(stripeError.message ?? "Erro ao processar pagamento.");
+      setLoading(false);
+    } else {
+      onSuccess();
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <PaymentElement />
+      {error && <p className="text-sm text-rose-600">{error}</p>}
+      <Button
+        className="w-full bg-teal-600 hover:bg-teal-700"
+        disabled={!stripe || loading}
+        onClick={handleSubmit}
+      >
+        {loading ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin mr-2" /> Processando...
+          </>
+        ) : (
+          "Pagar agora"
+        )}
+      </Button>
     </div>
   );
 }

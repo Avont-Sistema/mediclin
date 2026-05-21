@@ -3,6 +3,7 @@ import { getWebRequest } from "vinxi/http";
 
 import { renderErrorPage } from "./lib/error-page";
 import { handleClerkWebhook } from "./server/clerk-webhook";
+import { handleStripeWebhook } from "./server/stripe-webhook";
 
 const webhookMiddleware = createMiddleware().server(async ({ next }) => {
   const req = getWebRequest();
@@ -10,6 +11,10 @@ const webhookMiddleware = createMiddleware().server(async ({ next }) => {
 
   if (url.pathname === "/api/webhooks/clerk" && req.method === "POST") {
     return handleClerkWebhook(req);
+  }
+
+  if (url.pathname === "/api/webhooks/stripe" && req.method === "POST") {
+    return handleStripeWebhook(req);
   }
 
   return next();

@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/tanstack-start";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -28,8 +29,12 @@ import {
   UserRound,
   Wallet,
   ClipboardList,
+  ExternalLink,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
+import { fetchCurrentProfessional } from "../lib/auth";
+import { createConnectAccountLink, activateStripeAccount } from "../lib/stripe";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -340,6 +345,8 @@ function DashboardContent() {
           </header>
 
           <div className="p-6 space-y-6">
+            <StripeConnectBanner />
+
             {/* Stats */}
             <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               {stats.map((s) => (
@@ -608,5 +615,60 @@ function Row({
       </div>
       <span className="font-semibold text-slate-900">{value}</span>
     </li>
+  );
+}
+
+function StripeConnectBanner() {
+  const { data: professional, refetch } = useQuery({
+    queryKey: ["currentProfessional"],
+    queryFn: () => fetchCurrentProfessional(),
+  });
+
+  const activateMutation = useMutation({
+    mutationFn: (professionalId: string) => activateStripeAccount({ data: { professionalId } }),
+    onSuccess: () => refetch(),
+  });
+
+  const connectMutation = useMutation({
+    mutationFn: (professionalId: string) => createConnectAccountLink({ data: { professionalId } }),
+    onSuccess: (result) => {
+      window.location.href = result.url;
+    },
+  });
+
+  // After Stripe onboarding redirect-back, confirm account status
+  const activateMutate = activateMutation.mutate;
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("stripe") === "connected" && professional?.id) {
+      activateMutate(professional.id);
+      window.history.replaceState({}, "", "/dashboard");
+    }
+  }, [professional?.id, activateMutate]);
+
+  if (!professional) return null;
+  if (professional.stripeAccountAtivo) return null;
+
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 flex items-center gap-4">
+      <div className="h-10 w-10 rounded-xl bg-amber-100 grid place-items-center shrink-0">
+        <Zap className="h-5 w-5 text-amber-600" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-slate-900">Ative os pagamentos online</p>
+        <p className="text-xs text-slate-500 mt-0.5">
+          Conecte sua conta Stripe para receber pagamentos diretamente dos pacientes.
+        </p>
+      </div>
+      <button
+        disabled={connectMutation.isPending}
+        onClick={() => connectMutation.mutate(professional.id)}
+        className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white transition"
+      >
+        <ExternalLink className="h-4 w-4" />
+        {connectMutation.isPending ? "Aguarde..." : "Conectar Stripe"}
+      </button>
+    </div>
   );
 }

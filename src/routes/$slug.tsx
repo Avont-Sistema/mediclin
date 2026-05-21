@@ -147,6 +147,7 @@ function ProfessionalPage() {
               professionalId={professional.id}
               service={selectedService}
               professionalNome={professional.nomeCompleto}
+              stripeEnabled={professional.stripeAccountAtivo}
               onBack={() => setSelectedService(null)}
             />
           )}
