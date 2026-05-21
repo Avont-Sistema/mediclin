@@ -1,6 +1,40 @@
-# MediClin
+# 🏥 MediClin
 
-SaaS de agendamento e pagamentos para médicos e clínicas. Médicos recebem um link público personalizado (ex: `dr-ricardo.cuidandovc.com.br`) para colocar na bio do Instagram. Pacientes agendam e pagam direto pelo app — o dinheiro vai para a conta do doutor via Stripe Connect.
+**SaaS multi-tenant** para médicos, dentistas e profissionais de saúde.
+
+Cada médico recebe um **link público personalizado** (ex: `dr-ricardo.mediclin.app`) para colocar na bio do Instagram. Pacientes **agendam e pagam em minutos** sem sair do app — o dinheiro vai direto para a conta do profissional via **Mercado Pago Marketplace**.
+
+**🚀 Em produção:** https://mediclin.vercel.app
+
+---
+
+## 📊 Features
+
+✅ **Autenticação** — Clerk (social + email)  
+✅ **Página pública profissional** — Subdomínio + path-based routing  
+✅ **Wizard agendamento** — 5 passos com calendário inteligente  
+✅ **Mercado Pago** — Pagamento direto (PIX, cartão)  
+✅ **Dashboard médico** — Visão geral, Agenda, Pacientes, Configurações  
+✅ **E-mail + WhatsApp** — Confirmação + lembretes automáticos  
+✅ **Planos** — Free, Pro (R$79), Clinic (R$199)  
+✅ **Mobile** — Drawer navigation, layout responsivo  
+
+👉 Veja [FEATURES.md](./FEATURES.md) para documentação completa
+
+---
+
+## 🚀 Configuração Rápida
+
+**Para colocar em produção (Vercel + Clerk):**
+
+1. Adicione as variáveis de ambiente (veja [TODO-CONFIG.md](./TODO-CONFIG.md))
+2. Configure webhook Clerk em https://dashboard.clerk.com/webhooks
+3. Aplique migrations: `node --import tsx/esm src/db/apply-migration.ts`
+
+**Guias:**
+- 📖 [SETUP.md](./SETUP.md) — Passo a passo completo
+- ✅ [TODO-CONFIG.md](./TODO-CONFIG.md) — Checklist de configuração
+- 🔧 [CLAUDE.md](./CLAUDE.md) — Arquitetura técnica
 
 ---
 
