@@ -1,6 +1,19 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
+import { getWebRequest } from "vinxi/http";
 
 import { renderErrorPage } from "./lib/error-page";
+import { handleClerkWebhook } from "./server/clerk-webhook";
+
+const webhookMiddleware = createMiddleware().server(async ({ next }) => {
+  const req = getWebRequest();
+  const url = new URL(req.url);
+
+  if (url.pathname === "/api/webhooks/clerk" && req.method === "POST") {
+    return handleClerkWebhook(req);
+  }
+
+  return next();
+});
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
@@ -18,5 +31,5 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
 });
 
 export const startInstance = createStart(() => ({
-  requestMiddleware: [errorMiddleware],
+  requestMiddleware: [webhookMiddleware, errorMiddleware],
 }));

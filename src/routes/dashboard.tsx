@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/tanstack-start";
 import { useMemo, useState } from "react";
 import {
   Calendar as CalendarIcon,
@@ -224,6 +225,19 @@ const statusStyle: Record<
 };
 
 function Dashboard() {
+  return (
+    <>
+      <SignedOut>
+        <RedirectToSignIn />
+      </SignedOut>
+      <SignedIn>
+        <DashboardContent />
+      </SignedIn>
+    </>
+  );
+}
+
+function DashboardContent() {
   const [filter, setFilter] = useState<"todos" | Appt["status"]>("todos");
 
   const filtered = useMemo(

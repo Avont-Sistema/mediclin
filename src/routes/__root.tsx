@@ -1,3 +1,4 @@
+import { ClerkProvider } from "@clerk/tanstack-start";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -73,9 +74,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Ânima Clínica — Agendamento online de consultas médicas" },
-      { name: "description", content: "Agende consultas presenciais ou telemedicina com especialistas em odontologia, dermatologia, cardiologia e mais. Cuidado de saúde focado na sua longevidade." },
+      {
+        name: "description",
+        content:
+          "Agende consultas presenciais ou telemedicina com especialistas em odontologia, dermatologia, cardiologia e mais. Cuidado de saúde focado na sua longevidade.",
+      },
       { property: "og:title", content: "Ânima Clínica — Agendamento online" },
-      { property: "og:description", content: "Agende consultas com especialistas renomados. Um ecossistema de saúde completo, do diagnóstico ao tratamento." },
+      {
+        property: "og:description",
+        content:
+          "Agende consultas com especialistas renomados. Um ecossistema de saúde completo, do diagnóstico ao tratamento.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
@@ -111,8 +120,16 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <Outlet />
-    </QueryClientProvider>
+    <ClerkProvider
+      publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+      signInFallbackRedirectUrl="/dashboard"
+      signUpFallbackRedirectUrl="/dashboard"
+    >
+      <QueryClientProvider client={queryClient}>
+        <Outlet />
+      </QueryClientProvider>
+    </ClerkProvider>
   );
 }
