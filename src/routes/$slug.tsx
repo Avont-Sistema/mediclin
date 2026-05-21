@@ -1,9 +1,6 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { fetchProfessionalBySlug } from "../lib/availability";
-import {
-  ProfessionalPublicPage,
-  ProfessionalNotFound,
-} from "../components/ProfessionalPublicPage";
+import { ProfessionalPublicPage, ProfessionalNotFound } from "../components/ProfessionalPublicPage";
 
 export const Route = createFileRoute("/$slug")({
   head: () => ({
@@ -20,10 +17,5 @@ export const Route = createFileRoute("/$slug")({
 
 function SlugPage() {
   const professional = Route.useLoaderData()!;
-  return (
-    <ProfessionalPublicPage
-      professional={professional}
-      homeUrl={`/${professional.slug}`}
-    />
-  );
+  return <ProfessionalPublicPage professional={professional} homeUrl={`/${professional.slug}`} />;
 }

@@ -50,7 +50,10 @@ export function buildPublicUrl(slug: string): string {
 type PublicProfileResult =
   | { mode: "landing" }
   | { mode: "not_found" }
-  | { mode: "professional"; professional: NonNullable<Awaited<ReturnType<typeof loadProfessional>>> };
+  | {
+      mode: "professional";
+      professional: NonNullable<Awaited<ReturnType<typeof loadProfessional>>>;
+    };
 
 async function loadProfessional(slug: string) {
   return db.query.professionals.findFirst({
