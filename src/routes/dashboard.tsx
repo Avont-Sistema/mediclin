@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { fetchCurrentProfessional } from "../lib/auth";
 import { createConnectAccountLink, activateStripeAccount } from "../lib/stripe";
+import { fetchDashboardData, type DashboardData } from "../lib/dashboard";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -47,6 +48,7 @@ export const Route = createFileRoute("/dashboard")({
       },
     ],
   }),
+  loader: () => fetchDashboardData(),
   component: Dashboard,
 });
 
@@ -61,89 +63,6 @@ type Appt = {
   avatar: string;
 };
 
-const todayAppointments: Appt[] = [
-  {
-    id: "1",
-    time: "08:30",
-    patient: "Mariana Costa",
-    age: 34,
-    type: "Presencial",
-    reason: "Consulta de rotina",
-    status: "concluido",
-    avatar: "MC",
-  },
-  {
-    id: "2",
-    time: "09:15",
-    patient: "Rafael Almeida",
-    age: 52,
-    type: "Presencial",
-    reason: "Retorno — hipertensão",
-    status: "concluido",
-    avatar: "RA",
-  },
-  {
-    id: "3",
-    time: "10:00",
-    patient: "Beatriz Lima",
-    age: 28,
-    type: "Teleconsulta",
-    reason: "Avaliação cardiológica",
-    status: "em-andamento",
-    avatar: "BL",
-  },
-  {
-    id: "4",
-    time: "11:30",
-    patient: "João Pedro Santos",
-    age: 41,
-    type: "Presencial",
-    reason: "Eletrocardiograma",
-    status: "confirmado",
-    avatar: "JS",
-  },
-  {
-    id: "5",
-    time: "14:00",
-    patient: "Carla Mendes",
-    age: 60,
-    type: "Presencial",
-    reason: "Holter 24h — entrega",
-    status: "confirmado",
-    avatar: "CM",
-  },
-  {
-    id: "6",
-    time: "15:45",
-    patient: "Tiago Ribeiro",
-    age: 37,
-    type: "Teleconsulta",
-    reason: "Resultado de exames",
-    status: "aguardando",
-    avatar: "TR",
-  },
-  {
-    id: "7",
-    time: "16:30",
-    patient: "Luana Ferreira",
-    age: 45,
-    type: "Presencial",
-    reason: "Consulta inicial",
-    status: "confirmado",
-    avatar: "LF",
-  },
-  {
-    id: "8",
-    time: "17:15",
-    patient: "Eduardo Nunes",
-    age: 29,
-    type: "Teleconsulta",
-    reason: "Acompanhamento",
-    status: "cancelado",
-    avatar: "EN",
-  },
-];
-
 type Stat = {
   label: string;
   value: string;
@@ -154,54 +73,57 @@ type Stat = {
   iconText: string;
 };
 
-const stats: Stat[] = [
-  {
-    label: "Consultas hoje",
-    value: "8",
-    delta: "+12,5%",
-    trend: "up",
-    icon: CalendarDays,
-    iconBg: "bg-teal-50",
-    iconText: "text-teal-600",
-  },
-  {
-    label: "Pacientes ativos",
-    value: "342",
-    delta: "+8,2%",
-    trend: "up",
-    icon: Users,
-    iconBg: "bg-indigo-50",
-    iconText: "text-indigo-600",
-  },
-  {
-    label: "Faturamento (mês)",
-    value: "R$ 48.720",
-    delta: "+18,4%",
-    trend: "up",
-    icon: Wallet,
-    iconBg: "bg-emerald-50",
-    iconText: "text-emerald-600",
-  },
-  {
-    label: "Taxa de no-show",
-    value: "4,2%",
-    delta: "-1,1%",
-    trend: "down",
-    icon: Activity,
-    iconBg: "bg-amber-50",
-    iconText: "text-amber-600",
-  },
-];
+function buildStats(data: DashboardData | null): Stat[] {
+  const s = data?.stats;
+  const faturamento = s
+    ? s.faturamentoMes.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+    : "—";
+  return [
+    {
+      label: "Consultas hoje",
+      value: String(s?.consultasHoje ?? "—"),
+      delta: "—",
+      trend: "up",
+      icon: CalendarDays,
+      iconBg: "bg-teal-50",
+      iconText: "text-teal-600",
+    },
+    {
+      label: "Pacientes ativos",
+      value: String(s?.pacientesAtivos ?? "—"),
+      delta: "—",
+      trend: "up",
+      icon: Users,
+      iconBg: "bg-indigo-50",
+      iconText: "text-indigo-600",
+    },
+    {
+      label: "Faturamento (mês)",
+      value: faturamento,
+      delta: "—",
+      trend: "up",
+      icon: Wallet,
+      iconBg: "bg-emerald-50",
+      iconText: "text-emerald-600",
+    },
+    {
+      label: "Taxa de no-show",
+      value: s ? `${s.taxaNoShow.toFixed(1).replace(".", ",")}%` : "—",
+      delta: "—",
+      trend: "down",
+      icon: Activity,
+      iconBg: "bg-amber-50",
+      iconText: "text-amber-600",
+    },
+  ];
+}
 
-const weekData = [
-  { day: "Seg", consultas: 12, receita: 5400 },
-  { day: "Ter", consultas: 9, receita: 4100 },
-  { day: "Qua", consultas: 14, receita: 6300 },
-  { day: "Qui", consultas: 11, receita: 4950 },
-  { day: "Sex", consultas: 15, receita: 6750 },
-  { day: "Sáb", consultas: 6, receita: 2700 },
-  { day: "Dom", consultas: 0, receita: 0 },
-];
+const EMPTY_WEEK = Array.from({ length: 7 }, (_, i) => {
+  const days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+  const d = new Date();
+  d.setDate(d.getDate() - (6 - i));
+  return { day: days[d.getDay()], consultas: 0, receita: 0 };
+});
 
 const statusStyle: Record<
   Appt["status"],
@@ -243,21 +165,35 @@ function Dashboard() {
 }
 
 function DashboardContent() {
+  const data = Route.useLoaderData() ?? null;
   const [filter, setFilter] = useState<"todos" | Appt["status"]>("todos");
 
+  const appointments = (data?.todayAppointments ?? []) as Appt[];
+  const stats = buildStats(data);
+  const weekData = data?.weekData ?? EMPTY_WEEK;
+
   const filtered = useMemo(
-    () =>
-      filter === "todos" ? todayAppointments : todayAppointments.filter((a) => a.status === filter),
-    [filter],
+    () => (filter === "todos" ? appointments : appointments.filter((a) => a.status === filter)),
+    [filter, appointments],
   );
 
-  const maxConsultas = Math.max(...weekData.map((d) => d.consultas));
+  const maxConsultas = Math.max(...weekData.map((d) => d.consultas), 1);
   const today = new Date().toLocaleDateString("pt-BR", {
     weekday: "long",
     day: "2-digit",
     month: "long",
     year: "numeric",
   });
+
+  const profNome = data?.professional?.nomeCompleto ?? "Médico";
+  const profPrimeiroNome = profNome.split(" ")[0];
+  const profEspecialidade = data?.professional?.especialidade ?? "";
+  const profRegistro = data?.professional?.registro ?? "";
+
+  // Day summary derived from real appointments
+  const concluidos = appointments.filter((a) => a.status === "concluido").length;
+  const cancelados = appointments.filter((a) => a.status === "cancelado").length;
+  const emAndamento = appointments.find((a) => a.status === "em-andamento");
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
@@ -305,8 +241,11 @@ function DashboardContent() {
                 DR
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">Dr. Ricardo Lima</div>
-                <div className="text-xs text-slate-500 truncate">CRM-SP 123.456</div>
+                <div className="text-sm font-medium truncate">{profNome}</div>
+                <div className="text-xs text-slate-500 truncate">
+                  {profEspecialidade}
+                  {profRegistro ? ` · ${profRegistro}` : ""}
+                </div>
               </div>
               <LogOut className="h-4 w-4 text-slate-400" />
             </div>
@@ -319,7 +258,7 @@ function DashboardContent() {
           <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
             <div className="px-6 py-4 flex items-center gap-4">
               <div>
-                <h1 className="text-lg font-semibold tracking-tight">Olá, Dr. Ricardo 👋</h1>
+                <h1 className="text-lg font-semibold tracking-tight">Olá, {profPrimeiroNome} 👋</h1>
                 <p className="text-xs text-slate-500 capitalize">{today}</p>
               </div>
               <div className="flex-1 max-w-md ml-6 hidden md:block">
@@ -389,7 +328,7 @@ function DashboardContent() {
                   <div>
                     <h2 className="text-base font-semibold tracking-tight">Agenda de hoje</h2>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      {todayAppointments.length} consultas programadas
+                      {appointments.length} consultas programadas
                     </p>
                   </div>
                   <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg text-xs">
@@ -465,28 +404,47 @@ function DashboardContent() {
                   <div className="absolute -top-12 -right-12 h-40 w-40 rounded-full bg-teal-500/20 blur-3xl" />
                   <div className="absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-indigo-500/20 blur-3xl" />
                   <div className="relative">
-                    <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-teal-300">
-                      <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
-                      Em andamento
-                    </div>
-                    <h3 className="mt-3 text-xl font-semibold tracking-tight">Beatriz Lima</h3>
-                    <p className="text-sm text-slate-300 mt-1">
-                      Avaliação cardiológica · Teleconsulta
-                    </p>
-                    <div className="mt-4 flex items-center gap-2 text-xs text-slate-300">
-                      <Clock className="h-3.5 w-3.5" />
-                      Iniciada às 10:00 · 12 min
-                    </div>
-                    <div className="mt-5 grid grid-cols-2 gap-2">
-                      <button className="inline-flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg bg-white text-slate-900 hover:bg-slate-100 transition">
-                        <Video className="h-4 w-4" />
-                        Entrar
-                      </button>
-                      <button className="inline-flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg bg-white/10 text-white hover:bg-white/20 transition">
-                        <FileText className="h-4 w-4" />
-                        Prontuário
-                      </button>
-                    </div>
+                    {emAndamento ? (
+                      <>
+                        <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-teal-300">
+                          <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
+                          Em andamento
+                        </div>
+                        <h3 className="mt-3 text-xl font-semibold tracking-tight">
+                          {emAndamento.patient}
+                        </h3>
+                        <p className="text-sm text-slate-300 mt-1">
+                          {emAndamento.reason} · {emAndamento.type}
+                        </p>
+                        <div className="mt-4 flex items-center gap-2 text-xs text-slate-300">
+                          <Clock className="h-3.5 w-3.5" />
+                          Iniciada às {emAndamento.time}
+                        </div>
+                        <div className="mt-5 grid grid-cols-2 gap-2">
+                          <button className="inline-flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg bg-white text-slate-900 hover:bg-slate-100 transition">
+                            <Video className="h-4 w-4" />
+                            Entrar
+                          </button>
+                          <button className="inline-flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg bg-white/10 text-white hover:bg-white/20 transition">
+                            <FileText className="h-4 w-4" />
+                            Prontuário
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-slate-400">
+                          <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
+                          Aguardando consulta
+                        </div>
+                        <h3 className="mt-3 text-base font-semibold tracking-tight text-slate-300">
+                          Nenhuma consulta em andamento
+                        </h3>
+                        <p className="text-sm text-slate-400 mt-1">
+                          A próxima consulta aparecerá aqui automaticamente.
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -498,26 +456,38 @@ function DashboardContent() {
                       icon={CheckCircle2}
                       color="text-emerald-600"
                       label="Consultas concluídas"
-                      value="2"
+                      value={String(concluidos)}
                     />
                     <Row
                       icon={Clock}
                       color="text-amber-600"
-                      label="Tempo médio por consulta"
-                      value="28 min"
+                      label="Confirmadas"
+                      value={String(appointments.filter((a) => a.status === "confirmado").length)}
                     />
-                    <Row icon={XCircle} color="text-rose-600" label="Cancelamentos" value="1" />
+                    <Row
+                      icon={XCircle}
+                      color="text-rose-600"
+                      label="Cancelamentos"
+                      value={String(cancelados)}
+                    />
                     <Row
                       icon={DollarSign}
                       color="text-teal-600"
-                      label="Receita prevista hoje"
-                      value="R$ 3.240"
+                      label="Faturamento do mês"
+                      value={
+                        data?.stats
+                          ? data.stats.faturamentoMes.toLocaleString("pt-BR", {
+                              style: "currency",
+                              currency: "BRL",
+                            })
+                          : "—"
+                      }
                     />
                     <Row
-                      icon={Phone}
+                      icon={Users}
                       color="text-indigo-600"
-                      label="Retornos agendados"
-                      value="4"
+                      label="Pacientes este mês"
+                      value={String(data?.stats?.pacientesAtivos ?? "—")}
                     />
                   </ul>
                 </div>
@@ -535,9 +505,9 @@ function DashboardContent() {
                     <p className="text-xs text-slate-500 mt-0.5">Consultas realizadas por dia</p>
                   </div>
                   <div className="text-xs text-slate-500">
-                    Total:{" "}
+                    Últimos 7 dias:{" "}
                     <span className="font-semibold text-slate-900">
-                      {weekData.reduce((s, d) => s + d.consultas, 0)}
+                      {weekData.reduce((s, d) => s + d.consultas, 0)} consultas
                     </span>
                   </div>
                 </div>
