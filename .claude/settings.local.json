@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Regezin\\\\Desktop\\\\mediclin\" -Recurse -Force)",
+      "Bash(Select-Object FullName)"
+    ]
+  }
+}
