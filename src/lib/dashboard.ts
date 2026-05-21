@@ -3,7 +3,7 @@ import { and, asc, eq, gte, lt, lte } from "drizzle-orm";
 import { getAuth } from "@clerk/tanstack-start/server";
 import { getWebRequest } from "vinxi/http";
 import { db } from "../db";
-import { appointments, payments, users } from "../db/schema";
+import { appointments, payments, users, subscriptions } from "../db/schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,6 +38,14 @@ export type WeekDay = {
   receita: number;
 };
 
+export type SubscriptionInfo = {
+  plano: "free" | "pro" | "clinic";
+  status: "ativa" | "cancelada" | "inadimplente" | "trial";
+  trialFimEm: string | null;
+  periodoFimEm: string | null;
+  hasStripeCustomer: boolean;
+};
+
 export type DashboardData = {
   professional: {
     id: string;
@@ -47,6 +55,7 @@ export type DashboardData = {
     slug: string;
     stripeAccountAtivo: boolean;
   };
+  subscription: SubscriptionInfo;
   stats: DashboardStats;
   todayAppointments: DashboardAppt[];
   weekData: WeekDay[];
@@ -110,6 +119,27 @@ export const fetchDashboardData = createServerFn({ method: "GET" }).handler(
 
     const profId = professional.id;
     const now = new Date();
+
+    // ── Subscription (auto-cria trial se for o primeiro acesso) ──────────────
+    let sub = await db.query.subscriptions.findFirst({
+      where: eq(subscriptions.professionalId, profId),
+    });
+
+    if (!sub) {
+      await db
+        .insert(subscriptions)
+        .values({
+          professionalId: profId,
+          plano: "free",
+          status: "trial",
+          trialFimEm: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        })
+        .onConflictDoNothing();
+
+      sub = await db.query.subscriptions.findFirst({
+        where: eq(subscriptions.professionalId, profId),
+      });
+    }
 
     // ── Today's appointments ─────────────────────────────────────────────────
     const { start: todayStart, next: todayNext } = dayBounds(now);
@@ -215,6 +245,13 @@ export const fetchDashboardData = createServerFn({ method: "GET" }).handler(
         registro: professional.registro,
         slug: professional.slug,
         stripeAccountAtivo: professional.stripeAccountAtivo,
+      },
+      subscription: {
+        plano: (sub?.plano ?? "free") as "free" | "pro" | "clinic",
+        status: (sub?.status ?? "trial") as "ativa" | "cancelada" | "inadimplente" | "trial",
+        trialFimEm: sub?.trialFimEm?.toISOString() ?? null,
+        periodoFimEm: sub?.periodoFimEm?.toISOString() ?? null,
+        hasStripeCustomer: !!sub?.stripeCustomerId,
       },
       stats: {
         consultasHoje: rawToday.filter((a) => a.status !== "cancelado").length,

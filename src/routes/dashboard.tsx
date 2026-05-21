@@ -31,11 +31,14 @@ import {
   ClipboardList,
   ExternalLink,
   Zap,
+  AlertTriangle,
+  Crown,
   type LucideIcon,
 } from "lucide-react";
 import { fetchCurrentProfessional } from "../lib/auth";
 import { createConnectAccountLink, activateStripeAccount } from "../lib/stripe";
-import { fetchDashboardData, type DashboardData } from "../lib/dashboard";
+import { createCheckoutSession, createCustomerPortalSession } from "../lib/subscription";
+import { fetchDashboardData, type DashboardData, type SubscriptionInfo } from "../lib/dashboard";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -284,6 +287,7 @@ function DashboardContent() {
           </header>
 
           <div className="p-6 space-y-6">
+            <SubscriptionCard subscription={data?.subscription ?? null} />
             <StripeConnectBanner />
 
             {/* Stats */}
@@ -585,6 +589,202 @@ function Row({
       </div>
       <span className="font-semibold text-slate-900">{value}</span>
     </li>
+  );
+}
+
+// ─── SubscriptionCard ─────────────────────────────────────────────────────────
+
+function trialDaysLeft(trialFimEm: string | null): number {
+  if (!trialFimEm) return 0;
+  return Math.max(0, Math.ceil((new Date(trialFimEm).getTime() - Date.now()) / 86_400_000));
+}
+
+function formatPeriodEnd(iso: string | null): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | null }) {
+  const [successBanner, setSuccessBanner] = useState(false);
+
+  const checkoutMutation = useMutation({
+    mutationFn: (plan: "pro" | "clinic") => createCheckoutSession({ data: { plan } }),
+    onSuccess: ({ url }) => {
+      window.location.href = url;
+    },
+  });
+
+  const portalMutation = useMutation({
+    mutationFn: () => createCustomerPortalSession(),
+    onSuccess: ({ url }) => {
+      window.location.href = url;
+    },
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("subscription") === "success") {
+      setSuccessBanner(true);
+      window.history.replaceState({}, "", "/dashboard");
+    }
+  }, []);
+
+  if (!subscription) return null;
+
+  const { status, plano, trialFimEm, periodoFimEm, hasStripeCustomer } = subscription;
+  const daysLeft = trialDaysLeft(trialFimEm);
+  const isCheckoutPending = checkoutMutation.isPending;
+  const pendingPlan = isCheckoutPending ? (checkoutMutation.variables as "pro" | "clinic") : null;
+
+  // ── Sucesso pós-checkout ─────────────────────────────────────────────────
+  if (successBanner) {
+    return (
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3">
+        <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+        <p className="text-sm text-slate-700 flex-1">
+          <strong>Assinatura ativada!</strong> Seja bem-vindo ao plano{" "}
+          <span className="capitalize font-semibold">{plano}</span>. Obrigado por assinar o
+          MediClin.
+        </p>
+        <button
+          onClick={() => setSuccessBanner(false)}
+          className="text-slate-400 hover:text-slate-600 text-lg leading-none"
+        >
+          ×
+        </button>
+      </div>
+    );
+  }
+
+  // ── Plano ativo — strip compacto ─────────────────────────────────────────
+  if (status === "ativa") {
+    return (
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 flex items-center gap-3 flex-wrap">
+        <Crown className="h-4 w-4 text-emerald-600 shrink-0" />
+        <p className="text-sm text-slate-700 flex-1">
+          Plano <strong className="capitalize">{plano}</strong> · ativo
+          {periodoFimEm && (
+            <span className="text-slate-500">
+              {" "}
+              · próxima cobrança em {formatPeriodEnd(periodoFimEm)}
+            </span>
+          )}
+        </p>
+        {hasStripeCustomer && (
+          <button
+            disabled={portalMutation.isPending}
+            onClick={() => portalMutation.mutate()}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-900 disabled:opacity-60 transition shrink-0"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            {portalMutation.isPending ? "Abrindo..." : "Gerenciar assinatura"}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // ── Inadimplente ─────────────────────────────────────────────────────────
+  if (status === "inadimplente") {
+    return (
+      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 flex items-center gap-4 flex-wrap">
+        <div className="h-10 w-10 rounded-xl bg-rose-100 grid place-items-center shrink-0">
+          <AlertTriangle className="h-5 w-5 text-rose-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-slate-900">Pagamento pendente</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Houve um problema com seu pagamento. Atualize seus dados para continuar usando o
+            MediClin.
+          </p>
+        </div>
+        {hasStripeCustomer && (
+          <button
+            disabled={portalMutation.isPending}
+            onClick={() => portalMutation.mutate()}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white transition"
+          >
+            <ExternalLink className="h-4 w-4" />
+            {portalMutation.isPending ? "Abrindo..." : "Atualizar pagamento"}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // ── Cancelado — reativar ─────────────────────────────────────────────────
+  if (status === "cancelada") {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 flex items-center gap-4 flex-wrap">
+        <div className="h-10 w-10 rounded-xl bg-slate-100 grid place-items-center shrink-0">
+          <Zap className="h-5 w-5 text-slate-500" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-slate-900">Assinatura cancelada</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Reative seu plano para continuar recebendo agendamentos pelo MediClin.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          <button
+            disabled={isCheckoutPending}
+            onClick={() => checkoutMutation.mutate("pro")}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white transition"
+          >
+            {pendingPlan === "pro" ? "Aguarde..." : "Plano Pro"}
+          </button>
+          <button
+            disabled={isCheckoutPending}
+            onClick={() => checkoutMutation.mutate("clinic")}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white transition"
+          >
+            {pendingPlan === "clinic" ? "Aguarde..." : "Plano Clinic"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Trial (default) ──────────────────────────────────────────────────────
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-5 flex items-center gap-4 flex-wrap">
+      <div className="h-10 w-10 rounded-xl bg-amber-100 grid place-items-center shrink-0">
+        <Zap className="h-5 w-5 text-amber-600" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-slate-900">
+          {daysLeft > 0
+            ? `Período de teste — ${daysLeft} dia${daysLeft !== 1 ? "s" : ""} restante${daysLeft !== 1 ? "s" : ""}`
+            : "Período de teste encerrado"}
+        </p>
+        <p className="text-xs text-slate-500 mt-0.5">
+          Assine um plano para continuar usando todos os recursos do MediClin.
+        </p>
+      </div>
+      <div className="flex items-center gap-2 shrink-0 flex-wrap">
+        <button
+          disabled={isCheckoutPending}
+          onClick={() => checkoutMutation.mutate("pro")}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white transition shadow-sm"
+        >
+          <Crown className="h-4 w-4" />
+          {pendingPlan === "pro" ? "Aguarde..." : "Pro — R$79/mês"}
+        </button>
+        <button
+          disabled={isCheckoutPending}
+          onClick={() => checkoutMutation.mutate("clinic")}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white transition shadow-sm"
+        >
+          <Crown className="h-4 w-4" />
+          {pendingPlan === "clinic" ? "Aguarde..." : "Clinic — R$199/mês"}
+        </button>
+      </div>
+    </div>
   );
 }
 
