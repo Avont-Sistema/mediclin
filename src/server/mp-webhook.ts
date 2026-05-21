@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { appointments, payments, subscriptions, professionals } from "../db/schema";
-import { sendBookingConfirmation } from "../lib/email";
+import { sendBookingConfirmation, sendNewBookingNotification } from "../lib/email";
 
 // ─── Tipos mínimos para as respostas da API do MP ────────────────────────────
 
@@ -88,11 +88,14 @@ export async function handleMPWebhook(request: Request): Promise<Response> {
             with: {
               patient: true,
               service: true,
-              professional: true,
+              professional: {
+                with: { user: true },
+              },
             },
           });
 
           if (full) {
+            // E-mail ao paciente
             await sendBookingConfirmation({
               patientName: full.patient.nome,
               patientEmail: full.patient.email,
@@ -101,10 +104,22 @@ export async function handleMPWebhook(request: Request): Promise<Response> {
               appointmentStart: full.inicio,
               valor: valorStr,
             });
+
+            // E-mail ao profissional
+            if (full.professional.user?.email) {
+              await sendNewBookingNotification({
+                professionalEmail: full.professional.user.email,
+                professionalName: full.professional.nomeCompleto,
+                patientName: full.patient.nome,
+                serviceName: full.service.nome,
+                appointmentStart: full.inicio,
+                valor: valorStr,
+              });
+            }
           }
         } catch (emailErr) {
           // Falha no e-mail não deve travar o webhook
-          console.error("[webhook] Erro ao enviar e-mail de confirmação:", emailErr);
+          console.error("[webhook] Erro ao enviar e-mails pós-pagamento:", emailErr);
         }
       }
     }

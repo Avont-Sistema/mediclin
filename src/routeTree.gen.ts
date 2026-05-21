@@ -16,6 +16,7 @@ import { Route as PatientsRouteImport } from './routes/patients'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AgendaRouteImport } from './routes/agenda'
 import { Route as SlugRouteImport } from './routes/$slug'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as IndexRouteImport } from './routes/index'
 
 const SignUpRoute = SignUpRouteImport.update({
@@ -53,6 +54,11 @@ const SlugRoute = SlugRouteImport.update({
   path: '/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -64,6 +70,7 @@ export interface FileRoutesByFullPath {
   '/$slug': typeof SlugRoute
   '/agenda': typeof AgendaRoute
   '/dashboard': typeof DashboardRoute
+  '/onboarding': typeof OnboardingRoute
   '/patients': typeof PatientsRoute
   '/settings': typeof SettingsRoute
   '/sign-in': typeof SignInRoute
@@ -74,6 +81,7 @@ export interface FileRoutesByTo {
   '/$slug': typeof SlugRoute
   '/agenda': typeof AgendaRoute
   '/dashboard': typeof DashboardRoute
+  '/onboarding': typeof OnboardingRoute
   '/patients': typeof PatientsRoute
   '/settings': typeof SettingsRoute
   '/sign-in': typeof SignInRoute
@@ -85,6 +93,7 @@ export interface FileRoutesById {
   '/$slug': typeof SlugRoute
   '/agenda': typeof AgendaRoute
   '/dashboard': typeof DashboardRoute
+  '/onboarding': typeof OnboardingRoute
   '/patients': typeof PatientsRoute
   '/settings': typeof SettingsRoute
   '/sign-in': typeof SignInRoute
@@ -97,6 +106,7 @@ export interface FileRouteTypes {
     | '/$slug'
     | '/agenda'
     | '/dashboard'
+    | '/onboarding'
     | '/patients'
     | '/settings'
     | '/sign-in'
@@ -107,6 +117,7 @@ export interface FileRouteTypes {
     | '/$slug'
     | '/agenda'
     | '/dashboard'
+    | '/onboarding'
     | '/patients'
     | '/settings'
     | '/sign-in'
@@ -117,6 +128,7 @@ export interface FileRouteTypes {
     | '/$slug'
     | '/agenda'
     | '/dashboard'
+    | '/onboarding'
     | '/patients'
     | '/settings'
     | '/sign-in'
@@ -128,6 +140,7 @@ export interface RootRouteChildren {
   SlugRoute: typeof SlugRoute
   AgendaRoute: typeof AgendaRoute
   DashboardRoute: typeof DashboardRoute
+  OnboardingRoute: typeof OnboardingRoute
   PatientsRoute: typeof PatientsRoute
   SettingsRoute: typeof SettingsRoute
   SignInRoute: typeof SignInRoute
@@ -171,6 +184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/agenda': {
       id: '/agenda'
       path: '/agenda'
@@ -200,6 +220,7 @@ const rootRouteChildren: RootRouteChildren = {
   SlugRoute: SlugRoute,
   AgendaRoute: AgendaRoute,
   DashboardRoute: DashboardRoute,
+  OnboardingRoute: OnboardingRoute,
   PatientsRoute: PatientsRoute,
   SettingsRoute: SettingsRoute,
   SignInRoute: SignInRoute,

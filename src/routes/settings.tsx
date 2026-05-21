@@ -19,6 +19,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { DashboardLayout } from "../components/DashboardLayout";
+import { buildPublicUrl } from "../lib/subdomain";
 import {
   fetchSettingsData,
   updateProfile,
@@ -205,7 +206,7 @@ function ProfileTab({ data, onSaved }: { data: SettingsData; onSaved: () => void
           hint: "URL pública de uma imagem (JPEG/PNG)",
         })}
         {field("Slug (URL pública)", "slug", {
-          hint: `Link: ${typeof window !== "undefined" ? window.location.origin : "https://mediclin.app"}/${form.slug}`,
+          hint: `Seu link: ${buildPublicUrl(form.slug || "seu-nome")}`,
         })}
       </div>
       {field("Bio / Apresentação", "bio", {
@@ -215,7 +216,7 @@ function ProfileTab({ data, onSaved }: { data: SettingsData; onSaved: () => void
 
       <div className="flex items-center justify-between pt-2 border-t border-slate-100">
         <a
-          href={`/${form.slug}`}
+          href={buildPublicUrl(form.slug || "seu-nome")}
           target="_blank"
           rel="noreferrer"
           className="inline-flex items-center gap-1.5 text-xs text-teal-600 hover:text-teal-800"

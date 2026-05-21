@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/tanstack-start";
 import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -28,6 +28,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { fetchCurrentProfessional } from "../lib/auth";
+import { checkOnboardingStatus } from "../lib/onboarding";
 import { createMPOAuthLink, activateMPAccount } from "../lib/mercadopago";
 import { createMPSubscriptionCheckout, getMPSubscriptionPortalUrl } from "../lib/mp-subscription";
 import { fetchDashboardData, type DashboardData, type SubscriptionInfo } from "../lib/dashboard";
@@ -44,7 +45,11 @@ export const Route = createFileRoute("/dashboard")({
       },
     ],
   }),
-  loader: () => fetchDashboardData(),
+  loader: async () => {
+    const { hasProfile } = await checkOnboardingStatus();
+    if (!hasProfile) throw redirect({ to: "/onboarding" });
+    return fetchDashboardData();
+  },
   component: Dashboard,
 });
 

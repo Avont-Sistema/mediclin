@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ProfessionalPublicPage, ProfessionalNotFound } from "../components/ProfessionalPublicPage";
+import { fetchPublicProfile } from "../lib/subdomain";
 import { useState } from "react";
 import {
   Sparkles,
@@ -21,6 +23,8 @@ import doctorBeatriz from "@/assets/doctor-beatriz.jpg";
 import doctorRicardo from "@/assets/doctor-ricardo.jpg";
 
 export const Route = createFileRoute("/")({
+  // Detect if request comes from a professional's subdomain (e.g. dr-nome.mediclin.app)
+  loader: () => fetchPublicProfile(),
   component: Index,
 });
 
@@ -191,6 +195,16 @@ const days = [
 const slots = ["08:30", "09:15", "10:00", "11:30", "14:00", "15:45", "16:30", "17:15"];
 
 function Index() {
+  // Subdomain mode: if accessed via dr-nome.mediclin.app, render that professional's page
+  const ctx = Route.useLoaderData();
+  if (ctx.mode === "not_found") return <ProfessionalNotFound />;
+  if (ctx.mode === "professional")
+    return <ProfessionalPublicPage professional={ctx.professional} />;
+  // ctx.mode === "landing" → render landing page
+  return <LandingPage />;
+}
+
+function LandingPage() {
   const [specialty, setSpecialty] = useState<string | null>(null);
   const [service, setService] = useState<string | null>(null);
   const [professional, setProfessional] = useState<string | null>(null);
