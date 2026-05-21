@@ -11,8 +11,11 @@ let serverEntryPromise: Promise<ServerEntry> | undefined;
 
 async function getServerEntry(): Promise<ServerEntry> {
   if (!serverEntryPromise) {
-    serverEntryPromise = import("@tanstack/react-start/server-entry").then(
-      (m) => ((m as { default?: ServerEntry }).default ?? (m as unknown as ServerEntry)),
+    // Use our Clerk-wrapped SSR entry instead of the default server-entry.
+    // This injects Clerk auth state into the router context before streaming,
+    // so ClerkProvider can render with the correct session on first paint.
+    serverEntryPromise = import("./ssr").then(
+      (m) => (m as { default?: ServerEntry }).default ?? (m as unknown as ServerEntry),
     );
   }
   return serverEntryPromise;
