@@ -36,7 +36,14 @@ type Specialty = {
 };
 
 const specialties: Specialty[] = [
-  { id: "odonto", name: "Odontologia", desc: "Checkups e estética", icon: Sparkles, tone: "teal", iconBg: "bg-teal-50", iconText: "text-teal-600",
+  {
+    id: "odonto",
+    name: "Odontologia",
+    desc: "Checkups e estética",
+    icon: Sparkles,
+    tone: "teal",
+    iconBg: "bg-teal-50",
+    iconText: "text-teal-600",
     services: [
       { name: "Limpeza e profilaxia", price: 200 },
       { name: "Restauração", price: 280 },
@@ -44,8 +51,16 @@ const specialties: Specialty[] = [
       { name: "Extração dentária", price: 350 },
       { name: "Clareamento dental", price: 1200 },
       { name: "Implante dentário", price: 3500 },
-    ] },
-  { id: "dermato", name: "Dermatologia", desc: "Saúde da pele", icon: HeartPulse, tone: "rose", iconBg: "bg-rose-50", iconText: "text-rose-600",
+    ],
+  },
+  {
+    id: "dermato",
+    name: "Dermatologia",
+    desc: "Saúde da pele",
+    icon: HeartPulse,
+    tone: "rose",
+    iconBg: "bg-rose-50",
+    iconText: "text-rose-600",
     services: [
       { name: "Consulta dermatológica", price: 380 },
       { name: "Tratamento de acne", price: 450 },
@@ -53,8 +68,16 @@ const specialties: Specialty[] = [
       { name: "Toxina botulínica (Botox)", price: 1800 },
       { name: "Preenchimento facial", price: 2200 },
       { name: "Biópsia de pele", price: 480 },
-    ] },
-  { id: "cardio", name: "Cardiologia", desc: "Saúde do coração", icon: Activity, tone: "blue", iconBg: "bg-blue-50", iconText: "text-blue-600",
+    ],
+  },
+  {
+    id: "cardio",
+    name: "Cardiologia",
+    desc: "Saúde do coração",
+    icon: Activity,
+    tone: "blue",
+    iconBg: "bg-blue-50",
+    iconText: "text-blue-600",
     services: [
       { name: "Consulta cardiológica", price: 450 },
       { name: "Eletrocardiograma (ECG)", price: 160 },
@@ -62,16 +85,32 @@ const specialties: Specialty[] = [
       { name: "Ecocardiograma", price: 520 },
       { name: "Holter 24h", price: 480 },
       { name: "MAPA 24h", price: 360 },
-    ] },
-  { id: "geral", name: "Clínica Geral", desc: "Acompanhamento", icon: Stethoscope, tone: "slate", iconBg: "bg-slate-100", iconText: "text-slate-700",
+    ],
+  },
+  {
+    id: "geral",
+    name: "Clínica Geral",
+    desc: "Acompanhamento",
+    icon: Stethoscope,
+    tone: "slate",
+    iconBg: "bg-slate-100",
+    iconText: "text-slate-700",
     services: [
       { name: "Consulta de rotina", price: 250 },
       { name: "Check-up completo", price: 1100 },
       { name: "Avaliação pré-operatória", price: 320 },
       { name: "Atestados e laudos médicos", price: 180 },
       { name: "Vacinação adulto", price: 220 },
-    ] },
-  { id: "pedia", name: "Pediatria", desc: "Cuidado infantil", icon: Baby, tone: "amber", iconBg: "bg-amber-50", iconText: "text-amber-600",
+    ],
+  },
+  {
+    id: "pedia",
+    name: "Pediatria",
+    desc: "Cuidado infantil",
+    icon: Baby,
+    tone: "amber",
+    iconBg: "bg-amber-50",
+    iconText: "text-amber-600",
     services: [
       { name: "Consulta pediátrica", price: 350 },
       { name: "Puericultura", price: 380 },
@@ -79,8 +118,16 @@ const specialties: Specialty[] = [
       { name: "Acompanhamento de crescimento", price: 320 },
       { name: "Triagem neonatal", price: 420 },
       { name: "Orientação nutricional", price: 300 },
-    ] },
-  { id: "nutro", name: "Nutrologia", desc: "Performance", icon: Apple, tone: "indigo", iconBg: "bg-indigo-50", iconText: "text-indigo-600",
+    ],
+  },
+  {
+    id: "nutro",
+    name: "Nutrologia",
+    desc: "Performance",
+    icon: Apple,
+    tone: "indigo",
+    iconBg: "bg-indigo-50",
+    iconText: "text-indigo-600",
     services: [
       { name: "Avaliação nutrológica", price: 500 },
       { name: "Bioimpedância corporal", price: 200 },
@@ -88,14 +135,47 @@ const specialties: Specialty[] = [
       { name: "Suplementação e vitaminas", price: 420 },
       { name: "Acompanhamento de emagrecimento", price: 550 },
       { name: "Nutrição esportiva", price: 600 },
-    ] },
+    ],
+  },
 ];
 
 const professionals = [
-  { id: "bea", name: "Dra. Beatriz Mendes", crm: "CRM 123456-SP", reviews: 142, rating: 4.9, img: doctorBeatriz, specialtyIds: ["dermato", "geral", "pedia"] },
-  { id: "ric", name: "Dr. Ricardo Fontes", crm: "CRM 789012-SP", reviews: 89, rating: 4.8, img: doctorRicardo, specialtyIds: ["cardio", "geral", "nutro"] },
-  { id: "ana", name: "Dra. Ana Salgado", crm: "CRO 345678-SP", reviews: 211, rating: 5.0, img: doctorBeatriz, specialtyIds: ["odonto"] },
-  { id: "lui", name: "Dr. Luiz Tavares", crm: "CRM 654321-SP", reviews: 67, rating: 4.7, img: doctorRicardo, specialtyIds: ["nutro", "geral"] },
+  {
+    id: "bea",
+    name: "Dra. Beatriz Mendes",
+    crm: "CRM 123456-SP",
+    reviews: 142,
+    rating: 4.9,
+    img: doctorBeatriz,
+    specialtyIds: ["dermato", "geral", "pedia"],
+  },
+  {
+    id: "ric",
+    name: "Dr. Ricardo Fontes",
+    crm: "CRM 789012-SP",
+    reviews: 89,
+    rating: 4.8,
+    img: doctorRicardo,
+    specialtyIds: ["cardio", "geral", "nutro"],
+  },
+  {
+    id: "ana",
+    name: "Dra. Ana Salgado",
+    crm: "CRO 345678-SP",
+    reviews: 211,
+    rating: 5.0,
+    img: doctorBeatriz,
+    specialtyIds: ["odonto"],
+  },
+  {
+    id: "lui",
+    name: "Dr. Luiz Tavares",
+    crm: "CRM 654321-SP",
+    reviews: 67,
+    rating: 4.7,
+    img: doctorRicardo,
+    specialtyIds: ["nutro", "geral"],
+  },
 ];
 
 const days = [
@@ -118,7 +198,10 @@ function Index() {
   const [slot, setSlot] = useState<string | null>(null);
 
   const selectedSpec = specialty ? specialties.find((s) => s.id === specialty)! : null;
-  const selectedService = selectedSpec && service ? selectedSpec.services.find((sv) => sv.name === service) ?? null : null;
+  const selectedService =
+    selectedSpec && service
+      ? (selectedSpec.services.find((sv) => sv.name === service) ?? null)
+      : null;
   const selectedProf = professional ? professionals.find((p) => p.id === professional)! : null;
   const filteredProfs = specialty
     ? professionals.filter((p) => p.specialtyIds.includes(specialty))
@@ -152,8 +235,14 @@ function Index() {
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden bg-slate-50 text-slate-900 antialiased selection:bg-teal-100">
       {/* Atmospheric background */}
-      <div aria-hidden className="pointer-events-none fixed -top-32 -right-32 -z-10 h-[520px] w-[520px] rounded-full bg-teal-400/10 blur-[120px]" />
-      <div aria-hidden className="pointer-events-none fixed -bottom-32 -left-32 -z-10 h-[520px] w-[520px] rounded-full bg-indigo-400/10 blur-[120px]" />
+      <div
+        aria-hidden
+        className="pointer-events-none fixed -top-32 -right-32 -z-10 h-[520px] w-[520px] rounded-full bg-teal-400/10 blur-[120px]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none fixed -bottom-32 -left-32 -z-10 h-[520px] w-[520px] rounded-full bg-indigo-400/10 blur-[120px]"
+      />
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 -z-10 opacity-[0.18]"
@@ -175,9 +264,24 @@ function Index() {
             <span className="text-xl font-bold tracking-tight text-slate-800">Ânima Clínica</span>
           </a>
           <nav className="hidden items-center gap-8 md:flex">
-            <a href="#agendar" className="text-sm font-medium text-slate-600 transition-colors hover:text-teal-600">Especialidades</a>
-            <a href="#agendar" className="text-sm font-medium text-slate-600 transition-colors hover:text-teal-600">Profissionais</a>
-            <a href="#convenios" className="text-sm font-medium text-slate-600 transition-colors hover:text-teal-600">Convênios</a>
+            <a
+              href="#agendar"
+              className="text-sm font-medium text-slate-600 transition-colors hover:text-teal-600"
+            >
+              Especialidades
+            </a>
+            <a
+              href="#agendar"
+              className="text-sm font-medium text-slate-600 transition-colors hover:text-teal-600"
+            >
+              Profissionais
+            </a>
+            <a
+              href="#convenios"
+              className="text-sm font-medium text-slate-600 transition-colors hover:text-teal-600"
+            >
+              Convênios
+            </a>
             <a
               href="#agendar"
               className="group inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition-all hover:bg-slate-800 active:scale-[0.97]"
@@ -206,7 +310,8 @@ function Index() {
             </span>
           </h1>
           <p className="mt-6 max-w-[56ch] text-pretty text-lg leading-relaxed text-slate-500">
-            Agende consultas presenciais ou telemedicina com especialistas renomados. Um ecossistema de saúde completo, do diagnóstico ao tratamento.
+            Agende consultas presenciais ou telemedicina com especialistas renomados. Um ecossistema
+            de saúde completo, do diagnóstico ao tratamento.
           </p>
           <div className="mt-10 flex flex-wrap items-center gap-3">
             <a
@@ -231,7 +336,10 @@ function Index() {
               { icon: Clock, label: "Confirmação em 2 min", sub: "Sem fila de espera" },
               { icon: Video, label: "Telemedicina", sub: "Atendimento online seguro" },
             ].map(({ icon: Icon, label, sub }) => (
-              <div key={label} className="flex items-center gap-3 rounded-2xl border border-slate-200/70 bg-white/60 px-4 py-3 backdrop-blur">
+              <div
+                key={label}
+                className="flex items-center gap-3 rounded-2xl border border-slate-200/70 bg-white/60 px-4 py-3 backdrop-blur"
+              >
                 <div className="grid size-9 place-items-center rounded-xl bg-teal-50 text-teal-600">
                   <Icon className="size-4" />
                 </div>
@@ -251,7 +359,12 @@ function Index() {
           <div className="space-y-14 lg:col-span-8">
             {/* Step 1 */}
             <div>
-              <StepHeader n="01" label="Escolha a especialidade" hint="Comece selecionando o cuidado desejado" active />
+              <StepHeader
+                n="01"
+                label="Escolha a especialidade"
+                hint="Comece selecionando o cuidado desejado"
+                active
+              />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {specialties.map((s) => {
                   const Icon = s.icon;
@@ -271,14 +384,18 @@ function Index() {
                           <Check className="size-3.5" strokeWidth={3} />
                         </span>
                       )}
-                      <div className={`mb-4 grid size-11 place-items-center rounded-xl ${s.iconBg} ${s.iconText} transition-transform group-hover:scale-110`}>
+                      <div
+                        className={`mb-4 grid size-11 place-items-center rounded-xl ${s.iconBg} ${s.iconText} transition-transform group-hover:scale-110`}
+                      >
                         <Icon className="size-5" />
                       </div>
                       <h3 className="font-bold text-slate-900">{s.name}</h3>
                       <p className="mt-0.5 text-sm text-slate-500">{s.desc}</p>
                       <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
                         <span className="text-slate-400">A partir de</span>
-                        <span className="font-bold text-slate-700">R$ {Math.min(...s.services.map((sv) => sv.price))}</span>
+                        <span className="font-bold text-slate-700">
+                          R$ {Math.min(...s.services.map((sv) => sv.price))}
+                        </span>
                       </div>
                     </button>
                   );
@@ -287,12 +404,18 @@ function Index() {
               {selectedSpec && (
                 <div className="mt-5 animate-in fade-in slide-in-from-top-2 duration-300 rounded-2xl border border-teal-200/70 bg-gradient-to-br from-teal-50/80 to-white p-5 shadow-sm">
                   <div className="mb-3 flex items-center gap-2">
-                    <span className={`grid size-8 place-items-center rounded-lg ${selectedSpec.iconBg} ${selectedSpec.iconText}`}>
+                    <span
+                      className={`grid size-8 place-items-center rounded-lg ${selectedSpec.iconBg} ${selectedSpec.iconText}`}
+                    >
                       <selectedSpec.icon className="size-4" />
                     </span>
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wider text-teal-700">Selecione o serviço</p>
-                      <p className="text-sm font-semibold text-slate-900">{selectedSpec.name} · valores de referência do mercado</p>
+                      <p className="text-xs font-medium uppercase tracking-wider text-teal-700">
+                        Selecione o serviço
+                      </p>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {selectedSpec.name} · valores de referência do mercado
+                      </p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -309,10 +432,15 @@ function Index() {
                           }`}
                         >
                           <span className="flex items-center gap-2 min-w-0">
-                            <Check className={`size-4 shrink-0 ${active ? "text-white" : "text-teal-600"}`} strokeWidth={3} />
+                            <Check
+                              className={`size-4 shrink-0 ${active ? "text-white" : "text-teal-600"}`}
+                              strokeWidth={3}
+                            />
                             <span className="truncate font-medium">{srv.name}</span>
                           </span>
-                          <span className={`shrink-0 text-xs font-bold ${active ? "text-white" : "text-slate-900"}`}>
+                          <span
+                            className={`shrink-0 text-xs font-bold ${active ? "text-white" : "text-slate-900"}`}
+                          >
                             R$ {srv.price}
                           </span>
                         </button>
@@ -326,7 +454,12 @@ function Index() {
             {/* Step 2 */}
             {service && (
               <div className="animate-in fade-in slide-in-from-bottom-3 duration-500">
-                <StepHeader n="02" label="Selecione o profissional" hint={`${filteredProfs.length} profissionais para ${selectedSpec?.name}`} active />
+                <StepHeader
+                  n="02"
+                  label="Selecione o profissional"
+                  hint={`${filteredProfs.length} profissionais para ${selectedSpec?.name}`}
+                  active
+                />
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   {filteredProfs.map((p) => {
                     const active = professional === p.id;
@@ -358,7 +491,9 @@ function Index() {
                           <p className="text-xs text-slate-500">{p.crm}</p>
                           <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-0.5">
                             <Star className="size-3 fill-amber-500 text-amber-500" />
-                            <span className="text-xs font-semibold text-amber-700">{p.rating.toFixed(1)}</span>
+                            <span className="text-xs font-semibold text-amber-700">
+                              {p.rating.toFixed(1)}
+                            </span>
                             <span className="text-[10px] text-amber-700/70">({p.reviews})</span>
                           </div>
                         </div>
@@ -377,11 +512,18 @@ function Index() {
             {/* Step 3 */}
             {professional && (
               <div className="animate-in fade-in slide-in-from-bottom-3 duration-500">
-                <StepHeader n="03" label="Horários disponíveis" hint="Selecione data e horário" active />
+                <StepHeader
+                  n="03"
+                  label="Horários disponíveis"
+                  hint="Selecione data e horário"
+                  active
+                />
                 <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-sm">
                   <div className="mb-6 flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-widest text-slate-400">Maio</p>
+                      <p className="text-xs font-medium uppercase tracking-widest text-slate-400">
+                        Maio
+                      </p>
                       <p className="text-lg font-bold text-slate-800">2026</p>
                     </div>
                     <div className="flex gap-2">
@@ -396,7 +538,10 @@ function Index() {
 
                   <div className="mb-2 grid grid-cols-7 gap-2 text-center">
                     {days.map((dd) => (
-                      <span key={dd.dow} className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                      <span
+                        key={dd.dow}
+                        className="text-[10px] font-semibold uppercase tracking-wider text-slate-400"
+                      >
                         {dd.dow}
                       </span>
                     ))}
@@ -413,8 +558,8 @@ function Index() {
                             dd.disabled
                               ? "cursor-not-allowed text-slate-300"
                               : active
-                              ? "bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/30"
-                              : "text-slate-700 hover:bg-slate-50"
+                                ? "bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/30"
+                                : "text-slate-700 hover:bg-slate-50"
                           }`}
                         >
                           {dd.d}
@@ -460,13 +605,23 @@ function Index() {
             <div className="sticky top-28 overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-2xl shadow-slate-300/30">
               <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-7 py-6 text-white">
                 <div className="absolute -right-10 -top-10 size-40 rounded-full bg-teal-500/30 blur-2xl" />
-                <p className="relative text-[10px] font-bold uppercase tracking-[0.2em] text-teal-300">Sua reserva</p>
+                <p className="relative text-[10px] font-bold uppercase tracking-[0.2em] text-teal-300">
+                  Sua reserva
+                </p>
                 <h3 className="relative mt-1 text-lg font-bold">Resumo do agendamento</h3>
               </div>
 
               <div className="space-y-4 px-7 py-6">
-                <Row label="Especialidade" value={selectedSpec?.name ?? "—"} muted={!selectedSpec} />
-                <Row label="Serviço" value={selectedService?.name ?? "—"} muted={!selectedService} />
+                <Row
+                  label="Especialidade"
+                  value={selectedSpec?.name ?? "—"}
+                  muted={!selectedSpec}
+                />
+                <Row
+                  label="Serviço"
+                  value={selectedService?.name ?? "—"}
+                  muted={!selectedService}
+                />
                 <Row label="Profissional" value={selectedProf?.name ?? "—"} muted={!selectedProf} />
                 <Row
                   label="Data e hora"
@@ -474,7 +629,9 @@ function Index() {
                   muted={!(day && slot)}
                 />
                 <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-teal-50 to-emerald-50 px-4 py-3">
-                  <span className="text-xs font-bold uppercase tracking-widest text-teal-700">Valor total</span>
+                  <span className="text-xs font-bold uppercase tracking-widest text-teal-700">
+                    Valor total
+                  </span>
                   <span className="text-2xl font-bold text-teal-700">
                     {selectedService ? `R$ ${selectedService.price}` : "—"}
                   </span>
@@ -509,7 +666,9 @@ function Index() {
           </span>
           <div className="flex flex-wrap items-center justify-center gap-x-14 gap-y-6 opacity-60 grayscale transition-all hover:opacity-100 hover:grayscale-0">
             {["Unimed", "Bradesco Saúde", "SulAmérica", "Amil", "Porto Seguro"].map((b) => (
-              <span key={b} className="text-lg font-bold tracking-tight text-slate-700">{b}</span>
+              <span key={b} className="text-lg font-bold tracking-tight text-slate-700">
+                {b}
+              </span>
             ))}
           </div>
         </div>
@@ -524,32 +683,53 @@ function Index() {
                 <div className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-teal-500 to-emerald-600">
                   <div className="size-2.5 rounded-sm rotate-45 bg-white" />
                 </div>
-                <span className="text-base font-bold tracking-tight text-slate-800">Ânima Clínica</span>
+                <span className="text-base font-bold tracking-tight text-slate-800">
+                  Ânima Clínica
+                </span>
               </div>
               <p className="max-w-[32ch] text-sm leading-relaxed text-slate-500">
-                Transformando a experiência de saúde através de dados, cuidado humano e eficiência tecnológica.
+                Transformando a experiência de saúde através de dados, cuidado humano e eficiência
+                tecnológica.
               </p>
             </div>
             <div>
-              <h4 className="mb-5 text-xs font-bold uppercase tracking-widest text-slate-800">Localização</h4>
+              <h4 className="mb-5 text-xs font-bold uppercase tracking-widest text-slate-800">
+                Localização
+              </h4>
               <p className="text-sm leading-relaxed text-slate-500">
-                Av. Brigadeiro Faria Lima, 2000<br />
+                Av. Brigadeiro Faria Lima, 2000
+                <br />
                 Jardim Paulistano, São Paulo - SP
               </p>
             </div>
             <div>
-              <h4 className="mb-5 text-xs font-bold uppercase tracking-widest text-slate-800">Contato</h4>
+              <h4 className="mb-5 text-xs font-bold uppercase tracking-widest text-slate-800">
+                Contato
+              </h4>
               <p className="text-sm leading-relaxed text-slate-500">
-                contato@animaclinica.com.br<br />
+                contato@animaclinica.com.br
+                <br />
                 +55 11 4003-0000
               </p>
             </div>
           </div>
           <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-200 pt-8 md:flex-row">
-            <span className="text-xs text-slate-400">© 2026 Ânima Clínica de Saúde. Todos os direitos reservados.</span>
+            <span className="text-xs text-slate-400">
+              © 2026 Ânima Clínica de Saúde. Todos os direitos reservados.
+            </span>
             <div className="flex gap-6">
-              <a href="#" className="text-xs font-medium text-slate-500 transition-colors hover:text-teal-600">Privacidade</a>
-              <a href="#" className="text-xs font-medium text-slate-500 transition-colors hover:text-teal-600">Termos</a>
+              <a
+                href="#"
+                className="text-xs font-medium text-slate-500 transition-colors hover:text-teal-600"
+              >
+                Privacidade
+              </a>
+              <a
+                href="#"
+                className="text-xs font-medium text-slate-500 transition-colors hover:text-teal-600"
+              >
+                Termos
+              </a>
             </div>
           </div>
         </div>
@@ -581,7 +761,9 @@ function StepHeader({
         {n}
       </span>
       <div>
-        <h2 className={`text-xl font-bold tracking-tight ${active ? "text-slate-800" : "text-slate-400"}`}>
+        <h2
+          className={`text-xl font-bold tracking-tight ${active ? "text-slate-800" : "text-slate-400"}`}
+        >
           {label}
         </h2>
         {hint && <p className="text-xs text-slate-500">{hint}</p>}
@@ -594,7 +776,9 @@ function Row({ label, value, muted }: { label: string; value: string; muted?: bo
   return (
     <div className="flex items-start justify-between gap-4">
       <span className="text-sm text-slate-500">{label}</span>
-      <span className={`text-right text-sm font-semibold ${muted ? "text-slate-400" : "text-slate-800"}`}>
+      <span
+        className={`text-right text-sm font-semibold ${muted ? "text-slate-400" : "text-slate-800"}`}
+      >
         {value}
       </span>
     </div>
@@ -604,7 +788,9 @@ function Row({ label, value, muted }: { label: string; value: string; muted?: bo
 function Field({ label, placeholder, type }: { label: string; placeholder: string; type: string }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="px-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</label>
+      <label className="px-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+        {label}
+      </label>
       <input
         type={type}
         placeholder={placeholder}
