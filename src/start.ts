@@ -4,6 +4,7 @@ import { getWebRequest } from "vinxi/http";
 import { renderErrorPage } from "./lib/error-page";
 import { handleClerkWebhook } from "./server/clerk-webhook";
 import { handleMPWebhook } from "./server/mp-webhook";
+import { handleReminders } from "./server/reminders";
 
 const webhookMiddleware = createMiddleware().server(async ({ next }) => {
   const req = getWebRequest();
@@ -15,6 +16,10 @@ const webhookMiddleware = createMiddleware().server(async ({ next }) => {
 
   if (url.pathname === "/api/webhooks/mp" && req.method === "POST") {
     return handleMPWebhook(req);
+  }
+
+  if (url.pathname === "/api/cron/reminders" && req.method === "GET") {
+    return handleReminders(req);
   }
 
   return next();

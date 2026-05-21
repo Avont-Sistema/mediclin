@@ -212,6 +212,7 @@ export const appointments = pgTable(
     valorPago: decimal("valor_pago", { precision: 10, scale: 2 }),
 
     observacoes: text("observacoes"),
+    lembreteEnviadoEm: timestamp("lembrete_enviado_em"),
     criadoEm: timestamp("criado_em").defaultNow().notNull(),
     atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
   },

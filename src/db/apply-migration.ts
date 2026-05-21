@@ -1,28 +1,37 @@
 /**
- * Script único para aplicar a migration 0001 (Stripe → Mercado Pago)
+ * Aplica as migrations manuais (0001, 0002...) que não passam pelo drizzle-kit
+ * (ambiente não-TTY impede o generate/push interativo).
+ *
  * Uso: node --import tsx/esm src/db/apply-migration.ts
+ * Todas as migrations têm IF NOT EXISTS / IF EXISTS para ser idempotentes.
  */
 import { readFileSync } from "fs";
 import { neon } from "@neondatabase/serverless";
 import { config } from "dotenv";
+
 config({ path: ".env.local" });
 
 const sql = neon(process.env.DATABASE_URL!);
 
-const migrationPath = new URL("./migrations/0001_mp_marketplace.sql", import.meta.url);
-const migrationSql = readFileSync(migrationPath, "utf-8");
+const MIGRATIONS = ["./migrations/0001_mp_marketplace.sql", "./migrations/0002_lembretes.sql"];
 
-// Drizzle usa "--> statement-breakpoint" para separar statements
-const statements = migrationSql
-  .split("--> statement-breakpoint")
-  .map((s) => s.trim())
-  .filter(Boolean);
+for (const rel of MIGRATIONS) {
+  const migrationPath = new URL(rel, import.meta.url);
+  const migrationSql = readFileSync(migrationPath, "utf-8");
 
-console.log(`Aplicando ${statements.length} statements...`);
+  // Drizzle usa "--> statement-breakpoint" para separar statements;
+  // migrações simples sem esse separador são aplicadas como um só statement.
+  const statements = migrationSql
+    .split("--> statement-breakpoint")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
-for (const statement of statements) {
-  console.log(`  → ${statement.slice(0, 60).replace(/\n/g, " ")}...`);
-  await sql.query(statement);
+  console.log(`\n📄 ${rel} (${statements.length} statement(s))`);
+
+  for (const statement of statements) {
+    console.log(`  → ${statement.slice(0, 80).replace(/\n/g, " ")}...`);
+    await sql.query(statement);
+  }
 }
 
-console.log("✅ Migration 0001 aplicada com sucesso.");
+console.log("\n✅ Todas as migrations aplicadas.");
