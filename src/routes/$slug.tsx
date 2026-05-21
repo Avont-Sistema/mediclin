@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { MapPin, Clock, ChevronRight, Stethoscope } from "lucide-react";
 import { fetchProfessionalBySlug } from "../lib/availability";
@@ -29,6 +29,16 @@ function formatCurrency(v: string | number) {
 function ProfessionalPage() {
   const professional = Route.useLoaderData()!;
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("booking") === "success") {
+      setBookingSuccess(true);
+      window.history.replaceState({}, "", `/${professional.slug}`);
+    }
+  }, [professional.slug]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -43,6 +53,37 @@ function ProfessionalPage() {
       </header>
 
       <main className="mx-auto max-w-2xl px-4 pb-20 pt-8">
+        {bookingSuccess && (
+          <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-emerald-100 grid place-items-center shrink-0">
+              <svg
+                className="h-5 w-5 text-emerald-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-slate-900">Pagamento confirmado!</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Sua consulta foi agendada com sucesso. Você receberá um e-mail de confirmação.
+              </p>
+            </div>
+            <button
+              onClick={() => setBookingSuccess(false)}
+              className="text-slate-400 hover:text-slate-600 text-lg leading-none"
+            >
+              ×
+            </button>
+          </div>
+        )}
         {/* Profile card */}
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden mb-6">
           <div className="h-24 bg-gradient-to-r from-teal-500 to-emerald-500" />
@@ -147,7 +188,7 @@ function ProfessionalPage() {
               professionalId={professional.id}
               service={selectedService}
               professionalNome={professional.nomeCompleto}
-              stripeEnabled={professional.stripeAccountAtivo}
+              mpEnabled={professional.mpAccountAtivo}
               onBack={() => setSelectedService(null)}
             />
           )}

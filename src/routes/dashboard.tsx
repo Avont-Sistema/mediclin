@@ -36,8 +36,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { fetchCurrentProfessional } from "../lib/auth";
-import { createConnectAccountLink, activateStripeAccount } from "../lib/stripe";
-import { createCheckoutSession, createCustomerPortalSession } from "../lib/subscription";
+import { createMPOAuthLink, activateMPAccount } from "../lib/mercadopago";
+import { createMPSubscriptionCheckout, getMPSubscriptionPortalUrl } from "../lib/mp-subscription";
 import { fetchDashboardData, type DashboardData, type SubscriptionInfo } from "../lib/dashboard";
 
 export const Route = createFileRoute("/dashboard")({
@@ -288,7 +288,7 @@ function DashboardContent() {
 
           <div className="p-6 space-y-6">
             <SubscriptionCard subscription={data?.subscription ?? null} />
-            <StripeConnectBanner />
+            <MPConnectBanner />
 
             {/* Stats */}
             <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -612,14 +612,14 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
   const [successBanner, setSuccessBanner] = useState(false);
 
   const checkoutMutation = useMutation({
-    mutationFn: (plan: "pro" | "clinic") => createCheckoutSession({ data: { plan } }),
+    mutationFn: (plan: "pro" | "clinic") => createMPSubscriptionCheckout({ data: { plan } }),
     onSuccess: ({ url }) => {
       window.location.href = url;
     },
   });
 
   const portalMutation = useMutation({
-    mutationFn: () => createCustomerPortalSession(),
+    mutationFn: () => getMPSubscriptionPortalUrl(),
     onSuccess: ({ url }) => {
       window.location.href = url;
     },
@@ -636,7 +636,7 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
 
   if (!subscription) return null;
 
-  const { status, plano, trialFimEm, periodoFimEm, hasStripeCustomer } = subscription;
+  const { status, plano, trialFimEm, periodoFimEm, hasMPAccount } = subscription;
   const daysLeft = trialDaysLeft(trialFimEm);
   const isCheckoutPending = checkoutMutation.isPending;
   const pendingPlan = isCheckoutPending ? (checkoutMutation.variables as "pro" | "clinic") : null;
@@ -675,7 +675,7 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
             </span>
           )}
         </p>
-        {hasStripeCustomer && (
+        {hasMPAccount && (
           <button
             disabled={portalMutation.isPending}
             onClick={() => portalMutation.mutate()}
@@ -703,7 +703,7 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
             MediClin.
           </p>
         </div>
-        {hasStripeCustomer && (
+        {hasMPAccount && (
           <button
             disabled={portalMutation.isPending}
             onClick={() => portalMutation.mutate()}
@@ -788,37 +788,40 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
   );
 }
 
-function StripeConnectBanner() {
+function MPConnectBanner() {
   const { data: professional, refetch } = useQuery({
     queryKey: ["currentProfessional"],
     queryFn: () => fetchCurrentProfessional(),
   });
 
   const activateMutation = useMutation({
-    mutationFn: (professionalId: string) => activateStripeAccount({ data: { professionalId } }),
+    mutationFn: ({ code, professionalId }: { code: string; professionalId: string }) =>
+      activateMPAccount({ data: { code, professionalId } }),
     onSuccess: () => refetch(),
   });
 
   const connectMutation = useMutation({
-    mutationFn: (professionalId: string) => createConnectAccountLink({ data: { professionalId } }),
+    mutationFn: (professionalId: string) => createMPOAuthLink({ data: { professionalId } }),
     onSuccess: (result) => {
       window.location.href = result.url;
     },
   });
 
-  // After Stripe onboarding redirect-back, confirm account status
+  // Após retorno do OAuth do Mercado Pago: ?code=xxx&state=professionalId
   const activateMutate = activateMutation.mutate;
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("stripe") === "connected" && professional?.id) {
-      activateMutate(professional.id);
+    const code = params.get("code");
+    const state = params.get("state"); // professionalId
+    if (code && state) {
+      activateMutate({ code, professionalId: state });
       window.history.replaceState({}, "", "/dashboard");
     }
-  }, [professional?.id, activateMutate]);
+  }, [activateMutate]);
 
   if (!professional) return null;
-  if (professional.stripeAccountAtivo) return null;
+  if (professional.mpAccountAtivo) return null;
 
   return (
     <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 flex items-center gap-4">
@@ -828,16 +831,19 @@ function StripeConnectBanner() {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-slate-900">Ative os pagamentos online</p>
         <p className="text-xs text-slate-500 mt-0.5">
-          Conecte sua conta Stripe para receber pagamentos diretamente dos pacientes.
+          Conecte sua conta Mercado Pago para receber pagamentos dos pacientes via PIX, cartão e
+          boleto.
         </p>
       </div>
       <button
-        disabled={connectMutation.isPending}
+        disabled={connectMutation.isPending || activateMutation.isPending}
         onClick={() => connectMutation.mutate(professional.id)}
         className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white transition"
       >
         <ExternalLink className="h-4 w-4" />
-        {connectMutation.isPending ? "Aguarde..." : "Conectar Stripe"}
+        {connectMutation.isPending || activateMutation.isPending
+          ? "Aguarde..."
+          : "Conectar Mercado Pago"}
       </button>
     </div>
   );

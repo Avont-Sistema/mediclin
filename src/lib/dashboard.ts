@@ -43,7 +43,7 @@ export type SubscriptionInfo = {
   status: "ativa" | "cancelada" | "inadimplente" | "trial";
   trialFimEm: string | null;
   periodoFimEm: string | null;
-  hasStripeCustomer: boolean;
+  hasMPAccount: boolean;
 };
 
 export type DashboardData = {
@@ -53,7 +53,7 @@ export type DashboardData = {
     especialidade: string;
     registro: string;
     slug: string;
-    stripeAccountAtivo: boolean;
+    mpAccountAtivo: boolean;
   };
   subscription: SubscriptionInfo;
   stats: DashboardStats;
@@ -244,14 +244,14 @@ export const fetchDashboardData = createServerFn({ method: "GET" }).handler(
         especialidade: professional.especialidade,
         registro: professional.registro,
         slug: professional.slug,
-        stripeAccountAtivo: professional.stripeAccountAtivo,
+        mpAccountAtivo: professional.mpAccountAtivo,
       },
       subscription: {
         plano: (sub?.plano ?? "free") as "free" | "pro" | "clinic",
         status: (sub?.status ?? "trial") as "ativa" | "cancelada" | "inadimplente" | "trial",
         trialFimEm: sub?.trialFimEm?.toISOString() ?? null,
         periodoFimEm: sub?.periodoFimEm?.toISOString() ?? null,
-        hasStripeCustomer: !!sub?.stripeCustomerId,
+        hasMPAccount: !!sub?.mpSubscriptionId,
       },
       stats: {
         consultasHoje: rawToday.filter((a) => a.status !== "cancelado").length,

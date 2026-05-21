@@ -93,9 +93,10 @@ export const professionals = pgTable(
     fotoUrl: text("foto_url"),
     telefoneWhatsapp: varchar("telefone_whatsapp", { length: 20 }),
 
-    // Stripe Connect (pagamentos dos pacientes)
-    stripeAccountId: varchar("stripe_account_id", { length: 255 }),
-    stripeAccountAtivo: boolean("stripe_account_ativo").default(false).notNull(),
+    // Mercado Pago Marketplace (pagamentos dos pacientes)
+    mpUserId: varchar("mp_user_id", { length: 255 }),
+    mpAccessToken: text("mp_access_token"),
+    mpAccountAtivo: boolean("mp_account_ativo").default(false).notNull(),
 
     // Plano de assinatura com o MediClin
     plano: planoEnum("plano").default("free").notNull(),
@@ -205,8 +206,9 @@ export const appointments = pgTable(
     fim: timestamp("fim").notNull(),
     status: appointmentStatusEnum("status").default("aguardando_pagamento").notNull(),
 
-    // Stripe
-    stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }),
+    // Mercado Pago
+    mpPreferenceId: varchar("mp_preference_id", { length: 255 }),
+    mpPaymentId: varchar("mp_payment_id", { length: 255 }),
     valorPago: decimal("valor_pago", { precision: 10, scale: 2 }),
 
     observacoes: text("observacoes"),
@@ -230,9 +232,9 @@ export const subscriptions = pgTable("subscriptions", {
     .unique()
     .references(() => professionals.id, { onDelete: "cascade" }),
 
-  stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
-  stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
-  stripePriceId: varchar("stripe_price_id", { length: 255 }),
+  mpCustomerId: varchar("mp_customer_id", { length: 255 }),
+  mpSubscriptionId: varchar("mp_subscription_id", { length: 255 }),
+  mpPlanId: varchar("mp_plan_id", { length: 255 }),
 
   plano: planoEnum("plano").notNull().default("free"),
   status: subscriptionStatusEnum("status").notNull().default("trial"),
@@ -259,10 +261,8 @@ export const payments = pgTable(
       .notNull()
       .references(() => professionals.id, { onDelete: "restrict" }),
 
-    stripePaymentIntentId: varchar("stripe_payment_intent_id", {
-      length: 255,
-    }).notNull(),
-    stripeTransferId: varchar("stripe_transfer_id", { length: 255 }),
+    mpPaymentId: varchar("mp_payment_id", { length: 255 }).notNull(),
+    mpTransferId: varchar("mp_transfer_id", { length: 255 }),
 
     valorBruto: decimal("valor_bruto", { precision: 10, scale: 2 }).notNull(),
     taxaPlataforma: decimal("taxa_plataforma", { precision: 10, scale: 2 }).notNull(),
