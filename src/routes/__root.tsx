@@ -117,7 +117,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-  const { queryClient } = Route.useRouteContext();
+  const context = Route.useRouteContext();
+
+  // Fallback: create a new QueryClient if context is not available
+  const queryClient = context?.queryClient || new QueryClient();
 
   return (
     <ClerkProvider
