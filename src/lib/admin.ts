@@ -1,9 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getAuth } from "@clerk/tanstack-start/server";
 import { getWebRequest } from "vinxi/http";
-import { count, eq, gte, and } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { db } from "../db";
-import { professionals, services, appointments, patients, users } from "../db/schema";
+import {
+  professionals,
+  services,
+  appointments,
+  patients,
+  users,
+  availabilityRules,
+} from "../db/schema";
 
 // ─── fetchAdminOverview ───────────────────────────────────────────────────────
 
@@ -155,7 +162,6 @@ export const runSeed = createServerFn({ method: "POST" }).handler(async () => {
     { professionalId: profJoao.id, nome: "Retorno", descricao: "Ajuste do plano alimentar.", preco: "280.00", duracaoMinutos: 30 },
   ]);
 
-  const { availabilityRules } = await import("../db/schema");
   await db.insert(availabilityRules).values([
     { professionalId: profRicardo.id, diaSemana: "segunda", horaInicio: "08:00", horaFim: "18:00" },
     { professionalId: profRicardo.id, diaSemana: "terca", horaInicio: "08:00", horaFim: "18:00" },
