@@ -1,11 +1,24 @@
 /**
- * Custom SSR entry for TanStack Start.
+ * Custom SSR entry for TanStack Start (Clerk optional).
  */
 import { createStartHandler, defaultStreamHandler } from "@tanstack/react-start/server";
 
-const fetch = createStartHandler(defaultStreamHandler) as unknown as (
-  request: Request,
-  ...args: unknown[]
-) => Promise<Response>;
+let clerkHandler: ((handler: any) => any) | null = null;
+
+async function initializeClerk() {
+  try {
+    const { createClerkHandler } = await import("@clerk/tanstack-start/server");
+    clerkHandler = createClerkHandler(createStartHandler as unknown as any);
+  } catch (error) {
+    console.error("[SSR] Clerk not available, using basic SSR");
+  }
+}
+
+initializeClerk();
+
+const fetch = async (request: Request, ...args: unknown[]) => {
+  const handler = clerkHandler ? clerkHandler(defaultStreamHandler) : createStartHandler(defaultStreamHandler);
+  return handler(request, ...args);
+};
 
 export default { fetch };
