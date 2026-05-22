@@ -54,12 +54,21 @@ const _fetch = clerkHandler(defaultStreamHandler) as unknown as (
 ) => Promise<Response>;
 
 // Wrapper: popula o contexto "nitro-app" por request via callAsync (thread-safe
-// com ALS). event.context vazio é suficiente: getPublicEnvVariables({}) lê de
-// process.env primeiro, onde VITE_CLERK_PUBLISHABLE_KEY está setado no Vercel.
+// com ALS). Fornece um evento sintético com:
+//   - context: {} → commonEnvs/getPublicEnvVariables lê de process.env
+//   - web.request: a Request real → getWebRequest() retorna event.web.request
+//     diretamente (vinxi.mjs: `event.web ??= ...` é skipado quando já populado)
+//     sem precisar converter o h3 event (que não existe no Nitro v3).
 const fetch = (request: Request, ...args: unknown[]): Promise<Response> =>
-  // as any: tipo sintético — só precisa de .event.context para satisfazer getEvent().
-  nitroCtx.callAsync({ event: { context: {} } } as any, () =>
-    _fetch(request, ...args),
+  nitroCtx.callAsync(
+    // as any: tipo sintético compatível com vinxi's event shape no runtime.
+    {
+      event: {
+        context: {},
+        web: { request, url: new URL(request.url) },
+      },
+    } as any,
+    () => _fetch(request, ...args),
   );
 
 export default { fetch };
