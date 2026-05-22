@@ -1,5 +1,22 @@
 # CLAUDE.md — Guia do projeto MediClin
 
+## ⚠️ ARQUITETURA DO PRODUTO (regra definitiva)
+
+MediClin é **um ecossistema**, não apps separados:
+
+```
+Dashboard do Médico (backoffice)  →  DB  →  Página Pública /:slug (paciente)
+```
+
+- **`/dashboard`, `/agenda`, `/settings`** = painel do médico (Shopify Admin)
+- **`/:slug`** = link na bio do médico no Instagram (Shopify Store) — dinâmica, sem dados hardcoded
+- Tudo que o médico configura no dashboard reflete automaticamente na página pública
+- Fluxo obrigatório: `Dashboard → DB → Página Pública → Agendamento → Pagamento → Consulta → Dashboard`
+
+**Nunca trate a `/:slug` como home do site ou página independente.**
+
+---
+
 ## REGRAS DE CONTEXTO (seguir SEMPRE)
 
 1. **Nova sessão**: ler `.claude/SESSION_RESUME.md` PRIMEIRO, depois `.claude/CURRENT_STATE.md`

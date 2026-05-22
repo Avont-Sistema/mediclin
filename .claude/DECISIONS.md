@@ -2,6 +2,16 @@
 
 > Decisões arquiteturais tomadas. Não rever sem discussão explícita.
 
+## ⚠️ ARQUITETURA FUNDAMENTAL (não questionar)
+
+O MediClin é UM ecossistema — dashboard do médico e página pública são partes do mesmo sistema.
+- Dashboard = backoffice (médico configura tudo)
+- Página pública `/:slug` = frontend do paciente (consome as configs do médico)
+- Toda feature deve considerar os DOIS lados: o que o médico configura E como aparece pro paciente
+- A página pública NUNCA tem dados hardcoded — sempre vem do banco via configurações do médico
+
+---
+
 ## Decisões fixas
 
 | Decisão | Motivo |
