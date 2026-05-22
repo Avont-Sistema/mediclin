@@ -1,19 +1,11 @@
 /**
- * Minimal SSR for testing.
+ * TanStack Start SSR without Clerk.
  */
-export default {
-  async fetch(request: Request) {
-    return new Response(
-      `<!DOCTYPE html>
-<html>
-<head>
-  <title>MediClin</title>
-</head>
-<body>
-  <div id="app">Testing basic SSR</div>
-</body>
-</html>`,
-      { headers: { "content-type": "text/html; charset=utf-8" } }
-    );
-  },
-};
+import { createStartHandler, defaultStreamHandler } from "@tanstack/react-start/server";
+
+const fetch = createStartHandler(defaultStreamHandler) as unknown as (
+  request: Request,
+  ...args: unknown[]
+) => Promise<Response>;
+
+export default { fetch };
