@@ -53,7 +53,9 @@ function PatientsPage() {
 }
 
 function PatientsContent() {
-  const patients = (Route.useLoaderData() ?? []) as PatientRow[];
+  const loaderData = Route.useLoaderData();
+  // Memoiza pra evitar nova referência de array a cada render (useMemo abaixo depende dela).
+  const patients = useMemo<PatientRow[]>(() => (loaderData ?? []) as PatientRow[], [loaderData]);
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
 

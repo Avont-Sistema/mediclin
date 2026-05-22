@@ -35,4 +35,6 @@ package-lock.json
 *.sw?
 
 .vercel
-.env*.local
+.env
+.env.*
+!.env.example

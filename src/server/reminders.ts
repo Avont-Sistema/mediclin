@@ -4,7 +4,12 @@ import { appointments, subscriptions } from "../db/schema";
 import { sendReminderEmail } from "../lib/email";
 import { sendWhatsAppReminder } from "../lib/whatsapp";
 
-// ─── Vercel Cron: /api/cron/reminders  (schedule: "0 * * * *") ───────────────
+// ─── Vercel Cron: /api/cron/reminders  (schedule: "0 9 * * *") ───────────────
+// ⚠️ PLANO HOBBY: Vercel permite apenas 1 execução de cron por dia.
+// Atualmente roda às 9h da manhã (UTC), o que cobre apenas consultas das ~10:50-11:10
+// daquele dia. Para cobertura completa, upgrade para plano Pro (cron hourly) ou
+// usar serviço externo (cron-job.org / Upstash QStash) chamando este endpoint a cada hora.
+//
 // Dispara lembretes para consultas que começam entre 1h50m e 2h10m a partir de
 // agora — janela de 20 minutos para cobrir qualquer defasagem de execução do cron.
 

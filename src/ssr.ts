@@ -31,8 +31,12 @@ import { AsyncLocalStorage } from "node:async_hooks";
 // Shim: o runtime do Vinxi (compilado em _libs/vinxi.mjs pelo Nitro) lê
 // globalThis.app.config.server.experimental.asyncContext sem optional chaining.
 // Precisa existir ANTES de qualquer chamada a getNitroAsyncContext().
-// as any: globalThis.app não tem tipo no Nitro v3 — é exclusivo do Vinxi.
-(globalThis as any).app ??= {
+type VinxiAppShim = {
+  config: { server: { experimental: { asyncContext: boolean } } };
+};
+type GlobalWithVinxi = typeof globalThis & { app?: VinxiAppShim };
+const globalWithVinxi = globalThis as GlobalWithVinxi;
+globalWithVinxi.app ??= {
   config: { server: { experimental: { asyncContext: true } } },
 };
 
@@ -59,16 +63,24 @@ const _fetch = clerkHandler(defaultStreamHandler) as unknown as (
 //   - web.request: a Request real → getWebRequest() retorna event.web.request
 //     diretamente (vinxi.mjs: `event.web ??= ...` é skipado quando já populado)
 //     sem precisar converter o h3 event (que não existe no Nitro v3).
-const fetch = (request: Request, ...args: unknown[]): Promise<Response> =>
-  nitroCtx.callAsync(
-    // as any: tipo sintético compatível com vinxi's event shape no runtime.
-    {
-      event: {
-        context: {},
-        web: { request, url: new URL(request.url) },
-      },
-    } as any,
-    () => _fetch(request, ...args),
-  );
+// Evento sintético com shape mínimo que satisfaz getEvent()/getWebRequest() do Vinxi.
+// Apenas .event.context (obrigatório para commonEnvs) e .event.web.request (para getWebRequest)
+// são acessados pelo runtime — o restante do H3Event não é necessário.
+type SyntheticVinxiContext = {
+  event: {
+    context: Record<string, unknown>;
+    web: { request: Request; url: URL };
+  };
+};
+
+const fetch = (request: Request, ...args: unknown[]): Promise<Response> => {
+  const ctx: SyntheticVinxiContext = {
+    event: {
+      context: {},
+      web: { request, url: new URL(request.url) },
+    },
+  };
+  return nitroCtx.callAsync(ctx, () => _fetch(request, ...args));
+};
 
 export default { fetch };

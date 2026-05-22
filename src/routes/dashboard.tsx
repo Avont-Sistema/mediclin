@@ -169,7 +169,11 @@ function DashboardContent() {
   const data = Route.useLoaderData() ?? null;
   const [filter, setFilter] = useState<"todos" | Appt["status"]>("todos");
 
-  const appointments = (data?.todayAppointments ?? []) as Appt[];
+  // Memoiza pra evitar nova referência de array a cada render (filtered depende dela).
+  const appointments = useMemo<Appt[]>(
+    () => (data?.todayAppointments ?? []) as Appt[],
+    [data?.todayAppointments],
+  );
   const stats = buildStats(data);
   const weekData = data?.weekData ?? EMPTY_WEEK;
 

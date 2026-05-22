@@ -3,7 +3,7 @@ import { getAuth } from "@clerk/tanstack-start/server";
 import { eq } from "drizzle-orm";
 import { getWebRequest } from "vinxi/http";
 import { db } from "../db";
-import { professionals, users } from "../db/schema";
+import { users } from "../db/schema";
 
 export const fetchAuth = createServerFn({ method: "GET" }).handler(async () => {
   const auth = await getAuth(getWebRequest());
