@@ -133,18 +133,42 @@ O cron busca consultas nas próximas 1h50-2h10, então rodando às 9h UTC ele s�
 
 ## 🟢 NÃO-CRÍTICA #4 — App Clerk em uso (test vs production)
 
-Você tem **duas chaves Clerk diferentes** no Vercel:
+### ⚠️ ATUALIZAÇÃO (resolvido em runtime, mas tem contexto importante)
 
-| Variável                                  | Valor                  | App Clerk          |
-| ----------------------------------------- | ---------------------- | ------------------ |
-| `VITE_CLERK_PUBLISHABLE_KEY`              | `pk_test_YnVyc3...`    | bursting-mallard-22 |
-| `CLERK_SECRET_KEY`                        | `sk_test_AR9DaN...`    | bursting-mallard-22 |
-| `NEXT_PUBLIC_auth_CLERK_PUBLISHABLE_KEY`  | `pk_test_YnVyc3...`    | bursting-mallard-22 |
-| `auth_CLERK_SECRET_KEY`                   | `sk_test_I9ir9q...`    | **DIFERENTE** (aware-lynx-99) |
+Você me mostrou um erro `{"errors":[{"message":"not found","code":"resource_not_found"}]}` vindo do Clerk. Investiguei e descobri **MISMATCH crítico** entre as keys:
 
-As keys `auth_CLERK_*` vêm do Vercel Marketplace integration (Clerk addon). O app está usando as keys `CLERK_SECRET_KEY` e `VITE_CLERK_PUBLISHABLE_KEY` (do bursting-mallard-22).
+| Variável                                  | Apontava para        | Estado                          |
+| ----------------------------------------- | -------------------- | ------------------------------- |
+| `VITE_CLERK_PUBLISHABLE_KEY` (antes)      | `bursting-mallard-22` | 🔴 **App deletado** (404)       |
+| `CLERK_SECRET_KEY`                        | `aware-lynx-99`       | ✅ Válido                       |
+| `NEXT_PUBLIC_auth_CLERK_PUBLISHABLE_KEY`  | `bursting-mallard-22` | 🔴 App deletado                 |
+| `auth_CLERK_SECRET_KEY`                   | (outro/deletado)      | 🔴 404                          |
 
-**Problema potencial:** ambas são `_test_` (não `_live_`). Para produção real (sem o aviso "Development mode" do Clerk), você precisa:
+O frontend tentava conectar em `bursting-mallard-22.clerk.accounts.dev/v1/environment` que **retorna 404** = a sua tela com "Resource not found".
+
+### 🔧 O que eu corrigi automaticamente
+
+Reconstruí a publishable key correta a partir do domínio do app `aware-lynx-99` (que é onde a `CLERK_SECRET_KEY` aponta — confirmei via Backend API: 200 OK):
+
+- **Nova `VITE_CLERK_PUBLISHABLE_KEY`** = `pk_test_YXdhcmUtbHlueC05OS5jbGVyay5hY2NvdW50cy5kZXYk`
+- Redeploy disparado (deploy `epnkym0eq` Ready)
+- Verifiquei: a nova key está no bundle JS servido em `mediclin.vercel.app`
+- Frontend API agora responde 401 `dev_browser_unauthenticated` (esperado em dev mode — vai funcionar quando user real acessar via browser)
+
+### ⚠️ Ainda pendente da sua parte
+
+A `NEXT_PUBLIC_auth_CLERK_PUBLISHABLE_KEY` (Vercel Marketplace) e a `auth_CLERK_SECRET_KEY` ainda apontam para o app deletado `bursting-mallard-22`. Eu não removi porque:
+- Elas não estão sendo lidas pelo código (o app usa `VITE_CLERK_PUBLISHABLE_KEY` e `CLERK_SECRET_KEY`)
+- A integração Clerk no Vercel Marketplace pode tentar recriar essas vars
+
+**Recomendação ao acordar:**
+1. Vai em https://vercel.com/avont-sistemas-projects/mediclin/settings/environment-variables
+2. **Deleta** `NEXT_PUBLIC_auth_CLERK_PUBLISHABLE_KEY` e `auth_CLERK_SECRET_KEY` (do Marketplace, apontam pra app fantasma)
+3. OU: vai em https://vercel.com/avont-sistemas-projects/integrations e desinstala a integração Clerk antiga
+
+### Sobre test vs production
+
+Ambas keys atuais ainda são `_test_` (não `_live_`). Para produção real (sem o aviso "Development mode" do Clerk), você precisa:
 
 1. Criar uma instância **Production** no Clerk dashboard
 2. Substituir as keys no Vercel pelas `pk_live_...` e `sk_live_...`
