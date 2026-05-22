@@ -1,7 +1,12 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "tanstack-start-app",
+  "name": "mediclin",
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "src/server.ts",
+  "main": ".output/server/index.mjs",
+  "build": {
+    "command": "npm run build",
+    "cwd": "./",
+    "upload_dir": ".output/public"
+  }
 }
