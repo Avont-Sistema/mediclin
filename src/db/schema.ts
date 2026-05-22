@@ -17,6 +17,12 @@ import {
 
 export const planoEnum = pgEnum("plano", ["free", "pro", "clinic"]);
 
+export const modalidadeEnum = pgEnum("modalidade_atendimento", [
+  "presencial",
+  "online",
+  "ambos",
+]);
+
 export const appointmentStatusEnum = pgEnum("appointment_status", [
   "aguardando_pagamento",
   "confirmado",
@@ -93,6 +99,16 @@ export const professionals = pgTable(
     fotoUrl: text("foto_url"),
     telefoneWhatsapp: varchar("telefone_whatsapp", { length: 20 }),
 
+    // Personalização da página pública
+    corMarca: varchar("cor_marca", { length: 7 }).default("#0d9488").notNull(),
+    corTexto: varchar("cor_texto", { length: 7 }).default("#0f172a").notNull(),
+    heroTitulo: varchar("hero_titulo", { length: 255 }),
+    heroSubtitulo: text("hero_subtitulo"),
+    heroImageUrl: text("hero_image_url"),
+    telemedicinaAtivo: boolean("telemedicina_ativo").default(false).notNull(),
+    meetLink: text("meet_link"), // Google Meet / Zoom link do médico
+    modalidade: modalidadeEnum("modalidade").default("presencial").notNull(),
+
     // Mercado Pago Marketplace (pagamentos dos pacientes)
     mpUserId: varchar("mp_user_id", { length: 255 }),
     mpAccessToken: text("mp_access_token"),
@@ -122,6 +138,7 @@ export const services = pgTable(
     descricao: text("descricao"),
     preco: decimal("preco", { precision: 10, scale: 2 }).notNull(),
     duracaoMinutos: integer("duracao_minutos").notNull().default(30),
+    modalidade: modalidadeEnum("modalidade").default("presencial").notNull(),
     ativo: boolean("ativo").default(true).notNull(),
 
     criadoEm: timestamp("criado_em").defaultNow().notNull(),
@@ -205,6 +222,10 @@ export const appointments = pgTable(
     inicio: timestamp("inicio").notNull(),
     fim: timestamp("fim").notNull(),
     status: appointmentStatusEnum("status").default("aguardando_pagamento").notNull(),
+
+    // Modalidade e telemedicina
+    modalidade: modalidadeEnum("modalidade").default("presencial").notNull(),
+    meetLink: text("meet_link"), // preenchido ao confirmar consulta online
 
     // Mercado Pago
     mpPreferenceId: varchar("mp_preference_id", { length: 255 }),

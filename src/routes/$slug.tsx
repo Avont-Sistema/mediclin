@@ -3,14 +3,23 @@ import { fetchProfessionalBySlug } from "../lib/availability";
 import { ProfessionalPublicPage, ProfessionalNotFound } from "../components/ProfessionalPublicPage";
 
 export const Route = createFileRoute("/$slug")({
-  head: () => ({
-    meta: [{ title: "MediClin — Agendar consulta" }],
-  }),
   loader: async ({ params }) => {
     const prof = await fetchProfessionalBySlug({ data: { slug: params.slug } });
     if (!prof) throw notFound();
     return prof;
   },
+  head: ({ loaderData }) => ({
+    meta: [
+      {
+        title: loaderData
+          ? `${loaderData.nomeCompleto} — Agendar consulta`
+          : "MediClin — Agendar consulta",
+      },
+      ...(loaderData?.bio
+        ? [{ name: "description", content: loaderData.bio }]
+        : []),
+    ],
+  }),
   notFoundComponent: ProfessionalNotFound,
   component: SlugPage,
 });

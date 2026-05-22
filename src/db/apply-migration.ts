@@ -14,6 +14,7 @@ const MIGRATIONS = [
   "./migrations/0000_smooth_clint_barton.sql",
   "./migrations/0001_mp_marketplace.sql",
   "./migrations/0002_lembretes.sql",
+  "./migrations/0003_customizacao_publica.sql",
 ];
 
 for (const rel of MIGRATIONS) {
