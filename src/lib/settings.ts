@@ -98,6 +98,44 @@ export const updateProfile = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// ─── Page customization ───────────────────────────────────────────────────────
+
+const hexColor = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, "Cor inválida (use formato #RRGGBB)");
+
+export const updatePageCustomization = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      corMarca: hexColor,
+      corTexto: hexColor,
+      heroTitulo: z.string().max(255).optional(),
+      heroSubtitulo: z.string().max(500).optional(),
+      heroImageUrl: z.string().url().optional().or(z.literal("")),
+      telemedicinaAtivo: z.boolean(),
+      meetLink: z.string().url().optional().or(z.literal("")),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const profId = await getAuthProfId();
+
+    await db
+      .update(professionals)
+      .set({
+        corMarca: data.corMarca,
+        corTexto: data.corTexto,
+        heroTitulo: data.heroTitulo || null,
+        heroSubtitulo: data.heroSubtitulo || null,
+        heroImageUrl: data.heroImageUrl || null,
+        telemedicinaAtivo: data.telemedicinaAtivo,
+        meetLink: data.meetLink || null,
+        atualizadoEm: new Date(),
+      })
+      .where(eq(professionals.id, profId));
+
+    return { ok: true };
+  });
+
 // ─── Services ─────────────────────────────────────────────────────────────────
 
 export const upsertService = createServerFn({ method: "POST" })
@@ -108,6 +146,7 @@ export const upsertService = createServerFn({ method: "POST" })
       descricao: z.string().optional(),
       preco: z.string().regex(/^\d+(\.\d{1,2})?$/, "Preço inválido"),
       duracaoMinutos: z.number().int().min(5).max(480),
+      modalidade: z.enum(["presencial", "online", "ambos"]).default("presencial"),
     }),
   )
   .handler(async ({ data }) => {
@@ -126,6 +165,7 @@ export const upsertService = createServerFn({ method: "POST" })
           descricao: data.descricao ?? null,
           preco: data.preco,
           duracaoMinutos: data.duracaoMinutos,
+          modalidade: data.modalidade,
           atualizadoEm: new Date(),
         })
         .where(eq(services.id, data.id));
@@ -136,6 +176,7 @@ export const upsertService = createServerFn({ method: "POST" })
         descricao: data.descricao ?? null,
         preco: data.preco,
         duracaoMinutos: data.duracaoMinutos,
+        modalidade: data.modalidade,
       });
     }
 

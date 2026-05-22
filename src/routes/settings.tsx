@@ -17,12 +17,17 @@ import {
   ToggleLeft,
   ToggleRight,
   ExternalLink,
+  Palette,
+  Video,
+  Globe,
+  Eye,
 } from "lucide-react";
 import { DashboardLayout } from "../components/DashboardLayout";
 import { buildPublicUrl } from "../lib/subdomain";
 import {
   fetchSettingsData,
   updateProfile,
+  updatePageCustomization,
   upsertService,
   toggleServiceActive,
   addAvailabilityRule,
@@ -54,7 +59,7 @@ function formatCurrency(v: string | number) {
   return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-type Tab = "perfil" | "servicos" | "disponibilidade";
+type Tab = "perfil" | "pagina" | "servicos" | "disponibilidade";
 type DiaSemana = "domingo" | "segunda" | "terca" | "quarta" | "quinta" | "sexta" | "sabado";
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -106,10 +111,11 @@ function SettingsContent() {
 
       <div className="p-6 max-w-3xl">
         {/* Tabs */}
-        <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl mb-6 w-fit">
+        <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-xl mb-6 w-fit">
           {(
             [
               { id: "perfil", label: "Perfil", icon: User },
+              { id: "pagina", label: "Página Pública", icon: Globe },
               { id: "servicos", label: "Serviços", icon: Briefcase },
               { id: "disponibilidade", label: "Disponibilidade", icon: CalendarDays },
             ] as const
@@ -130,6 +136,7 @@ function SettingsContent() {
         </div>
 
         {tab === "perfil" && <ProfileTab data={data} onSaved={() => router.invalidate()} />}
+        {tab === "pagina" && <PageCustomizationTab data={data} onSaved={() => router.invalidate()} />}
         {tab === "servicos" && <ServicesTab data={data} onSaved={() => router.invalidate()} />}
         {tab === "disponibilidade" && (
           <AvailabilityTab data={data} onSaved={() => router.invalidate()} />
@@ -246,6 +253,261 @@ function ProfileTab({ data, onSaved }: { data: SettingsData; onSaved: () => void
   );
 }
 
+// ─── PageCustomizationTab ─────────────────────────────────────────────────────
+
+function PageCustomizationTab({ data, onSaved }: { data: SettingsData; onSaved: () => void }) {
+  const p = data.professional;
+  const [form, setForm] = useState({
+    corMarca: p.corMarca ?? "#0d9488",
+    corTexto: p.corTexto ?? "#0f172a",
+    heroTitulo: p.heroTitulo ?? "",
+    heroSubtitulo: p.heroSubtitulo ?? "",
+    heroImageUrl: p.heroImageUrl ?? "",
+    telemedicinaAtivo: p.telemedicinaAtivo ?? false,
+    meetLink: p.meetLink ?? "",
+  });
+  const [saved, setSaved] = useState(false);
+
+  const mutation = useMutation({
+    mutationFn: () => updatePageCustomization({ data: form }),
+    onSuccess: () => {
+      setSaved(true);
+      onSaved();
+      setTimeout(() => setSaved(false), 2000);
+    },
+  });
+
+  const publicUrl = buildPublicUrl(p.slug);
+
+  return (
+    <div className="space-y-5">
+      {/* Color section */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Palette className="h-4 w-4 text-slate-500" />
+          <h3 className="text-sm font-semibold text-slate-800">Cores da marca</h3>
+        </div>
+        <p className="text-xs text-slate-500 -mt-3">
+          As cores escolhidas serão aplicadas em todos os botões, destaques e painel da sua página pública.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {/* Cor principal */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Cor principal da marca</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={form.corMarca}
+                onChange={(e) => setForm((f) => ({ ...f, corMarca: e.target.value }))}
+                className="h-10 w-16 cursor-pointer rounded-lg border border-slate-200 p-0.5"
+              />
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={form.corMarca}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setForm((f) => ({ ...f, corMarca: v }));
+                  }}
+                  maxLength={7}
+                  className="w-full px-3 py-2 text-sm font-mono rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
+                  placeholder="#0d9488"
+                />
+              </div>
+            </div>
+            {/* Previsualização */}
+            <div
+              className="mt-3 rounded-xl p-3 flex items-center gap-3 text-white text-sm font-medium"
+              style={{ background: form.corMarca }}
+            >
+              <div className="h-8 w-8 rounded-lg bg-white/20 grid place-items-center">
+                <Eye className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-xs opacity-70">Preview</p>
+                <p>Botão de agendamento</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Cor de texto */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Cor do texto principal</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={form.corTexto}
+                onChange={(e) => setForm((f) => ({ ...f, corTexto: e.target.value }))}
+                className="h-10 w-16 cursor-pointer rounded-lg border border-slate-200 p-0.5"
+              />
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={form.corTexto}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setForm((f) => ({ ...f, corTexto: v }));
+                  }}
+                  maxLength={7}
+                  className="w-full px-3 py-2 text-sm font-mono rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
+                  placeholder="#0f172a"
+                />
+              </div>
+            </div>
+            <div
+              className="mt-3 rounded-xl border border-slate-200 p-3 text-sm"
+              style={{ color: form.corTexto }}
+            >
+              <p className="font-bold">Título da página</p>
+              <p className="opacity-70 text-xs mt-0.5">Subtítulo e textos secundários</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Hero content */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Globe className="h-4 w-4 text-slate-500" />
+          <h3 className="text-sm font-semibold text-slate-800">Conteúdo da página pública</h3>
+        </div>
+        <p className="text-xs text-slate-500 -mt-3">
+          Personalize o que seus pacientes verão ao acessar seu link. Deixe em branco para usar os valores padrão.
+        </p>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Título principal{" "}
+              <span className="text-xs font-normal text-slate-400">
+                (padrão: "Agende com {p.nomeCompleto}")
+              </span>
+            </label>
+            <input
+              type="text"
+              value={form.heroTitulo}
+              onChange={(e) => setForm((f) => ({ ...f, heroTitulo: e.target.value }))}
+              placeholder={`Agende com ${p.nomeCompleto}`}
+              maxLength={255}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Subtítulo / chamada{" "}
+              <span className="text-xs font-normal text-slate-400">(padrão: sua bio)</span>
+            </label>
+            <textarea
+              rows={3}
+              value={form.heroSubtitulo}
+              onChange={(e) => setForm((f) => ({ ...f, heroSubtitulo: e.target.value }))}
+              placeholder="Escolha o serviço, data e horário. Confirmação imediata."
+              maxLength={500}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none resize-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              URL da imagem de capa{" "}
+              <span className="text-xs font-normal text-slate-400">(opcional — banner do topo)</span>
+            </label>
+            <input
+              type="url"
+              value={form.heroImageUrl}
+              onChange={(e) => setForm((f) => ({ ...f, heroImageUrl: e.target.value }))}
+              placeholder="https://minha-foto.com/capa.jpg"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
+            />
+            {form.heroImageUrl && (
+              <img
+                src={form.heroImageUrl}
+                alt="Preview capa"
+                className="mt-2 h-20 w-full rounded-lg object-cover border border-slate-200"
+                onError={(e) => (e.currentTarget.style.display = "none")}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Telemedicina */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Video className="h-4 w-4 text-slate-500" />
+            <h3 className="text-sm font-semibold text-slate-800">Telemedicina</h3>
+          </div>
+          <button
+            type="button"
+            onClick={() => setForm((f) => ({ ...f, telemedicinaAtivo: !f.telemedicinaAtivo }))}
+            className="transition"
+          >
+            {form.telemedicinaAtivo ? (
+              <ToggleRight className="h-7 w-7 text-teal-600" />
+            ) : (
+              <ToggleLeft className="h-7 w-7 text-slate-400" />
+            )}
+          </button>
+        </div>
+        <p className="text-xs text-slate-500">
+          Quando ativado, aparece o badge "Telemedicina" no seu perfil público e o link da consulta online é exibido após a confirmação do agendamento.
+        </p>
+
+        {form.telemedicinaAtivo && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Link Google Meet (ou Zoom)
+            </label>
+            <input
+              type="url"
+              value={form.meetLink}
+              onChange={(e) => setForm((f) => ({ ...f, meetLink: e.target.value }))}
+              placeholder="https://meet.google.com/xxx-xxxx-xxx"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Este link será exibido ao paciente após confirmar um agendamento de telemedicina.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center justify-between pt-1">
+        <a
+          href={publicUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs text-teal-600 hover:text-teal-800"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          Ver página pública
+        </a>
+        <button
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending}
+          className="inline-flex items-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-60 px-5 py-2.5 text-sm font-semibold text-white transition"
+        >
+          {saved ? (
+            <>
+              <Check className="h-4 w-4" /> Salvo!
+            </>
+          ) : mutation.isPending ? (
+            "Salvando..."
+          ) : (
+            <>
+              <Save className="h-4 w-4" /> Salvar alterações
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── ServicesTab ──────────────────────────────────────────────────────────────
 
 type ServiceForm = {
@@ -254,6 +516,7 @@ type ServiceForm = {
   descricao: string;
   preco: string;
   duracaoMinutos: number;
+  modalidade: "presencial" | "online" | "ambos";
 };
 
 const emptyService = (): ServiceForm => ({
@@ -261,6 +524,7 @@ const emptyService = (): ServiceForm => ({
   descricao: "",
   preco: "",
   duracaoMinutos: 30,
+  modalidade: "presencial",
 });
 
 function ServicesTab({ data, onSaved }: { data: SettingsData; onSaved: () => void }) {
@@ -276,6 +540,7 @@ function ServicesTab({ data, onSaved }: { data: SettingsData; onSaved: () => voi
           descricao: form.descricao || undefined,
           preco: form.preco,
           duracaoMinutos: form.duracaoMinutos,
+          modalidade: form.modalidade,
         },
       }),
     onSuccess: () => {
@@ -331,6 +596,20 @@ function ServicesTab({ data, onSaved }: { data: SettingsData; onSaved: () => voi
                     <span>{formatCurrency(svc.preco)}</span>
                     <span>·</span>
                     <span>{svc.duracaoMinutos} min</span>
+                    <span>·</span>
+                    <span className={`font-medium ${
+                      svc.modalidade === "online"
+                        ? "text-sky-600"
+                        : svc.modalidade === "ambos"
+                          ? "text-violet-600"
+                          : "text-emerald-600"
+                    }`}>
+                      {svc.modalidade === "online"
+                        ? "Telemedicina"
+                        : svc.modalidade === "ambos"
+                          ? "Presencial+Online"
+                          : "Presencial"}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -343,6 +622,7 @@ function ServicesTab({ data, onSaved }: { data: SettingsData; onSaved: () => voi
                         descricao: svc.descricao ?? "",
                         preco: svc.preco,
                         duracaoMinutos: svc.duracaoMinutos,
+                        modalidade: svc.modalidade ?? "presencial",
                       });
                     }}
                     className="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 transition text-slate-500"
@@ -443,6 +723,33 @@ function ServiceForm({
             max={480}
             className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
           />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-xs font-medium text-slate-600 mb-1">
+            Modalidade de atendimento
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {(
+              [
+                { value: "presencial", label: "🏥 Presencial", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" },
+                { value: "online", label: "💻 Telemedicina", cls: "border-sky-200 bg-sky-50 text-sky-700" },
+                { value: "ambos", label: "🔀 Ambos", cls: "border-violet-200 bg-violet-50 text-violet-700" },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onChange({ ...form, modalidade: opt.value })}
+                className={`px-3 py-2 text-xs font-medium rounded-lg border transition ${
+                  form.modalidade === opt.value
+                    ? opt.cls
+                    : "border-slate-200 text-slate-500 hover:border-slate-300"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="sm:col-span-2">
           <label className="block text-xs font-medium text-slate-600 mb-1">
