@@ -1,6 +1,16 @@
 # CLAUDE.md — Guia do projeto MediClin
 
-Leia este arquivo inteiro antes de qualquer tarefa. Siga as convenções aqui definidas sem exceção.
+## REGRAS DE CONTEXTO (seguir SEMPRE)
+
+1. **Nova sessão**: ler `.claude/SESSION_RESUME.md` PRIMEIRO, depois `.claude/CURRENT_STATE.md`
+2. **Antes de codar**: `git log --oneline -5` para ver estado atual
+3. **Nunca** reler o projeto inteiro — analisar apenas arquivos relevantes à tarefa
+4. **Ao encerrar**: atualizar `.claude/SESSION_RESUME.md` + `.claude/HANDOFF.md`
+5. **Múltiplos PCs**: sempre verificar `git log` antes de assumir estado do projeto
+
+---
+
+Siga as convenções abaixo sem exceção.
 
 ---
 
