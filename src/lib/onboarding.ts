@@ -5,6 +5,7 @@ import { getWebRequest } from "vinxi/http";
 import { z } from "zod";
 import { db } from "../db";
 import { professionals, users } from "../db/schema";
+import { getOrCreateUser } from "./user-sync";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -33,14 +34,17 @@ export const checkOnboardingStatus = createServerFn({ method: "GET" }).handler(
   async (): Promise<{ hasProfile: boolean }> => {
     const auth = await getAuth(getWebRequest());
     if (!auth.userId) return { hasProfile: false };
-    const userId = auth.userId;
 
-    const user = await db.query.users.findFirst({
-      where: eq(users.clerkId, userId),
+    // Auto-sync: garante que o registro existe no DB mesmo sem webhook configurado.
+    // Se o user já existe, é um no-op rápido (single SELECT).
+    const dbUser = await getOrCreateUser(auth.userId);
+
+    const userWithProf = await db.query.users.findFirst({
+      where: eq(users.id, dbUser.id),
       with: { professional: true },
     });
 
-    return { hasProfile: !!user?.professional };
+    return { hasProfile: !!userWithProf?.professional };
   },
 );
 
@@ -62,13 +66,9 @@ export const createProfessional = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ slug: string }> => {
     const auth = await getAuth(getWebRequest());
     if (!auth.userId) throw new Error("Não autenticado");
-    const userId = auth.userId;
 
-    // Resolve internal user id
-    const user = await db.query.users.findFirst({
-      where: eq(users.clerkId, userId),
-    });
-    if (!user) throw new Error("Usuário não encontrado");
+    // Auto-sync: cria user no DB a partir do Clerk se ainda não existir.
+    const user = await getOrCreateUser(auth.userId);
 
     // Guard: one professional per user
     const existing = await db.query.professionals.findFirst({
