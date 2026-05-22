@@ -21,6 +21,9 @@ import {
   Video,
   Globe,
   Eye,
+  Users,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { DashboardLayout } from "../components/DashboardLayout";
 import { buildPublicUrl } from "../lib/subdomain";
@@ -32,7 +35,12 @@ import {
   toggleServiceActive,
   addAvailabilityRule,
   deleteAvailabilityRule,
+  addClinicMember,
+  updateClinicMember,
+  removeClinicMember,
+  slugify,
   type SettingsData,
+  type ClinicMember,
 } from "../lib/settings";
 
 export const Route = createFileRoute("/settings")({
@@ -59,7 +67,7 @@ function formatCurrency(v: string | number) {
   return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-type Tab = "perfil" | "pagina" | "servicos" | "disponibilidade";
+type Tab = "perfil" | "pagina" | "servicos" | "disponibilidade" | "equipe";
 type DiaSemana = "domingo" | "segunda" | "terca" | "quarta" | "quinta" | "sexta" | "sabado";
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -92,6 +100,16 @@ function SettingsContent() {
     );
   }
 
+  const isClinic = data.professional.plano === "clinic";
+
+  const tabs = [
+    { id: "perfil" as const, label: "Perfil", icon: User },
+    { id: "pagina" as const, label: "Página Pública", icon: Globe },
+    { id: "servicos" as const, label: "Serviços", icon: Briefcase },
+    { id: "disponibilidade" as const, label: "Disponibilidade", icon: CalendarDays },
+    { id: "equipe" as const, label: "Equipe", icon: Users },
+  ];
+
   return (
     <DashboardLayout>
       {/* Topbar */}
@@ -112,14 +130,7 @@ function SettingsContent() {
       <div className="p-6 max-w-3xl">
         {/* Tabs */}
         <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-xl mb-6 w-fit">
-          {(
-            [
-              { id: "perfil", label: "Perfil", icon: User },
-              { id: "pagina", label: "Página Pública", icon: Globe },
-              { id: "servicos", label: "Serviços", icon: Briefcase },
-              { id: "disponibilidade", label: "Disponibilidade", icon: CalendarDays },
-            ] as const
-          ).map(({ id, label, icon: Icon }) => (
+          {tabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -127,10 +138,15 @@ function SettingsContent() {
                 tab === id
                   ? "bg-white text-slate-900 shadow-sm"
                   : "text-slate-600 hover:text-slate-900"
-              }`}
+              } ${id === "equipe" && !isClinic ? "opacity-50" : ""}`}
             >
               <Icon className="h-4 w-4" />
               {label}
+              {id === "equipe" && !isClinic && (
+                <span className="ml-1 rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-600 uppercase">
+                  Clinic
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -140,6 +156,11 @@ function SettingsContent() {
         {tab === "servicos" && <ServicesTab data={data} onSaved={() => router.invalidate()} />}
         {tab === "disponibilidade" && (
           <AvailabilityTab data={data} onSaved={() => router.invalidate()} />
+        )}
+        {tab === "equipe" && (
+          isClinic
+            ? <TeamTab data={data} onSaved={() => router.invalidate()} />
+            : <ClinicUpgradePrompt onUpgrade={() => setTab("perfil")} />
         )}
       </div>
     </DashboardLayout>
@@ -158,6 +179,7 @@ function ProfileTab({ data, onSaved }: { data: SettingsData; onSaved: () => void
     fotoUrl: p.fotoUrl ?? "",
     telefoneWhatsapp: p.telefoneWhatsapp ?? "",
     slug: p.slug,
+    plano: p.plano as "free" | "pro" | "clinic",
   });
   const [saved, setSaved] = useState(false);
 
@@ -180,7 +202,7 @@ function ProfileTab({ data, onSaved }: { data: SettingsData; onSaved: () => void
       {opts?.textarea ? (
         <textarea
           rows={3}
-          value={form[key]}
+          value={form[key] as string}
           onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
           placeholder={opts.placeholder}
           className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none transition resize-none"
@@ -188,7 +210,7 @@ function ProfileTab({ data, onSaved }: { data: SettingsData; onSaved: () => void
       ) : (
         <input
           type={opts?.type ?? "text"}
-          value={form[key]}
+          value={form[key] as string}
           onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
           placeholder={opts?.placeholder}
           className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none transition"
@@ -199,55 +221,85 @@ function ProfileTab({ data, onSaved }: { data: SettingsData; onSaved: () => void
   );
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-5">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        {field("Nome completo", "nomeCompleto", { placeholder: "Dr. João Silva" })}
-        {field("Especialidade", "especialidade", { placeholder: "Cardiologia" })}
-        {field("Registro (CRM/CRO)", "registro", { placeholder: "CRM 123456-SP" })}
-        {field("WhatsApp", "telefoneWhatsapp", {
-          placeholder: "+5511999990000",
-          hint: "Exibido no link público para reagendamentos",
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {field("Nome completo", "nomeCompleto", { placeholder: "Dr. João Silva" })}
+          {field("Especialidade", "especialidade", { placeholder: "Cardiologia" })}
+          {field("Registro (CRM/CRO)", "registro", { placeholder: "CRM 123456-SP" })}
+          {field("WhatsApp", "telefoneWhatsapp", {
+            placeholder: "+5511999990000",
+            hint: "Exibido no link público para reagendamentos",
+          })}
+          {field("Foto (URL)", "fotoUrl", {
+            placeholder: "https://...",
+            hint: "URL pública de uma imagem (JPEG/PNG)",
+          })}
+          {field("Slug (URL pública)", "slug", {
+            hint: `Seu link: ${buildPublicUrl(form.slug || "seu-nome")}`,
+          })}
+        </div>
+        {field("Bio / Apresentação", "bio", {
+          textarea: true,
+          placeholder: "Breve apresentação exibida no seu perfil público...",
         })}
-        {field("Foto (URL)", "fotoUrl", {
-          placeholder: "https://...",
-          hint: "URL pública de uma imagem (JPEG/PNG)",
-        })}
-        {field("Slug (URL pública)", "slug", {
-          hint: `Seu link: ${buildPublicUrl(form.slug || "seu-nome")}`,
-        })}
-      </div>
-      {field("Bio / Apresentação", "bio", {
-        textarea: true,
-        placeholder: "Breve apresentação exibida no seu perfil público...",
-      })}
 
-      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-        <a
-          href={buildPublicUrl(form.slug || "seu-nome")}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs text-teal-600 hover:text-teal-800"
-        >
-          <ExternalLink className="h-3.5 w-3.5" />
-          Ver perfil público
-        </a>
-        <button
-          onClick={() => mutation.mutate()}
-          disabled={mutation.isPending}
-          className="inline-flex items-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-60 px-5 py-2.5 text-sm font-semibold text-white transition"
-        >
-          {saved ? (
-            <>
-              <Check className="h-4 w-4" /> Salvo!
-            </>
-          ) : mutation.isPending ? (
-            "Salvando..."
-          ) : (
-            <>
-              <Save className="h-4 w-4" /> Salvar alterações
-            </>
-          )}
-        </button>
+        {/* Plano */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Plano MediClin</label>
+          <div className="grid grid-cols-3 gap-2">
+            {(
+              [
+                { value: "free", label: "Gratuito", desc: "1 profissional, serviços ilimitados" },
+                { value: "pro", label: "Pro", desc: "Tudo do gratuito + pagamentos online" },
+                { value: "clinic", label: "Clínica", desc: "Múltiplos profissionais na equipe" },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, plano: opt.value }))}
+                className={`rounded-xl border p-3 text-left transition ${
+                  form.plano === opt.value
+                    ? "border-teal-400 bg-teal-50 ring-2 ring-teal-100"
+                    : "border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                <p className="text-sm font-semibold text-slate-900">{opt.label}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">{opt.desc}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+          <a
+            href={buildPublicUrl(form.slug || "seu-nome")}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs text-teal-600 hover:text-teal-800"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Ver perfil público
+          </a>
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending}
+            className="inline-flex items-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-60 px-5 py-2.5 text-sm font-semibold text-white transition"
+          >
+            {saved ? (
+              <>
+                <Check className="h-4 w-4" /> Salvo!
+              </>
+            ) : mutation.isPending ? (
+              "Salvando..."
+            ) : (
+              <>
+                <Save className="h-4 w-4" /> Salvar alterações
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -316,7 +368,6 @@ function PageCustomizationTab({ data, onSaved }: { data: SettingsData; onSaved: 
                 />
               </div>
             </div>
-            {/* Previsualização */}
             <div
               className="mt-3 rounded-xl p-3 flex items-center gap-3 text-white text-sm font-medium"
               style={{ background: form.corMarca }}
@@ -468,9 +519,6 @@ function PageCustomizationTab({ data, onSaved }: { data: SettingsData; onSaved: 
               placeholder="https://meet.google.com/xxx-xxxx-xxx"
               className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
             />
-            <p className="mt-1 text-xs text-slate-400">
-              Este link será exibido ao paciente após confirmar um agendamento de telemedicina.
-            </p>
           </div>
         )}
       </div>
@@ -527,14 +575,27 @@ const emptyService = (): ServiceForm => ({
   modalidade: "presencial",
 });
 
-function ServicesTab({ data, onSaved }: { data: SettingsData; onSaved: () => void }) {
+function ServicesTab({
+  data,
+  onSaved,
+  targetProfessionalId,
+  services: servicesProp,
+}: {
+  data: SettingsData;
+  onSaved: () => void;
+  targetProfessionalId?: string;
+  services?: SettingsData["services"];
+}) {
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
   const [form, setForm] = useState<ServiceForm>(emptyService());
+
+  const displayServices = servicesProp ?? data.services;
 
   const saveMutation = useMutation({
     mutationFn: () =>
       upsertService({
         data: {
+          targetProfessionalId,
           id: form.id,
           nome: form.nome,
           descricao: form.descricao || undefined,
@@ -552,13 +613,13 @@ function ServicesTab({ data, onSaved }: { data: SettingsData; onSaved: () => voi
 
   const toggleMutation = useMutation({
     mutationFn: ({ serviceId, ativo }: { serviceId: string; ativo: boolean }) =>
-      toggleServiceActive({ data: { serviceId, ativo } }),
+      toggleServiceActive({ data: { targetProfessionalId, serviceId, ativo } }),
     onSuccess: onSaved,
   });
 
   return (
     <div className="space-y-3">
-      {data.services.map((svc) => {
+      {displayServices.map((svc) => {
         const isEditing = editingId === svc.id;
         return (
           <div
@@ -568,7 +629,7 @@ function ServicesTab({ data, onSaved }: { data: SettingsData; onSaved: () => voi
             }`}
           >
             {isEditing ? (
-              <ServiceForm
+              <ServiceFormWidget
                 form={form}
                 onChange={setForm}
                 onSave={() => saveMutation.mutate()}
@@ -652,7 +713,7 @@ function ServicesTab({ data, onSaved }: { data: SettingsData; onSaved: () => voi
       {/* Add new */}
       {editingId === "new" ? (
         <div className="rounded-2xl border border-teal-200 bg-teal-50/40 p-4">
-          <ServiceForm
+          <ServiceFormWidget
             form={form}
             onChange={setForm}
             onSave={() => saveMutation.mutate()}
@@ -679,7 +740,7 @@ function ServicesTab({ data, onSaved }: { data: SettingsData; onSaved: () => voi
   );
 }
 
-function ServiceForm({
+function ServiceFormWidget({
   form,
   onChange,
   onSave,
@@ -852,10 +913,7 @@ function AvailabilityTab({ data, onSaved }: { data: SettingsData; onSaved: () =>
               <select
                 value={newRule.diaSemana}
                 onChange={(e) =>
-                  setNewRule((r) => ({
-                    ...r,
-                    diaSemana: e.target.value as DiaSemana,
-                  }))
+                  setNewRule((r) => ({ ...r, diaSemana: e.target.value as DiaSemana }))
                 }
                 className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none bg-white"
               >
@@ -911,6 +969,438 @@ function AvailabilityTab({ data, onSaved }: { data: SettingsData; onSaved: () =>
           Adicionar regra
         </button>
       )}
+    </div>
+  );
+}
+
+// ─── TeamTab ──────────────────────────────────────────────────────────────────
+
+type MemberForm = {
+  nomeCompleto: string;
+  especialidade: string;
+  registro: string;
+  bio: string;
+  fotoUrl: string;
+  slug: string;
+  corMarca: string;
+};
+
+const emptyMember = (parentBrand = "#0d9488"): MemberForm => ({
+  nomeCompleto: "",
+  especialidade: "",
+  registro: "",
+  bio: "",
+  fotoUrl: "",
+  slug: "",
+  corMarca: parentBrand,
+});
+
+function TeamTab({ data, onSaved }: { data: SettingsData; onSaved: () => void }) {
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addForm, setAddForm] = useState<MemberForm>(emptyMember(data.professional.corMarca ?? "#0d9488"));
+  const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [editForms, setEditForms] = useState<Record<string, MemberForm>>({});
+
+  const addMutation = useMutation({
+    mutationFn: () =>
+      addClinicMember({
+        data: {
+          nomeCompleto: addForm.nomeCompleto,
+          especialidade: addForm.especialidade,
+          registro: addForm.registro,
+          bio: addForm.bio || undefined,
+          fotoUrl: addForm.fotoUrl || undefined,
+          slug: addForm.slug,
+          corMarca: addForm.corMarca as `#${string}`,
+        },
+      }),
+    onSuccess: () => {
+      setShowAddForm(false);
+      setAddForm(emptyMember(data.professional.corMarca ?? "#0d9488"));
+      onSaved();
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (memberId: string) => {
+      const f = editForms[memberId];
+      return updateClinicMember({
+        data: {
+          memberId,
+          nomeCompleto: f.nomeCompleto,
+          especialidade: f.especialidade,
+          registro: f.registro,
+          bio: f.bio || undefined,
+          fotoUrl: f.fotoUrl || undefined,
+          slug: f.slug,
+          corMarca: f.corMarca as `#${string}`,
+        },
+      });
+    },
+    onSuccess: () => {
+      setEditingMemberId(null);
+      onSaved();
+    },
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (memberId: string) => removeClinicMember({ data: { memberId } }),
+    onSuccess: onSaved,
+  });
+
+  const autoSlug = (name: string) => slugify(name);
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Users className="h-4 w-4 text-slate-500" />
+          <h3 className="text-sm font-semibold text-slate-800">Equipe da clínica</h3>
+        </div>
+        <p className="text-xs text-slate-500">
+          Cada profissional adicionado ganha sua própria página pública (link na bio) e pode ter serviços independentes.
+        </p>
+      </div>
+
+      {/* Member list */}
+      {data.members.length === 0 && !showAddForm && (
+        <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center">
+          <Users className="h-8 w-8 text-slate-300 mx-auto mb-3" />
+          <p className="text-sm font-medium text-slate-600">Nenhum profissional na equipe</p>
+          <p className="text-xs text-slate-400 mt-1">Clique em "Adicionar profissional" para começar</p>
+        </div>
+      )}
+
+      {data.members.map((member) => {
+        const isExpanded = expandedMemberId === member.id;
+        const isEditing = editingMemberId === member.id;
+        const editForm = editForms[member.id] ?? {
+          nomeCompleto: member.nomeCompleto,
+          especialidade: member.especialidade,
+          registro: member.registro,
+          bio: member.bio ?? "",
+          fotoUrl: member.fotoUrl ?? "",
+          slug: member.slug,
+          corMarca: member.corMarca ?? "#0d9488",
+        };
+
+        return (
+          <div
+            key={member.id}
+            className="rounded-2xl border border-slate-200 bg-white overflow-hidden"
+          >
+            {/* Member header */}
+            <div className="flex items-center gap-3 p-4">
+              {/* Avatar */}
+              {member.fotoUrl ? (
+                <img
+                  src={member.fotoUrl}
+                  alt={member.nomeCompleto}
+                  className="h-11 w-11 rounded-xl object-cover ring-1 ring-slate-100 shrink-0"
+                />
+              ) : (
+                <div
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
+                  style={{ background: member.corMarca ?? data.professional.corMarca ?? "#0d9488" }}
+                >
+                  {member.nomeCompleto.split(" ").slice(0, 2).map((n) => n[0]).join("")}
+                </div>
+              )}
+
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-900">{member.nomeCompleto}</p>
+                <p className="text-xs text-slate-500">{member.especialidade} · {member.registro}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[10px] text-slate-400">/{member.slug}</span>
+                  <a
+                    href={buildPublicUrl(member.slug)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-0.5 text-[10px] text-teal-600 hover:text-teal-800"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ExternalLink className="h-2.5 w-2.5" />
+                    ver página
+                  </a>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => {
+                    setEditingMemberId(isEditing ? null : member.id);
+                    setEditForms((f) => ({ ...f, [member.id]: editForm }));
+                  }}
+                  className="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 transition text-slate-500"
+                  title="Editar"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => setExpandedMemberId(isExpanded ? null : member.id)}
+                  className="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 transition text-slate-500"
+                  title={isExpanded ? "Recolher" : "Gerenciar serviços"}
+                >
+                  {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirm(`Remover ${member.nomeCompleto} da equipe?`)) {
+                      removeMutation.mutate(member.id);
+                    }
+                  }}
+                  disabled={removeMutation.isPending}
+                  className="h-8 w-8 grid place-items-center rounded-lg hover:bg-rose-50 hover:text-rose-600 text-slate-400 transition disabled:opacity-50"
+                  title="Remover"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Edit form */}
+            {isEditing && (
+              <div className="border-t border-slate-100 p-4 bg-slate-50/50">
+                <p className="text-xs font-semibold text-slate-700 mb-3">Editar profissional</p>
+                <MemberFormWidget
+                  form={editForms[member.id] ?? editForm}
+                  onChange={(f) => setEditForms((prev) => ({ ...prev, [member.id]: f }))}
+                  onSave={() => updateMutation.mutate(member.id)}
+                  onCancel={() => setEditingMemberId(null)}
+                  isPending={updateMutation.isPending}
+                  autoSlug={autoSlug}
+                />
+              </div>
+            )}
+
+            {/* Services section */}
+            {isExpanded && (
+              <div className="border-t border-slate-100 p-4 bg-slate-50/30">
+                <p className="text-xs font-semibold text-slate-600 mb-3 flex items-center gap-1.5">
+                  <Briefcase className="h-3.5 w-3.5" />
+                  Serviços de {member.nomeCompleto.split(" ")[0]}
+                </p>
+                <ServicesTab
+                  data={data}
+                  onSaved={onSaved}
+                  targetProfessionalId={member.id}
+                  services={member.services}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Add member form */}
+      {showAddForm ? (
+        <div className="rounded-2xl border border-violet-200 bg-violet-50/30 p-5">
+          <p className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
+            <Plus className="h-4 w-4 text-violet-600" />
+            Novo profissional
+          </p>
+          <MemberFormWidget
+            form={addForm}
+            onChange={setAddForm}
+            onSave={() => addMutation.mutate()}
+            onCancel={() => {
+              setShowAddForm(false);
+              setAddForm(emptyMember(data.professional.corMarca ?? "#0d9488"));
+            }}
+            isPending={addMutation.isPending}
+            autoSlug={autoSlug}
+            error={addMutation.error instanceof Error ? addMutation.error.message : undefined}
+          />
+        </div>
+      ) : (
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="w-full flex items-center justify-center gap-2 rounded-2xl border border-dashed border-violet-300 hover:border-violet-400 hover:bg-violet-50/50 py-4 text-sm font-medium text-violet-600 hover:text-violet-800 transition"
+        >
+          <Plus className="h-4 w-4" />
+          Adicionar profissional
+        </button>
+      )}
+    </div>
+  );
+}
+
+function MemberFormWidget({
+  form,
+  onChange,
+  onSave,
+  onCancel,
+  isPending,
+  autoSlug,
+  error,
+}: {
+  form: MemberForm;
+  onChange: (f: MemberForm) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  isPending: boolean;
+  autoSlug: (name: string) => string;
+  error?: string;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="sm:col-span-2">
+          <label className="block text-xs font-medium text-slate-600 mb-1">Nome completo *</label>
+          <input
+            value={form.nomeCompleto}
+            onChange={(e) => {
+              const name = e.target.value;
+              onChange({
+                ...form,
+                nomeCompleto: name,
+                // Auto-fill slug if it hasn't been manually changed
+                slug: form.slug === autoSlug(form.nomeCompleto) || form.slug === ""
+                  ? autoSlug(name)
+                  : form.slug,
+              });
+            }}
+            placeholder="Dra. Ana Cardoso"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Especialidade *</label>
+          <input
+            value={form.especialidade}
+            onChange={(e) => onChange({ ...form, especialidade: e.target.value })}
+            placeholder="Cardiologia"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Registro (CRM/CRO) *</label>
+          <input
+            value={form.registro}
+            onChange={(e) => onChange({ ...form, registro: e.target.value })}
+            placeholder="CRM 123456-SP"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-xs font-medium text-slate-600 mb-1">
+            Slug (URL pública){" "}
+            <span className="text-slate-400 font-normal">— preenchido automaticamente</span>
+          </label>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 shrink-0">mediclin.vercel.app/</span>
+            <input
+              value={form.slug}
+              onChange={(e) => onChange({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })}
+              placeholder="dra-ana-cardoso"
+              className="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none font-mono"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Foto (URL)</label>
+          <input
+            value={form.fotoUrl}
+            onChange={(e) => onChange({ ...form, fotoUrl: e.target.value })}
+            placeholder="https://..."
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Cor da marca</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={form.corMarca}
+              onChange={(e) => onChange({ ...form, corMarca: e.target.value })}
+              className="h-9 w-12 cursor-pointer rounded-lg border border-slate-200 p-0.5"
+            />
+            <input
+              type="text"
+              value={form.corMarca}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (/^#[0-9a-fA-F]{0,6}$/.test(v)) onChange({ ...form, corMarca: v });
+              }}
+              maxLength={7}
+              className="flex-1 px-3 py-2 text-sm font-mono rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
+            />
+          </div>
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-xs font-medium text-slate-600 mb-1">Bio (opcional)</label>
+          <textarea
+            rows={2}
+            value={form.bio}
+            onChange={(e) => onChange({ ...form, bio: e.target.value })}
+            placeholder="Breve apresentação do profissional..."
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none resize-none"
+          />
+        </div>
+      </div>
+
+      {error && (
+        <p className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+          {error}
+        </p>
+      )}
+
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <button
+          onClick={onCancel}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition"
+        >
+          <X className="h-3.5 w-3.5" /> Cancelar
+        </button>
+        <button
+          onClick={onSave}
+          disabled={isPending || !form.nomeCompleto || !form.especialidade || !form.registro || !form.slug}
+          className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold rounded-lg bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white transition"
+        >
+          <Save className="h-3.5 w-3.5" />
+          {isPending ? "Salvando..." : "Salvar"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── ClinicUpgradePrompt ──────────────────────────────────────────────────────
+
+function ClinicUpgradePrompt({ onUpgrade }: { onUpgrade: () => void }) {
+  return (
+    <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-8 text-center">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-100">
+        <Users className="h-7 w-7 text-violet-600" />
+      </div>
+      <h3 className="text-base font-bold text-slate-900">Plano Clínica</h3>
+      <p className="mt-2 text-sm text-slate-600 max-w-sm mx-auto">
+        Adicione toda a sua equipe de profissionais. Cada um ganha sua própria página pública, serviços e agenda.
+      </p>
+      <ul className="mt-4 space-y-1.5 text-xs text-slate-600 text-left max-w-xs mx-auto">
+        {[
+          "Múltiplos profissionais em uma conta",
+          "Cada profissional com página própria",
+          "Serviços e agenda independentes",
+          "Página da clínica com grid da equipe",
+          "Cores personalizáveis por profissional",
+        ].map((f) => (
+          <li key={f} className="flex items-center gap-2">
+            <Check className="h-3.5 w-3.5 text-violet-500 shrink-0" />
+            {f}
+          </li>
+        ))}
+      </ul>
+      <button
+        onClick={onUpgrade}
+        className="mt-6 inline-flex items-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 px-6 py-2.5 text-sm font-semibold text-white transition"
+      >
+        Ativar plano Clínica →
+      </button>
+      <p className="mt-2 text-xs text-slate-400">
+        Acesse a aba Perfil e selecione "Clínica"
+      </p>
     </div>
   );
 }

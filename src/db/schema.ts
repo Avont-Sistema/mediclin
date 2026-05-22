@@ -12,6 +12,7 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
@@ -82,13 +83,18 @@ export const professionals = pgTable(
   "professionals",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    // nullable: clinic-managed professionals don't have their own Clerk account
     userId: uuid("user_id")
-      .notNull()
       .unique()
       .references(() => users.id, { onDelete: "cascade" }),
     clinicId: uuid("clinic_id").references(() => clinics.id, {
       onDelete: "set null",
     }),
+    // Self-referential: clinic member links to clinic owner's professional
+    parentProfessionalId: uuid("parent_professional_id").references(
+      (): AnyPgColumn => professionals.id,
+      { onDelete: "set null" },
+    ),
 
     // Perfil público
     slug: varchar("slug", { length: 100 }).notNull().unique(),
@@ -314,6 +320,13 @@ export const clinicsRelations = relations(clinics, ({ one, many }) => ({
 export const professionalsRelations = relations(professionals, ({ one, many }) => ({
   user: one(users, { fields: [professionals.userId], references: [users.id] }),
   clinic: one(clinics, { fields: [professionals.clinicId], references: [clinics.id] }),
+  // Self-referential: clinic owner ↔ clinic members
+  parentProfessional: one(professionals, {
+    fields: [professionals.parentProfessionalId],
+    references: [professionals.id],
+    relationName: "clinic_members",
+  }),
+  members: many(professionals, { relationName: "clinic_members" }),
   services: many(services),
   availabilityRules: many(availabilityRules),
   availabilityBlocks: many(availabilityBlocks),

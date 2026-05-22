@@ -52,6 +52,16 @@ export const fetchProfessionalBySlug = createServerFn({ method: "GET" })
         services: {
           where: eq(services.ativo, true),
         },
+        // Include clinic team members if this is a clinic-plan professional
+        members: {
+          where: and(eq(professionals.ativo, true)),
+          orderBy: (m, { asc }) => [asc(m.criadoEm)],
+          with: {
+            services: {
+              where: eq(services.ativo, true),
+            },
+          },
+        },
       },
     });
     return prof ?? null;
