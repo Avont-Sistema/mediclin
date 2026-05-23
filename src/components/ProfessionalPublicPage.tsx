@@ -53,8 +53,9 @@ interface Props {
 
 type Phase =
   | { tag: "idle" }
-  | { tag: "data"; service: Service }
-  | { tag: "hora"; service: Service; date: Date }
+  | { tag: "servicos"; member: ClinicMember }
+  | { tag: "data"; service: Service; member?: ClinicMember }
+  | { tag: "hora"; service: Service; date: Date; member?: ClinicMember }
   | {
       tag: "confirmado";
       service: Service;
@@ -62,6 +63,7 @@ type Phase =
       slot: string;
       nome: string;
       meetLink?: string | null;
+      member?: ClinicMember;
     };
 
 // ─── Icon palette for service cards ──────────────────────────────────────────
@@ -129,9 +131,11 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
   const bookingMutation = useMutation({
     mutationFn: () => {
       if (phase.tag !== "hora" || !selectedSlot) throw new Error("Dados incompletos");
+      // For clinic members, book under the member's professionalId
+      const targetId = phase.member?.id ?? professional.id;
       return createBooking({
         data: {
-          professionalId: professional.id,
+          professionalId: targetId,
           serviceId: phase.service.id,
           dateStr: toDateStr(phase.date),
           timeSlot: selectedSlot,
@@ -147,7 +151,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
       } else {
         const meetLink =
           phase.service.modalidade === "online" || phase.service.modalidade === "ambos"
-            ? professional.meetLink
+            ? (phase.member?.meetLink ?? professional.meetLink)
             : null;
         setPhase({
           tag: "confirmado",
@@ -156,6 +160,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
           slot: selectedSlot,
           nome,
           meetLink,
+          member: phase.member,
         });
       }
     },
@@ -244,26 +249,48 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
 
       {/* ── Booking section ───────────────────────────────────────────── */}
       <section id="booking" className="mx-auto max-w-6xl px-4 lg:px-8 pb-20">
-        {isClinic ? (
-          /* Clinic: show team grid */
-          <ClinicTeamSection professional={professional} brand={brand} textColor={textColor} />
-        ) : (
-          /* Individual: service → date → time → confirm */
+
+        {/* ── Success screen (full width, both individual & clinic) ────── */}
+        {phase.tag === "confirmado" && (
+          <SuccessScreen
+            phase={phase}
+            professional={professional}
+            onReset={handleReset}
+            brand={brand}
+          />
+        )}
+
+        {/* ── Clinic: step 1 — choose professional (full-width grid) ───── */}
+        {isClinic && phase.tag === "idle" && (
+          <ClinicTeamSection
+            professional={professional}
+            brand={brand}
+            textColor={textColor}
+            onSelect={(member) => setPhase({ tag: "servicos", member })}
+          />
+        )}
+
+        {/* ── All other phases: 2-col grid (content + summary panel) ───── */}
+        {phase.tag !== "confirmado" && !(isClinic && phase.tag === "idle") && (
           <div className="grid gap-8 lg:grid-cols-[1fr_360px] lg:items-start">
             {/* LEFT column */}
             <div>
-              {/* Success screen */}
-              {phase.tag === "confirmado" && (
-                <SuccessScreen
-                  phase={phase}
-                  professional={professional}
-                  onReset={handleReset}
+              {/* Clinic: step 2 — choose service for selected member */}
+              {isClinic && phase.tag === "servicos" && (
+                <ClinicMemberServicesSection
+                  member={phase.member}
                   brand={brand}
+                  textColor={textColor}
+                  onBack={() => setPhase({ tag: "idle" })}
+                  onSelect={(svc) => {
+                    setSelectedSlot(null);
+                    setPhase({ tag: "data", service: svc, member: phase.member });
+                  }}
                 />
               )}
 
-              {/* Step: idle — services grid */}
-              {phase.tag === "idle" && (
+              {/* Individual: step 1 — choose service */}
+              {!isClinic && phase.tag === "idle" && (
                 <ServicesSection
                   professional={professional}
                   brand={brand}
@@ -275,28 +302,34 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
                 />
               )}
 
-              {/* Step: data — date picker */}
+              {/* Step: data — date picker (individual & clinic share this) */}
               {phase.tag === "data" && (
                 <StepDate
-                  professionalId={professional.id}
+                  professionalId={phase.member?.id ?? professional.id}
                   service={phase.service}
                   brand={brand}
-                  onBack={() => setPhase({ tag: "idle" })}
+                  onBack={() =>
+                    isClinic && phase.member
+                      ? setPhase({ tag: "servicos", member: phase.member })
+                      : setPhase({ tag: "idle" })
+                  }
                   onNext={(date) =>
-                    setPhase({ tag: "hora", service: phase.service, date })
+                    setPhase({ tag: "hora", service: phase.service, date, member: phase.member })
                   }
                 />
               )}
 
-              {/* Step: hora — time slots */}
+              {/* Step: hora — time slots (individual & clinic share this) */}
               {phase.tag === "hora" && (
                 <StepTime
-                  professionalId={professional.id}
+                  professionalId={phase.member?.id ?? professional.id}
                   service={phase.service}
                   date={phase.date}
                   selectedSlot={selectedSlot}
                   brand={brand}
-                  onBack={() => setPhase({ tag: "data", service: phase.service })}
+                  onBack={() =>
+                    setPhase({ tag: "data", service: phase.service, member: phase.member })
+                  }
                   onSelectSlot={(slot) => setSelectedSlot(slot)}
                 />
               )}
@@ -304,28 +337,33 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
 
             {/* RIGHT column — dark summary panel, sticky */}
             <div className="lg:sticky lg:top-20">
-              {phase.tag === "confirmado" ? null : (
-                <SummaryPanel
-                  phase={phase}
-                  selectedSlot={selectedSlot}
-                  professional={professional}
-                  brand={brand}
-                  nome={nome}
-                  setNome={setNome}
-                  email={email}
-                  setEmail={setEmail}
-                  telefone={telefone}
-                  setTelefone={setTelefone}
-                  canConfirm={canConfirm}
-                  isConfirming={isConfirming}
-                  onConfirm={handleConfirm}
-                  error={
-                    bookingMutation.error instanceof Error
-                      ? bookingMutation.error.message
+              <SummaryPanel
+                phase={phase}
+                selectedSlot={selectedSlot}
+                professional={professional}
+                member={
+                  phase.tag === "servicos"
+                    ? phase.member
+                    : phase.tag === "data" || phase.tag === "hora"
+                      ? phase.member
                       : undefined
-                  }
-                />
-              )}
+                }
+                brand={brand}
+                nome={nome}
+                setNome={setNome}
+                email={email}
+                setEmail={setEmail}
+                telefone={telefone}
+                setTelefone={setTelefone}
+                canConfirm={canConfirm}
+                isConfirming={isConfirming}
+                onConfirm={handleConfirm}
+                error={
+                  bookingMutation.error instanceof Error
+                    ? bookingMutation.error.message
+                    : undefined
+                }
+              />
             </div>
           </div>
         )}
@@ -772,6 +810,7 @@ function SummaryPanel({
   phase,
   selectedSlot,
   professional,
+  member,
   brand,
   nome,
   setNome,
@@ -787,6 +826,7 @@ function SummaryPanel({
   phase: Phase;
   selectedSlot: string | null;
   professional: ProfessionalPublic;
+  member?: ClinicMember;
   brand: string;
   nome: string;
   setNome: (v: string) => void;
@@ -802,7 +842,11 @@ function SummaryPanel({
   // Dark panel background: strong dark tinted with brand color
   const panelBg = `color-mix(in srgb, ${brand} 12%, #0a1420 88%)`;
 
-  const service = phase.tag !== "idle" ? phase.service : null;
+  // For clinic members: service comes from data/hora phases; for servicos phase no service yet
+  const service =
+    phase.tag === "data" || phase.tag === "hora" || phase.tag === "confirmado"
+      ? phase.service
+      : null;
   const date =
     phase.tag === "hora" || phase.tag === "confirmado" ? phase.date : null;
   const slot =
@@ -811,6 +855,9 @@ function SummaryPanel({
       : phase.tag === "confirmado"
         ? phase.slot
         : null;
+
+  // Which professional name to display
+  const profName = member?.nomeCompleto ?? professional.nomeCompleto;
 
   return (
     <div
@@ -827,9 +874,9 @@ function SummaryPanel({
 
       {/* Booking rows */}
       <div className="px-6 pb-4 space-y-3">
-        <SummaryRow label="Especialidade" value={service ? professional.especialidade : undefined} />
+        <SummaryRow label="Especialidade" value={service ? (member?.especialidade ?? professional.especialidade) : undefined} />
         <SummaryRow label="Serviço" value={service?.nome} />
-        <SummaryRow label="Profissional" value={professional.nomeCompleto} />
+        <SummaryRow label="Profissional" value={profName} />
         <SummaryRow
           label="Data e hora"
           value={
@@ -975,17 +1022,20 @@ function buildWhatsAppUrl(
   professional: ProfessionalPublic,
   phase: Extract<Phase, { tag: "confirmado" }>,
 ): string | null {
-  const phone = professional.telefoneWhatsapp?.replace(/\D/g, "");
+  // Use the clinic member's WhatsApp if available, otherwise the clinic/professional's
+  const rawPhone = phase.member?.telefoneWhatsapp ?? professional.telefoneWhatsapp;
+  const phone = rawPhone?.replace(/\D/g, "");
   if (!phone) return null;
 
+  const recipientName = phase.member?.nomeCompleto ?? professional.nomeCompleto;
   const dateStr = fmtDate(phase.date);
   const msg = [
-    `Olá, ${professional.nomeCompleto}! 👋`,
+    `Olá, ${recipientName}! 👋`,
     ``,
     `Gostaria de *confirmar* meu agendamento:`,
     ``,
     `📋 *Serviço:* ${phase.service.nome}`,
-    `👤 *Nome:* ${phase.nome}`,
+    `👤 *Paciente:* ${phase.nome}`,
     `📅 *Data:* ${dateStr}`,
     `⏰ *Horário:* ${phase.slot}`,
     `⏱️ *Duração:* ${phase.service.duracaoMinutos} min`,
@@ -1091,10 +1141,12 @@ function ClinicTeamSection({
   professional,
   brand,
   textColor,
+  onSelect,
 }: {
   professional: ProfessionalPublic;
   brand: string;
   textColor: string;
+  onSelect: (member: ClinicMember) => void;
 }) {
   const members = professional.members ?? [];
 
@@ -1132,10 +1184,10 @@ function ClinicTeamSection({
             const palette = ICON_PALETTE[idx % ICON_PALETTE.length];
 
             return (
-              <a
+              <button
                 key={member.id}
-                href={`/${member.slug}`}
-                className="group flex flex-col bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-lg hover:border-[--brand]/30 transition-all duration-200"
+                onClick={() => onSelect(member)}
+                className="group flex flex-col text-left bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-lg hover:border-[--brand]/30 transition-all duration-200 w-full"
                 style={{ "--brand": brand } as React.CSSProperties}
               >
                 {member.fotoUrl ? (
@@ -1146,7 +1198,7 @@ function ClinicTeamSection({
                   />
                 ) : (
                   <div
-                    className="h-14 w-14 rounded-xl mb-3 flex items-center justify-center text-white font-black text-lg"
+                    className="h-14 w-14 rounded-xl mb-3 flex items-center justify-center"
                     style={{ background: palette.bg }}
                   >
                     <palette.Icon className="h-6 w-6" style={{ color: palette.color }} />
@@ -1158,7 +1210,13 @@ function ClinicTeamSection({
                   {member.especialidade}
                 </p>
 
-                <div className="mt-auto pt-3 mt-3 border-t border-slate-100 flex items-end justify-between gap-1">
+                {member.bio && (
+                  <p className="mt-1.5 text-[11px] text-slate-400 line-clamp-2 leading-snug">
+                    {member.bio}
+                  </p>
+                )}
+
+                <div className="mt-auto pt-3 border-t border-slate-100 flex items-end justify-between gap-1 mt-3">
                   <span className="text-[11px] text-slate-400">
                     {activeServices.length} serviço{activeServices.length !== 1 ? "s" : ""}
                   </span>
@@ -1168,9 +1226,110 @@ function ClinicTeamSection({
                     </span>
                   )}
                 </div>
-              </a>
+              </button>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ClinicMemberServicesSection ──────────────────────────────────────────────
+
+function ClinicMemberServicesSection({
+  member,
+  brand,
+  textColor,
+  onBack,
+  onSelect,
+}: {
+  member: ClinicMember;
+  brand: string;
+  textColor: string;
+  onBack: () => void;
+  onSelect: (svc: Service) => void;
+}) {
+  const activeServices = member.services.filter((s) => s.ativo);
+  const memberBrand = member.corMarca ?? brand;
+
+  return (
+    <div>
+      {/* Back to team */}
+      <button
+        onClick={onBack}
+        className="mb-5 flex items-center gap-1 text-sm text-slate-400 hover:text-slate-700 transition"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Voltar aos profissionais
+      </button>
+
+      {/* Member mini-profile */}
+      <div className="flex items-center gap-4 mb-6 p-4 rounded-2xl bg-slate-50 border border-slate-100">
+        {member.fotoUrl ? (
+          <img
+            src={member.fotoUrl}
+            alt={member.nomeCompleto}
+            className="h-14 w-14 rounded-xl object-cover ring-2 ring-white shadow-sm shrink-0"
+          />
+        ) : (
+          <div
+            className="h-14 w-14 rounded-xl flex items-center justify-center text-white font-black text-lg shrink-0 shadow-sm"
+            style={{ background: memberBrand }}
+          >
+            {member.nomeCompleto
+              .split(" ")
+              .slice(0, 2)
+              .map((n) => n[0])
+              .join("")}
+          </div>
+        )}
+        <div>
+          <p className="font-bold text-slate-900">{member.nomeCompleto}</p>
+          <p className="text-xs mt-0.5" style={{ color: memberBrand }}>
+            {member.especialidade}
+          </p>
+          {member.bio && (
+            <p className="text-xs text-slate-500 mt-1 leading-snug line-clamp-2">
+              {member.bio}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Step header */}
+      <div className="flex items-start gap-3 mb-6">
+        <span
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black text-white shadow-sm"
+          style={{ background: brand }}
+        >
+          02
+        </span>
+        <div>
+          <h2 className="text-base font-bold" style={{ color: textColor }}>
+            Escolha a especialidade
+          </h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Selecione o serviço desejado
+          </p>
+        </div>
+      </div>
+
+      {activeServices.length === 0 ? (
+        <div className="rounded-2xl border-2 border-dashed border-slate-200 p-10 text-center text-sm text-slate-400">
+          Nenhum serviço disponível no momento.
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {activeServices.map((svc, idx) => (
+            <ServiceCard
+              key={svc.id}
+              svc={svc}
+              idx={idx}
+              brand={memberBrand}
+              onSelect={onSelect}
+            />
+          ))}
         </div>
       )}
     </div>
