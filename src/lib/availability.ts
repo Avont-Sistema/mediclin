@@ -158,7 +158,8 @@ export const createBooking = createServerFn({ method: "POST" })
       duracaoMinutos: z.number(),
       patient: z.object({
         nome: z.string().min(2),
-        email: z.string().email(),
+        // Email is optional from the patient's perspective
+        email: z.string().email().optional().or(z.literal("")),
         telefone: z.string().min(8),
       }),
     }),
@@ -171,10 +172,17 @@ export const createBooking = createServerFn({ method: "POST" })
     const inicio = new Date(y, mo - 1, d, h, m, 0);
     const fim = new Date(inicio.getTime() + duracaoMinutos * 60_000);
 
+    // When patient doesn't provide email, derive a stable placeholder from their phone
+    // so the UNIQUE constraint is satisfied and repeat callers are still deduplicated.
+    const emailToUse =
+      patient.email && patient.email.length > 0
+        ? patient.email
+        : `tel_${patient.telefone.replace(/\D/g, "")}@noemail.mediclin.app`;
+
     // Upsert patient by email
     const [pat] = await db
       .insert(patients)
-      .values(patient)
+      .values({ ...patient, email: emailToUse })
       .onConflictDoUpdate({
         target: patients.email,
         set: { nome: patient.nome, telefone: patient.telefone },

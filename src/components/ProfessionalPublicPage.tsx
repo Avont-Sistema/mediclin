@@ -170,7 +170,6 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
     phase.tag === "hora" &&
     !!selectedSlot &&
     nome.trim().length >= 2 &&
-    email.trim().includes("@") &&
     telefone.trim().length >= 8;
 
   const isConfirming = bookingMutation.isPending || mpMutation.isPending;
@@ -934,12 +933,13 @@ function SummaryPanel({
         </div>
         <div>
           <p className="text-[10px] font-bold uppercase tracking-wider opacity-50 mb-1.5">
-            E-MAIL
+            E-MAIL{" "}
+            <span className="normal-case font-normal opacity-70">(opcional)</span>
           </p>
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="para confirmação"
+            placeholder="para envio de confirmação"
             type="email"
             className="w-full rounded-xl border border-white/15 bg-white/8 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-white/30 transition"
             style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
@@ -985,7 +985,7 @@ function SummaryPanel({
               ? "Selecione um serviço"
               : !selectedSlot
                 ? "Selecione data e horário"
-                : "Preencha nome, telefone e e-mail"}
+                : "Preencha nome e telefone"}
           </p>
         )}
 
@@ -1021,14 +1021,15 @@ function SummaryRow({ label, value }: { label: string; value?: string }) {
 function buildWhatsAppUrl(
   professional: ProfessionalPublic,
   phase: Extract<Phase, { tag: "confirmado" }>,
-): string | null {
+): string {
   // Use the clinic member's WhatsApp if available, otherwise the clinic/professional's
   const rawPhone = phase.member?.telefoneWhatsapp ?? professional.telefoneWhatsapp;
   const phone = rawPhone?.replace(/\D/g, "");
-  if (!phone) return null;
 
   const recipientName = phase.member?.nomeCompleto ?? professional.nomeCompleto;
   const dateStr = fmtDate(phase.date);
+
+  // Message directed to the professional (patient sends to confirm)
   const msg = [
     `Olá, ${recipientName}! 👋`,
     ``,
@@ -1044,7 +1045,9 @@ function buildWhatsAppUrl(
     `Agendado via MediClin 🩺`,
   ].join("\n");
 
-  return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+  // If professional has WhatsApp: open direct chat; otherwise: open share dialog
+  const base = phone ? `https://wa.me/${phone}` : `https://wa.me`;
+  return `${base}?text=${encodeURIComponent(msg)}`;
 }
 
 // ─── SuccessScreen ────────────────────────────────────────────────────────────
@@ -1088,28 +1091,36 @@ function SuccessScreen({
             {phase.slot} · {phase.service.duracaoMinutos} min
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-600">
-            <span className="h-3.5 w-3.5 shrink-0 text-slate-400 flex items-center justify-center font-bold text-[10px]">R$</span>
+            <span className="h-3.5 w-3.5 shrink-0 text-slate-400 flex items-center justify-center font-bold text-[10px]">
+              R$
+            </span>
             {fmt(phase.service.preco)}
           </div>
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="mt-5 flex flex-col gap-3">
-        {/* WhatsApp confirmation button */}
-        {whatsappUrl && (
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center justify-center gap-2.5 rounded-xl py-3.5 text-sm font-bold text-white shadow-md transition hover:opacity-90"
-            style={{ background: "#25d366" }}
-          >
-            <MessageCircle className="h-4 w-4" />
-            Confirmar no WhatsApp
-          </a>
-        )}
+      {/* WhatsApp CTA — always shown */}
+      <div className="mt-5 rounded-xl border border-[#25d366]/30 bg-[#f0fdf4] px-4 py-3 text-left">
+        <p className="text-xs font-semibold text-emerald-800 mb-1">
+          📲 Confirme via WhatsApp e receba o lembrete
+        </p>
+        <p className="text-[11px] text-emerald-700 mb-3 leading-snug">
+          Envie os detalhes do agendamento para o consultório e guarde o comprovante na sua conversa.
+        </p>
+        <a
+          href={whatsappUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="flex w-full items-center justify-center gap-2.5 rounded-xl py-3 text-sm font-bold text-white shadow-sm transition hover:opacity-90"
+          style={{ background: "#25d366" }}
+        >
+          <MessageCircle className="h-4 w-4" />
+          Confirmar no WhatsApp
+        </a>
+      </div>
 
+      {/* Actions */}
+      <div className="mt-3 flex flex-col gap-3">
         {/* Google Meet link (telemedicine) */}
         {phase.meetLink && (
           <a
