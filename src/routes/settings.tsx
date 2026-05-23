@@ -67,7 +67,7 @@ function formatCurrency(v: string | number) {
   return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-type Tab = "perfil" | "pagina" | "servicos" | "disponibilidade" | "equipe";
+type Tab = "perfil" | "pagina" | "agenda" | "equipe";
 type DiaSemana = "domingo" | "segunda" | "terca" | "quarta" | "quinta" | "sexta" | "sabado";
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -105,8 +105,7 @@ function SettingsContent() {
   const tabs = [
     { id: "perfil" as const, label: "Perfil", icon: User },
     { id: "pagina" as const, label: "Página Pública", icon: Globe },
-    { id: "servicos" as const, label: "Serviços", icon: Briefcase },
-    { id: "disponibilidade" as const, label: "Disponibilidade", icon: CalendarDays },
+    { id: "agenda" as const, label: "Serviços & Agenda", icon: CalendarDays },
     { id: "equipe" as const, label: "Equipe", icon: Users },
   ];
 
@@ -153,10 +152,7 @@ function SettingsContent() {
 
         {tab === "perfil" && <ProfileTab data={data} onSaved={() => router.invalidate()} />}
         {tab === "pagina" && <PageCustomizationTab data={data} onSaved={() => router.invalidate()} />}
-        {tab === "servicos" && <ServicesTab data={data} onSaved={() => router.invalidate()} />}
-        {tab === "disponibilidade" && (
-          <AvailabilityTab data={data} onSaved={() => router.invalidate()} />
-        )}
+        {tab === "agenda" && <AgendaTab data={data} onSaved={() => router.invalidate()} />}
         {tab === "equipe" && (
           isClinic
             ? <TeamTab data={data} onSaved={() => router.invalidate()} />
@@ -845,6 +841,53 @@ function ServiceFormWidget({
   );
 }
 
+// ─── AgendaTab (Serviços + Disponibilidade combinados) ────────────────────────
+
+function AgendaTab({ data, onSaved }: { data: SettingsData; onSaved: () => void }) {
+  return (
+    <div className="space-y-10">
+      {/* ── Serviços ── */}
+      <div>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-9 w-9 rounded-xl bg-slate-100 grid place-items-center">
+            <Briefcase className="h-4 w-4 text-slate-600" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-800">Serviços</p>
+            <p className="text-xs text-slate-500">Configure os serviços oferecidos e seus preços</p>
+          </div>
+        </div>
+        <ServicesTab data={data} onSaved={onSaved} />
+      </div>
+
+      {/* ── Divider ── */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 border-t border-slate-200" />
+        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider px-1">
+          Disponibilidade
+        </span>
+        <div className="flex-1 border-t border-slate-200" />
+      </div>
+
+      {/* ── Horários ── */}
+      <div>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-9 w-9 rounded-xl bg-slate-100 grid place-items-center">
+            <CalendarDays className="h-4 w-4 text-slate-600" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-800">Horários de atendimento</p>
+            <p className="text-xs text-slate-500">
+              Regras semanais recorrentes — quando você está disponível para atender
+            </p>
+          </div>
+        </div>
+        <AvailabilityTab data={data} onSaved={onSaved} />
+      </div>
+    </div>
+  );
+}
+
 // ─── AvailabilityTab ──────────────────────────────────────────────────────────
 
 function AvailabilityTab({ data, onSaved }: { data: SettingsData; onSaved: () => void }) {
@@ -1060,7 +1103,7 @@ function TeamTab({ data, onSaved }: { data: SettingsData; onSaved: () => void })
           <h3 className="text-sm font-semibold text-slate-800">Equipe da clínica</h3>
         </div>
         <p className="text-xs text-slate-500">
-          Cada profissional adicionado ganha sua própria página pública (link na bio) e pode ter serviços independentes.
+          Cada profissional adicionado aparece na página da clínica. Os pacientes escolhem o profissional e os serviços, tudo em um único link.
         </p>
       </div>
 

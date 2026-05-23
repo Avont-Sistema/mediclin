@@ -59,6 +59,7 @@ const createProfessionalSchema = z.object({
     .min(2)
     .max(60)
     .regex(/^[a-z0-9-]+$/, "Apenas letras, números e hífen"),
+  plano: z.enum(["pro", "clinic"]).default("pro"),
 });
 
 export const createProfessional = createServerFn({ method: "POST" })
@@ -89,7 +90,7 @@ export const createProfessional = createServerFn({ method: "POST" })
       registro: data.registro,
       slug: data.slug,
       ativo: true,
-      plano: "free",
+      plano: data.plano,
     });
 
     return { slug: data.slug };

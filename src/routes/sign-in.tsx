@@ -11,7 +11,7 @@ export const Route = createFileRoute("/sign-in")({
 function SignInPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50">
-      <SignIn routing="path" path="/sign-in" />
+      <SignIn routing="path" path="/sign-in" forceRedirectUrl="/dashboard" />
     </div>
   );
 }
