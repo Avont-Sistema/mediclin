@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  MapPin,
   Clock,
   Video,
   Calendar,
@@ -11,16 +10,19 @@ import {
   CreditCard,
   Stethoscope,
   Phone,
-  Star,
   Shield,
-  Wifi,
-  ArrowRight,
+  Activity,
+  Heart,
+  Brain,
+  Leaf,
+  Thermometer,
+  Zap,
+  Star,
   Users,
+  ArrowRight,
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Calendar as CalendarPicker } from "./ui/calendar";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
 import {
   fetchAvailableDays,
   fetchAvailableSlots,
@@ -52,16 +54,27 @@ type Phase =
   | { tag: "idle" }
   | { tag: "data"; service: Service }
   | { tag: "hora"; service: Service; date: Date }
-  | { tag: "paciente"; service: Service; date: Date; slot: string }
   | {
       tag: "confirmado";
       service: Service;
       date: Date;
       slot: string;
       nome: string;
-      email: string;
       meetLink?: string | null;
     };
+
+// ─── Icon palette for service cards ──────────────────────────────────────────
+
+const ICON_PALETTE = [
+  { Icon: Stethoscope, bg: "#fff7ed", color: "#ea580c" },
+  { Icon: Heart, bg: "#fdf2f8", color: "#db2777" },
+  { Icon: Activity, bg: "#eff6ff", color: "#2563eb" },
+  { Icon: Thermometer, bg: "#fefce8", color: "#d97706" },
+  { Icon: Brain, bg: "#f5f3ff", color: "#7c3aed" },
+  { Icon: Leaf, bg: "#f0fdf4", color: "#16a34a" },
+  { Icon: Zap, bg: "#fff7f0", color: "#f97316" },
+  { Icon: Star, bg: "#fefce8", color: "#ca8a04" },
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -77,73 +90,119 @@ function toDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function serviceIcon(s: Service) {
-  const mod = s.modalidade;
-  if (mod === "online") return <Video className="h-5 w-5" />;
-  if (mod === "ambos") return <Wifi className="h-5 w-5" />;
-  return <Stethoscope className="h-5 w-5" />;
+/** Splits title so the last word can be highlighted in brand color */
+function splitTitle(title: string): { start: string; highlight: string } {
+  const words = title.trim().split(/\s+/);
+  if (words.length <= 1) return { start: "", highlight: title };
+  const highlight = words.pop()!;
+  return { start: words.join(" ") + " ", highlight };
 }
 
-function modalidadeLabel(mod: string) {
-  if (mod === "online") return { label: "Telemedicina", cls: "bg-sky-100 text-sky-700 border-sky-200" };
-  if (mod === "ambos") return { label: "Presencial + Online", cls: "bg-violet-100 text-violet-700 border-violet-200" };
-  return { label: "Presencial", cls: "bg-emerald-100 text-emerald-700 border-emerald-200" };
-}
-
-const STEP_LABELS = ["Serviço", "Data", "Horário", "Dados"];
-
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
-  const [phase, setPhase] = useState<Phase>({ tag: "idle" });
-  const [bookingSuccess, setBookingSuccess] = useState(false);
-
   const brand = professional.corMarca ?? "#0d9488";
-  const brandFg = "#ffffff";
+  const textColor = professional.corTexto ?? "#0f172a";
 
-  const heroTitle =
-    professional.heroTitulo ?? `Agende com ${professional.nomeCompleto}`;
-  const heroSubtitle =
-    professional.heroSubtitulo ??
-    professional.bio ??
-    "Escolha o serviço, a data e o horário. Confirmação imediata.";
+  // Booking state
+  const [phase, setPhase] = useState<Phase>({ tag: "idle" });
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
 
-  // Is this a clinic with team members?
+  // Patient data — always visible in summary panel
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [telefone, setTelefone] = useState("");
+
   const isClinic =
     professional.plano === "clinic" && (professional.members?.length ?? 0) > 0;
 
-  // active step index (0-based)
-  const stepIndex =
-    phase.tag === "idle"
-      ? -1
-      : phase.tag === "data"
-        ? 0
-        : phase.tag === "hora"
-          ? 1
-          : phase.tag === "paciente"
-            ? 2
-            : 3;
+  // Booking mutation
+  const mpMutation = useMutation({
+    mutationFn: (appointmentId: string) =>
+      createMPPreference({ data: { appointmentId } }),
+    onSuccess: ({ url }) => {
+      window.location.href = url;
+    },
+  });
+
+  const bookingMutation = useMutation({
+    mutationFn: () => {
+      if (phase.tag !== "hora" || !selectedSlot) throw new Error("Dados incompletos");
+      return createBooking({
+        data: {
+          professionalId: professional.id,
+          serviceId: phase.service.id,
+          dateStr: toDateStr(phase.date),
+          timeSlot: selectedSlot,
+          duracaoMinutos: phase.service.duracaoMinutos,
+          patient: { nome, email, telefone },
+        },
+      });
+    },
+    onSuccess: (result) => {
+      if (phase.tag !== "hora" || !selectedSlot) return;
+      if (professional.mpAccountAtivo) {
+        mpMutation.mutate(result.appointmentId);
+      } else {
+        const meetLink =
+          phase.service.modalidade === "online" || phase.service.modalidade === "ambos"
+            ? professional.meetLink
+            : null;
+        setPhase({
+          tag: "confirmado",
+          service: phase.service,
+          date: phase.date,
+          slot: selectedSlot,
+          nome,
+          meetLink,
+        });
+      }
+    },
+  });
+
+  const canConfirm =
+    phase.tag === "hora" &&
+    !!selectedSlot &&
+    nome.trim().length >= 2 &&
+    email.trim().includes("@") &&
+    telefone.trim().length >= 8;
+
+  const isConfirming = bookingMutation.isPending || mpMutation.isPending;
+
+  const handleConfirm = () => {
+    if (canConfirm && !isConfirming) bookingMutation.mutate();
+  };
+
+  const handleReset = () => {
+    setPhase({ tag: "idle" });
+    setSelectedSlot(null);
+    setNome("");
+    setEmail("");
+    setTelefone("");
+    bookingMutation.reset();
+    mpMutation.reset();
+  };
 
   return (
     <div
-      className="min-h-screen bg-[--page-bg]"
+      className="min-h-screen bg-white"
       style={
         {
           "--brand": brand,
-          "--brand-foreground": brandFg,
-          "--page-bg": "oklch(0.985 0.002 90)",
+          "--text": textColor,
+          "--brand-foreground": "#ffffff",
         } as React.CSSProperties
       }
     >
-      {/* ── Header ────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 border-b border-black/5 bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
+      {/* ── Minimal sticky header ──────────────────────────────────────── */}
+      <header className="sticky top-0 z-40 border-b border-slate-100 bg-white/90 backdrop-blur-md">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 lg:px-8">
           <div className="flex items-center gap-2.5">
             {professional.fotoUrl ? (
               <img
                 src={professional.fotoUrl}
                 alt={professional.nomeCompleto}
-                className="h-8 w-8 rounded-full object-cover ring-2 ring-[--brand]/30"
+                className="h-8 w-8 rounded-full object-cover ring-2 ring-[--brand]/20"
               />
             ) : (
               <div
@@ -157,77 +216,65 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
                   .join("")}
               </div>
             )}
-            <span className="text-sm font-semibold text-slate-800 hidden sm:block">
+            <span
+              className="text-sm font-semibold hidden sm:block"
+              style={{ color: textColor }}
+            >
               {professional.nomeCompleto}
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            {professional.telefoneWhatsapp && (
-              <a
-                href={`https://wa.me/${professional.telefoneWhatsapp.replace(/\D/g, "")}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-emerald-400 hover:text-emerald-700 transition"
-              >
-                <Phone className="h-3 w-3" />
-                WhatsApp
-              </a>
-            )}
-          </div>
+
+          {professional.telefoneWhatsapp && (
+            <a
+              href={`https://wa.me/${professional.telefoneWhatsapp.replace(/\D/g, "")}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-emerald-400 hover:text-emerald-700 transition"
+            >
+              <Phone className="h-3 w-3" />
+              WhatsApp
+            </a>
+          )}
         </div>
       </header>
 
-      {/* ── Main ──────────────────────────────────────────────────────────── */}
-      <main className="mx-auto max-w-5xl px-4 py-8">
-        {/* Booking success banner */}
-        {bookingSuccess && (
-          <div className="mb-6 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
-            <div>
-              <p className="text-sm font-semibold text-slate-900">Pagamento confirmado!</p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Sua consulta foi agendada. Você receberá uma confirmação por e-mail.
-              </p>
-            </div>
-            <button
-              onClick={() => setBookingSuccess(false)}
-              className="ml-auto text-slate-400 hover:text-slate-600 text-lg"
-            >
-              ×
-            </button>
-          </div>
-        )}
+      {/* ── Hero section: 2 cols ──────────────────────────────────────── */}
+      <HeroSection professional={professional} brand={brand} textColor={textColor} />
 
-        {/* ── CLINIC VIEW — team grid, no inline booking ─────────────────── */}
+      {/* ── Booking section ───────────────────────────────────────────── */}
+      <section id="booking" className="mx-auto max-w-6xl px-4 lg:px-8 pb-20">
         {isClinic ? (
-          <div className="space-y-6">
-            <HeroCard professional={professional} heroTitle={heroTitle} heroSubtitle={heroSubtitle} brand={brand} />
-            <ClinicTeamSection professional={professional} brand={brand} />
-          </div>
+          /* Clinic: show team grid */
+          <ClinicTeamSection professional={professional} brand={brand} textColor={textColor} />
         ) : (
-          /* ── INDIVIDUAL VIEW — services + inline booking ──────────────── */
-          <div className="grid gap-6 lg:grid-cols-[1fr_340px] lg:items-start">
-            {/* Left column */}
-            <div className="space-y-6">
-              <HeroCard professional={professional} heroTitle={heroTitle} heroSubtitle={heroSubtitle} brand={brand} />
-
-              {/* Step indicator (when booking) */}
-              {phase.tag !== "idle" && phase.tag !== "confirmado" && (
-                <StepIndicator current={stepIndex} />
+          /* Individual: service → date → time → confirm */
+          <div className="grid gap-8 lg:grid-cols-[1fr_360px] lg:items-start">
+            {/* LEFT column */}
+            <div>
+              {/* Success screen */}
+              {phase.tag === "confirmado" && (
+                <SuccessScreen phase={phase} onReset={handleReset} brand={brand} />
               )}
 
-              {/* Services or booking steps */}
+              {/* Step: idle — services grid */}
               {phase.tag === "idle" && (
                 <ServicesSection
                   professional={professional}
-                  onSelect={(svc) => setPhase({ tag: "data", service: svc })}
+                  brand={brand}
+                  textColor={textColor}
+                  onSelect={(svc) => {
+                    setSelectedSlot(null);
+                    setPhase({ tag: "data", service: svc });
+                  }}
                 />
               )}
 
+              {/* Step: data — date picker */}
               {phase.tag === "data" && (
                 <StepDate
                   professionalId={professional.id}
                   service={phase.service}
+                  brand={brand}
                   onBack={() => setPhase({ tag: "idle" })}
                   onNext={(date) =>
                     setPhase({ tag: "hora", service: phase.service, date })
@@ -235,72 +282,51 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
                 />
               )}
 
+              {/* Step: hora — time slots */}
               {phase.tag === "hora" && (
                 <StepTime
                   professionalId={professional.id}
                   service={phase.service}
                   date={phase.date}
+                  selectedSlot={selectedSlot}
+                  brand={brand}
                   onBack={() => setPhase({ tag: "data", service: phase.service })}
-                  onNext={(slot) =>
-                    setPhase({
-                      tag: "paciente",
-                      service: phase.service,
-                      date: phase.date,
-                      slot,
-                    })
-                  }
-                />
-              )}
-
-              {phase.tag === "paciente" && (
-                <StepPatient
-                  professional={professional}
-                  service={phase.service}
-                  date={phase.date}
-                  slot={phase.slot}
-                  onBack={() =>
-                    setPhase({
-                      tag: "hora",
-                      service: phase.service,
-                      date: phase.date,
-                    })
-                  }
-                  onSuccess={({ nome, email, meetLink }) =>
-                    setPhase({
-                      tag: "confirmado",
-                      service: phase.service,
-                      date: phase.date,
-                      slot: phase.slot,
-                      nome,
-                      email,
-                      meetLink,
-                    })
-                  }
-                  homeUrl={homeUrl}
-                />
-              )}
-
-              {phase.tag === "confirmado" && (
-                <SuccessScreen
-                  phase={phase}
-                  onReset={() => {
-                    setPhase({ tag: "idle" });
-                    setBookingSuccess(false);
-                  }}
+                  onSelectSlot={(slot) => setSelectedSlot(slot)}
                 />
               )}
             </div>
 
-            {/* Right column — sticky summary */}
+            {/* RIGHT column — dark summary panel, sticky */}
             <div className="lg:sticky lg:top-20">
-              <SummaryPanel phase={phase} professional={professional} />
+              {phase.tag === "confirmado" ? null : (
+                <SummaryPanel
+                  phase={phase}
+                  selectedSlot={selectedSlot}
+                  professional={professional}
+                  brand={brand}
+                  nome={nome}
+                  setNome={setNome}
+                  email={email}
+                  setEmail={setEmail}
+                  telefone={telefone}
+                  setTelefone={setTelefone}
+                  canConfirm={canConfirm}
+                  isConfirming={isConfirming}
+                  onConfirm={handleConfirm}
+                  error={
+                    bookingMutation.error instanceof Error
+                      ? bookingMutation.error.message
+                      : undefined
+                  }
+                />
+              )}
             </div>
           </div>
         )}
-      </main>
+      </section>
 
-      {/* Footer */}
-      <footer className="mt-16 border-t border-slate-100 py-8 text-center">
+      {/* ── Footer ────────────────────────────────────────────────────── */}
+      <footer className="border-t border-slate-100 py-8 text-center">
         <p className="text-xs text-slate-400">
           Powered by{" "}
           <a href="/" className="font-semibold text-slate-500 hover:text-slate-800">
@@ -313,228 +339,150 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
   );
 }
 
-// ─── HeroCard ─────────────────────────────────────────────────────────────────
+// ─── HeroSection ──────────────────────────────────────────────────────────────
 
-function HeroCard({
+function HeroSection({
   professional,
-  heroTitle,
-  heroSubtitle,
   brand,
+  textColor,
 }: {
   professional: ProfessionalPublic;
-  heroTitle: string;
-  heroSubtitle: string;
   brand: string;
+  textColor: string;
 }) {
-  return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      {/* Cover */}
-      {professional.heroImageUrl ? (
-        <img
-          src={professional.heroImageUrl}
-          alt="Capa"
-          className="h-32 w-full object-cover"
-        />
-      ) : (
-        <div
-          className="h-28"
-          style={{
-            background: `linear-gradient(135deg, ${brand} 0%, ${brand}99 100%)`,
-          }}
-        />
-      )}
+  const rawTitle =
+    professional.heroTitulo ??
+    `Cuidado de saúde com ${professional.especialidade}.`;
+  const { start, highlight } = splitTitle(rawTitle);
+  const subtitle =
+    professional.heroSubtitulo ??
+    professional.bio ??
+    "Agende consultas presenciais ou telemedicina com especialistas renomados. Confirmação imediata.";
 
-      <div className="px-6 pb-6">
-        {/* Avatar */}
-        <div className="-mt-10 mb-4">
-          {professional.fotoUrl ? (
+  return (
+    <section className="pt-12 pb-16 px-4 lg:px-8 bg-white">
+      <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+        {/* ── Left: text ───────────────────────────────────────────────── */}
+        <div>
+          {/* Pill badge */}
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1 text-xs font-medium text-slate-600 mb-6">
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ background: brand }}
+            />
+            Confirmação em 2 minutos · Sem fila de espera
+          </div>
+
+          {/* Heading */}
+          <h1
+            className="text-4xl sm:text-5xl lg:text-[3.25rem] font-black leading-[1.1] tracking-tight mb-5"
+            style={{ color: textColor }}
+          >
+            {start}
+            <span style={{ color: brand }}>{highlight}</span>
+          </h1>
+
+          {/* Subtitle */}
+          <p className="text-slate-500 text-[15px] leading-relaxed mb-8 max-w-md">
+            {subtitle}
+          </p>
+
+          {/* CTA buttons */}
+          <div className="flex flex-wrap items-center gap-3 mb-10">
+            <a
+              href="#booking"
+              className="inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-bold text-white shadow-md transition hover:opacity-90"
+              style={{ background: textColor }}
+            >
+              Ver horários hoje <ArrowRight className="h-4 w-4" />
+            </a>
+            <a
+              href="#servicos"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+            >
+              Nossos serviços
+            </a>
+          </div>
+
+          {/* Trust badges */}
+          <div className="flex flex-wrap gap-3">
+            <TrustBadge
+              icon={Shield}
+              title="Médico certificado"
+              desc={`Verificação ${professional.registro}`}
+              brand={brand}
+            />
+            <TrustBadge
+              icon={Clock}
+              title="Confirmação em 2 min"
+              desc="Sem fila de espera"
+              brand={brand}
+            />
+            {professional.telemedicinaAtivo && (
+              <TrustBadge
+                icon={Video}
+                title="Telemedicina"
+                desc="Atendimento online seguro"
+                brand={brand}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* ── Right: image or blank box ─────────────────────────────── */}
+        <div className="relative">
+          {professional.heroImageUrl ? (
             <img
-              src={professional.fotoUrl}
-              alt={professional.nomeCompleto}
-              className="h-20 w-20 rounded-2xl border-4 border-white object-cover shadow-md"
+              src={professional.heroImageUrl}
+              alt="Imagem do consultório"
+              className="w-full h-72 sm:h-80 lg:h-96 rounded-3xl object-cover shadow-xl"
             />
           ) : (
-            <div
-              className="flex h-20 w-20 items-center justify-center rounded-2xl border-4 border-white text-2xl font-bold text-white shadow-md"
-              style={{ background: brand }}
-            >
-              {professional.nomeCompleto
-                .split(" ")
-                .slice(0, 2)
-                .map((n) => n[0])
-                .join("")}
+            /* Blank placeholder — doctor uploads via dashboard */
+            <div className="w-full h-72 sm:h-80 lg:h-96 rounded-3xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center">
+              <div className="text-center">
+                <div
+                  className="mx-auto h-16 w-16 rounded-2xl flex items-center justify-center text-white text-2xl font-black mb-3 shadow-md"
+                  style={{ background: brand }}
+                >
+                  {professional.nomeCompleto
+                    .split(" ")
+                    .slice(0, 2)
+                    .map((n) => n[0])
+                    .join("")}
+                </div>
+                <p className="text-sm font-semibold text-slate-500">
+                  {professional.nomeCompleto}
+                </p>
+                <p className="text-xs text-slate-400 mt-0.5">{professional.especialidade}</p>
+              </div>
             </div>
           )}
         </div>
-
-        <h1 className="text-xl font-bold text-slate-900">{heroTitle}</h1>
-        <p
-          className="mt-0.5 text-sm font-semibold"
-          style={{ color: brand }}
-        >
-          {professional.especialidade}
-        </p>
-
-        <p className="mt-3 text-sm leading-relaxed text-slate-600">
-          {heroSubtitle}
-        </p>
-
-        {/* Trust badges */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
-            <Shield className="h-3 w-3 text-emerald-600" />
-            {professional.registro}
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
-            <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-            Confirmação em 2 min
-          </span>
-          {professional.telemedicinaAtivo && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs text-sky-700">
-              <Video className="h-3 w-3" />
-              Telemedicina
-            </span>
-          )}
-          {professional.plano === "clinic" && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs text-violet-700">
-              <Users className="h-3 w-3" />
-              Clínica
-            </span>
-          )}
-        </div>
       </div>
-    </div>
+    </section>
   );
 }
 
-// ─── ClinicTeamSection ────────────────────────────────────────────────────────
-// Shown instead of services when professional.plano === 'clinic'
-
-function ClinicTeamSection({
-  professional,
+function TrustBadge({
+  icon: Icon,
+  title,
+  desc,
   brand,
 }: {
-  professional: ProfessionalPublic;
+  icon: React.ElementType;
+  title: string;
+  desc: string;
   brand: string;
 }) {
-  const members = professional.members ?? [];
-
   return (
-    <div>
-      <div className="mb-4 flex items-center gap-2">
-        <span
-          className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white"
-          style={{ background: brand }}
-        >
-          01
-        </span>
-        <div>
-          <h2 className="text-base font-semibold text-slate-900">Escolha o profissional</h2>
-          <p className="text-xs text-slate-500">Selecione o especialista desejado</p>
-        </div>
+    <div className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 shadow-sm">
+      <Icon className="h-4 w-4 shrink-0" style={{ color: brand }} />
+      <div>
+        <p className="text-xs font-semibold text-slate-800">{title}</p>
+        <p className="text-[11px] text-slate-400">{desc}</p>
       </div>
-
-      {members.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">
-          Nenhum profissional disponível no momento.
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {members.map((member) => (
-            <MemberCard key={member.id} member={member} brand={brand} />
-          ))}
-        </div>
-      )}
     </div>
-  );
-}
-
-function MemberCard({
-  member,
-  brand,
-}: {
-  member: ClinicMember;
-  brand: string;
-}) {
-  const activeServices = member.services.filter((s) => s.ativo);
-  const minPrice = activeServices.length > 0
-    ? Math.min(...activeServices.map((s) => Number(s.preco)))
-    : null;
-
-  return (
-    <a
-      href={`/${member.slug}`}
-      className="group block rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:border-[--brand]/40 hover:shadow-lg hover:shadow-[--brand]/5"
-      style={{ "--brand": brand } as React.CSSProperties}
-    >
-      <div className="flex items-start gap-4">
-        {/* Avatar */}
-        {member.fotoUrl ? (
-          <img
-            src={member.fotoUrl}
-            alt={member.nomeCompleto}
-            className="h-14 w-14 rounded-xl object-cover ring-2 ring-slate-100 shrink-0"
-          />
-        ) : (
-          <div
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white"
-            style={{ background: member.corMarca ?? brand }}
-          >
-            {member.nomeCompleto
-              .split(" ")
-              .slice(0, 2)
-              .map((n) => n[0])
-              .join("")}
-          </div>
-        )}
-
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-slate-900 truncate">{member.nomeCompleto}</p>
-          <p className="mt-0.5 text-sm font-medium" style={{ color: member.corMarca ?? brand }}>
-            {member.especialidade}
-          </p>
-          <p className="mt-0.5 text-xs text-slate-400">{member.registro}</p>
-        </div>
-      </div>
-
-      {member.bio && (
-        <p className="mt-3 text-xs text-slate-500 line-clamp-2">{member.bio}</p>
-      )}
-
-      <div className="mt-4 flex items-center justify-between">
-        <div className="flex flex-wrap gap-1.5">
-          {activeServices.slice(0, 3).map((svc) => {
-            const mod = modalidadeLabel(svc.modalidade);
-            return (
-              <span
-                key={svc.id}
-                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${mod.cls}`}
-              >
-                {svc.nome.length > 18 ? svc.nome.slice(0, 16) + "…" : svc.nome}
-              </span>
-            );
-          })}
-          {activeServices.length > 3 && (
-            <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] text-slate-500">
-              +{activeServices.length - 3}
-            </span>
-          )}
-        </div>
-        {minPrice !== null && (
-          <div className="text-right shrink-0 ml-2">
-            <p className="text-[10px] text-slate-400">a partir de</p>
-            <p className="text-sm font-bold text-slate-900">{fmt(minPrice)}</p>
-          </div>
-        )}
-      </div>
-
-      <div
-        className="mt-3 flex items-center justify-end gap-1 text-xs font-medium opacity-0 transition group-hover:opacity-100"
-        style={{ color: brand }}
-      >
-        Ver disponibilidade <ArrowRight className="h-3.5 w-3.5" />
-      </div>
-    </a>
   );
 }
 
@@ -542,37 +490,47 @@ function MemberCard({
 
 function ServicesSection({
   professional,
+  brand,
+  textColor,
   onSelect,
 }: {
   professional: ProfessionalPublic;
+  brand: string;
+  textColor: string;
   onSelect: (s: Service) => void;
 }) {
   return (
-    <div>
-      <div className="mb-4 flex items-center gap-2">
+    <div id="servicos">
+      {/* Step header */}
+      <div className="flex items-start gap-3 mb-6">
         <span
-          className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white"
-          style={{ background: professional.corMarca ?? "#0d9488" }}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black text-white shadow-sm"
+          style={{ background: brand }}
         >
           01
         </span>
         <div>
-          <h2 className="text-base font-semibold text-slate-900">Escolha o serviço</h2>
-          <p className="text-xs text-slate-500">Selecione o tipo de atendimento desejado</p>
+          <h2 className="text-base font-bold" style={{ color: textColor }}>
+            Escolha a especialidade
+          </h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Comece selecionando o cuidado desejado
+          </p>
         </div>
       </div>
 
       {professional.services.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">
+        <div className="rounded-2xl border-2 border-dashed border-slate-200 p-10 text-center text-sm text-slate-400">
           Nenhum serviço disponível no momento.
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {professional.services.map((svc) => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {professional.services.map((svc, idx) => (
             <ServiceCard
               key={svc.id}
               svc={svc}
-              brand={professional.corMarca ?? "#0d9488"}
+              idx={idx}
+              brand={brand}
               onSelect={onSelect}
             />
           ))}
@@ -584,97 +542,47 @@ function ServicesSection({
 
 function ServiceCard({
   svc,
+  idx,
   brand,
   onSelect,
 }: {
   svc: Service;
+  idx: number;
   brand: string;
   onSelect: (s: Service) => void;
 }) {
-  const mod = modalidadeLabel(svc.modalidade);
+  const palette = ICON_PALETTE[idx % ICON_PALETTE.length];
+  const { Icon, bg, color } = palette;
 
   return (
     <button
       onClick={() => onSelect(svc)}
-      className="group w-full rounded-2xl border border-slate-200 bg-white p-5 text-left transition-all hover:border-[--brand]/40 hover:shadow-lg hover:shadow-[--brand]/5"
+      className="group flex flex-col text-left bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-lg hover:border-[--brand]/30 transition-all duration-200"
     >
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div
-          className="flex h-11 w-11 items-center justify-center rounded-xl text-white transition group-hover:scale-105"
-          style={{ background: brand }}
-        >
-          {serviceIcon(svc)}
-        </div>
-        <span
-          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${mod.cls}`}
-        >
-          {mod.label}
-        </span>
+      {/* Icon */}
+      <div
+        className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl transition group-hover:scale-105"
+        style={{ background: bg }}
+      >
+        <Icon className="h-5 w-5" style={{ color }} />
       </div>
 
-      <p className="font-semibold text-slate-900">{svc.nome}</p>
+      {/* Name */}
+      <p className="text-sm font-bold text-slate-900 leading-snug">{svc.nome}</p>
+
+      {/* Description (in brand color like reference) */}
       {svc.descricao && (
-        <p className="mt-0.5 text-xs text-slate-500 line-clamp-2">{svc.descricao}</p>
+        <p className="mt-0.5 text-xs leading-snug" style={{ color: brand }}>
+          {svc.descricao}
+        </p>
       )}
 
-      <div className="mt-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <Clock className="h-3 w-3" />
-          {svc.duracaoMinutos} min
-        </div>
-        <div className="text-right">
-          <span className="text-xs text-slate-400">A partir de</span>
-          <p className="text-base font-bold text-slate-900">{fmt(svc.preco)}</p>
-        </div>
-      </div>
-
-      <div
-        className="mt-3 flex items-center justify-end gap-1 text-xs font-medium opacity-0 transition group-hover:opacity-100"
-        style={{ color: brand }}
-      >
-        Agendar agora <ArrowRight className="h-3.5 w-3.5" />
+      {/* Separator + price */}
+      <div className="mt-auto pt-3 mt-3 border-t border-slate-100 flex items-end justify-between gap-1">
+        <span className="text-[11px] text-slate-400">A partir de</span>
+        <span className="text-sm font-black text-slate-900">{fmt(svc.preco)}</span>
       </div>
     </button>
-  );
-}
-
-// ─── StepIndicator ────────────────────────────────────────────────────────────
-
-function StepIndicator({ current }: { current: number }) {
-  return (
-    <div className="flex items-center gap-0 rounded-2xl border border-slate-200 bg-white p-4">
-      {STEP_LABELS.map((label, i) => (
-        <div key={label} className="flex flex-1 items-center">
-          <div className="flex flex-col items-center gap-1">
-            <div
-              className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition ${
-                i < current
-                  ? "bg-[--brand] text-[--brand-foreground]"
-                  : i === current
-                    ? "bg-[--brand] text-[--brand-foreground] ring-4 ring-[--brand]/20"
-                    : "bg-slate-100 text-slate-400"
-              }`}
-            >
-              {i < current ? <CheckCircle2 className="h-4 w-4" /> : String(i + 1).padStart(2, "0")}
-            </div>
-            <span
-              className={`hidden text-[10px] font-medium sm:block ${
-                i === current ? "text-slate-900" : "text-slate-400"
-              }`}
-            >
-              {label}
-            </span>
-          </div>
-          {i < STEP_LABELS.length - 1 && (
-            <div
-              className={`mx-1 h-px flex-1 transition ${
-                i < current ? "bg-[--brand]" : "bg-slate-200"
-              }`}
-            />
-          )}
-        </div>
-      ))}
-    </div>
   );
 }
 
@@ -683,11 +591,13 @@ function StepIndicator({ current }: { current: number }) {
 function StepDate({
   professionalId,
   service,
+  brand,
   onBack,
   onNext,
 }: {
   professionalId: string;
   service: Service;
+  brand: string;
   onBack: () => void;
   onNext: (date: Date) => void;
 }) {
@@ -706,37 +616,52 @@ function StepDate({
     day < today || !availableDays.includes(day.getDay());
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
-      <button
-        onClick={onBack}
-        className="mb-4 flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800"
-      >
-        <ChevronLeft className="h-4 w-4" /> Voltar aos serviços
-      </button>
-
-      <div className="mb-4 flex items-center gap-2">
-        <Calendar className="h-5 w-5 text-[--brand]" />
-        <h2 className="text-base font-semibold text-slate-900">Escolha uma data</h2>
+    <div>
+      {/* Step header */}
+      <div className="flex items-start gap-3 mb-6">
+        <span
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black text-white shadow-sm"
+          style={{ background: brand }}
+        >
+          02
+        </span>
+        <div>
+          <h2 className="text-base font-bold text-slate-900">Escolha a data</h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Serviço:{" "}
+            <strong className="text-slate-600">{service.nome}</strong>
+          </p>
+        </div>
       </div>
 
-      <CalendarPicker
-        mode="single"
-        selected={selected}
-        onSelect={setSelected}
-        disabled={isDisabled}
-        fromDate={today}
-        toDate={maxDate}
-        className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 w-full"
-      />
-
       <button
-        disabled={!selected}
-        onClick={() => selected && onNext(selected)}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-semibold text-[--brand-foreground] transition disabled:cursor-not-allowed disabled:opacity-40"
-        style={{ background: selected ? "var(--brand)" : undefined, backgroundColor: !selected ? "#e2e8f0" : undefined }}
+        onClick={onBack}
+        className="mb-4 flex items-center gap-1 text-sm text-slate-400 hover:text-slate-700 transition"
       >
-        Continuar <ChevronRight className="h-4 w-4" />
+        <ChevronLeft className="h-4 w-4" />
+        Voltar aos serviços
       </button>
+
+      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <CalendarPicker
+          mode="single"
+          selected={selected}
+          onSelect={setSelected}
+          disabled={isDisabled}
+          fromDate={today}
+          toDate={maxDate}
+          className="w-full"
+        />
+
+        <button
+          disabled={!selected}
+          onClick={() => selected && onNext(selected)}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition disabled:opacity-40"
+          style={{ background: selected ? brand : "#94a3b8" }}
+        >
+          Continuar <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -747,17 +672,19 @@ function StepTime({
   professionalId,
   service,
   date,
+  selectedSlot,
+  brand,
   onBack,
-  onNext,
+  onSelectSlot,
 }: {
   professionalId: string;
   service: Service;
   date: Date;
+  selectedSlot: string | null;
+  brand: string;
   onBack: () => void;
-  onNext: (slot: string) => void;
+  onSelectSlot: (slot: string) => void;
 }) {
-  const [selected, setSelected] = useState<string | null>(null);
-
   const { data: slots = [], isFetching } = useQuery({
     queryKey: ["slots", professionalId, toDateStr(date)],
     queryFn: () =>
@@ -771,213 +698,267 @@ function StepTime({
   });
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
-      <button
-        onClick={onBack}
-        className="mb-4 flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800"
-      >
-        <ChevronLeft className="h-4 w-4" />
-        {fmtDate(date)}
-      </button>
-
-      <div className="mb-4 flex items-center gap-2">
-        <Clock className="h-5 w-5 text-[--brand]" />
-        <h2 className="text-base font-semibold text-slate-900">Escolha o horário</h2>
+    <div>
+      {/* Step header */}
+      <div className="flex items-start gap-3 mb-6">
+        <span
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black text-white shadow-sm"
+          style={{ background: brand }}
+        >
+          03
+        </span>
+        <div>
+          <h2 className="text-base font-bold text-slate-900">Escolha o horário</h2>
+          <p className="text-xs text-slate-400 mt-0.5">{fmtDate(date)}</p>
+        </div>
       </div>
 
-      {isFetching ? (
-        <div className="flex justify-center py-10">
-          <Loader2 className="h-6 w-6 animate-spin text-[--brand]" />
-        </div>
-      ) : slots.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400">
-          Nenhum horário disponível neste dia.
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {slots.map((slot) => (
-            <button
-              key={slot}
-              onClick={() => setSelected(slot)}
-              className={`rounded-xl border py-2.5 text-sm font-medium transition ${
-                selected === slot
-                  ? "border-[--brand] bg-[--brand] text-[--brand-foreground]"
-                  : "border-slate-200 text-slate-700 hover:border-[--brand]/40 hover:bg-[--brand]/5"
-              }`}
-            >
-              {slot}
-            </button>
-          ))}
-        </div>
-      )}
-
       <button
-        disabled={!selected}
-        onClick={() => selected && onNext(selected)}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40"
-        style={{
-          background: selected ? "var(--brand)" : undefined,
-          backgroundColor: !selected ? "#e2e8f0" : undefined,
-          color: selected ? "var(--brand-foreground)" : "#94a3b8",
-        }}
+        onClick={onBack}
+        className="mb-4 flex items-center gap-1 text-sm text-slate-400 hover:text-slate-700 transition"
       >
-        Continuar <ChevronRight className="h-4 w-4" />
+        <ChevronLeft className="h-4 w-4" />
+        Mudar data
       </button>
+
+      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        {isFetching ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          </div>
+        ) : slots.length === 0 ? (
+          <p className="py-6 text-center text-sm text-slate-400">
+            Nenhum horário disponível neste dia.
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {slots.map((slot) => (
+                <button
+                  key={slot}
+                  onClick={() => onSelectSlot(slot)}
+                  className="rounded-xl border py-2.5 text-sm font-semibold transition"
+                  style={
+                    selectedSlot === slot
+                      ? { background: brand, borderColor: brand, color: "#fff" }
+                      : { borderColor: "#e2e8f0", color: "#334155" }
+                  }
+                >
+                  {slot}
+                </button>
+              ))}
+            </div>
+            {selectedSlot && (
+              <p className="mt-4 text-center text-xs text-slate-500">
+                Horário <strong>{selectedSlot}</strong> selecionado. Preencha seus dados ao lado para confirmar.
+              </p>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
-// ─── StepPatient ──────────────────────────────────────────────────────────────
+// ─── SummaryPanel (dark, always visible) ─────────────────────────────────────
 
-function StepPatient({
+function SummaryPanel({
+  phase,
+  selectedSlot,
   professional,
-  service,
-  date,
-  slot,
-  onBack,
-  onSuccess,
-  homeUrl,
+  brand,
+  nome,
+  setNome,
+  email,
+  setEmail,
+  telefone,
+  setTelefone,
+  canConfirm,
+  isConfirming,
+  onConfirm,
+  error,
 }: {
+  phase: Phase;
+  selectedSlot: string | null;
   professional: ProfessionalPublic;
-  service: Service;
-  date: Date;
-  slot: string;
-  onBack: () => void;
-  onSuccess: (data: { nome: string; email: string; meetLink?: string | null }) => void;
-  homeUrl: string;
+  brand: string;
+  nome: string;
+  setNome: (v: string) => void;
+  email: string;
+  setEmail: (v: string) => void;
+  telefone: string;
+  setTelefone: (v: string) => void;
+  canConfirm: boolean;
+  isConfirming: boolean;
+  onConfirm: () => void;
+  error?: string;
 }) {
-  const [nome, setNome] = useState("");
-  const [email, setEmail] = useState("");
-  const [telefone, setTelefone] = useState("");
+  // Dark panel background: strong dark tinted with brand color
+  const panelBg = `color-mix(in srgb, ${brand} 12%, #0a1420 88%)`;
 
-  const mpMutation = useMutation({
-    mutationFn: (appointmentId: string) =>
-      createMPPreference({ data: { appointmentId } }),
-    onSuccess: ({ url }) => {
-      window.location.href = url;
-    },
-  });
-
-  const booking = useMutation({
-    mutationFn: () =>
-      createBooking({
-        data: {
-          professionalId: professional.id,
-          serviceId: service.id,
-          dateStr: toDateStr(date),
-          timeSlot: slot,
-          duracaoMinutos: service.duracaoMinutos,
-          patient: { nome, email, telefone },
-        },
-      }),
-    onSuccess: (result) => {
-      if (professional.mpAccountAtivo) {
-        mpMutation.mutate(result.appointmentId);
-      } else {
-        const meetLink =
-          service.modalidade === "online" || service.modalidade === "ambos"
-            ? professional.meetLink
-            : null;
-        onSuccess({ nome, email, meetLink });
-      }
-    },
-  });
-
-  const isPending = booking.isPending || mpMutation.isPending;
+  const service = phase.tag !== "idle" ? phase.service : null;
+  const date =
+    phase.tag === "hora" || phase.tag === "confirmado" ? phase.date : null;
+  const slot =
+    phase.tag === "hora"
+      ? selectedSlot
+      : phase.tag === "confirmado"
+        ? phase.slot
+        : null;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
-      <button
-        onClick={onBack}
-        className="mb-4 flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800"
-      >
-        <ChevronLeft className="h-4 w-4" />
-        {fmtDate(date)} às {slot}
-      </button>
-
-      <div className="mb-5 flex items-center gap-2">
-        <Star className="h-5 w-5 text-[--brand]" />
-        <h2 className="text-base font-semibold text-slate-900">Seus dados</h2>
+    <div
+      className="rounded-2xl overflow-hidden text-white shadow-xl"
+      style={{ background: panelBg }}
+    >
+      {/* Header */}
+      <div className="px-6 pt-6 pb-4">
+        <p className="text-[10px] font-bold uppercase tracking-[0.15em] opacity-50 mb-1">
+          SUA RESERVA
+        </p>
+        <h3 className="text-lg font-bold leading-snug">Resumo do agendamento</h3>
       </div>
 
-      <div className="space-y-4">
+      {/* Booking rows */}
+      <div className="px-6 pb-4 space-y-3">
+        <SummaryRow label="Especialidade" value={service ? professional.especialidade : undefined} />
+        <SummaryRow label="Serviço" value={service?.nome} />
+        <SummaryRow label="Profissional" value={professional.nomeCompleto} />
+        <SummaryRow
+          label="Data e hora"
+          value={
+            date && slot
+              ? `${date.toLocaleDateString("pt-BR")} · ${slot}`
+              : date
+                ? date.toLocaleDateString("pt-BR")
+                : undefined
+          }
+        />
+      </div>
+
+      {/* Valor total */}
+      <div className="mx-5 rounded-xl px-4 py-3 mb-5" style={{ background: "rgba(255,255,255,0.07)" }}>
+        <div className="flex items-center justify-between">
+          <span
+            className="text-[10px] font-bold uppercase tracking-widest"
+            style={{ color: brand }}
+          >
+            VALOR TOTAL
+          </span>
+          {service ? (
+            <span className="text-xl font-black">{fmt(service.preco)}</span>
+          ) : (
+            <span className="font-bold text-sm opacity-30">——</span>
+          )}
+        </div>
+      </div>
+
+      {/* Patient fields */}
+      <div className="px-5 space-y-3 pb-4">
         <div>
-          <Label htmlFor="nome">Nome completo</Label>
-          <Input
-            id="nome"
+          <p className="text-[10px] font-bold uppercase tracking-wider opacity-50 mb-1.5">
+            NOME COMPLETO
+          </p>
+          <input
             value={nome}
             onChange={(e) => setNome(e.target.value)}
-            placeholder="Maria da Silva"
-            className="mt-1.5"
+            placeholder="Como está no RG"
+            className="w-full rounded-xl border border-white/15 bg-white/8 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-white/30 transition"
+            style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
           />
         </div>
         <div>
-          <Label htmlFor="email">E-mail</Label>
-          <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="maria@email.com"
-            className="mt-1.5"
-          />
-        </div>
-        <div>
-          <Label htmlFor="telefone">Telefone / WhatsApp</Label>
-          <Input
-            id="telefone"
+          <p className="text-[10px] font-bold uppercase tracking-wider opacity-50 mb-1.5">
+            CELULAR / WHATSAPP
+          </p>
+          <input
             value={telefone}
             onChange={(e) => setTelefone(e.target.value)}
-            placeholder="+55 11 99999-9999"
-            className="mt-1.5"
+            placeholder="(11) 99999-9999"
+            className="w-full rounded-xl border border-white/15 bg-white/8 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-white/30 transition"
+            style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+          />
+        </div>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider opacity-50 mb-1.5">
+            E-MAIL
+          </p>
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="para confirmação"
+            type="email"
+            className="w-full rounded-xl border border-white/15 bg-white/8 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-white/30 transition"
+            style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
           />
         </div>
       </div>
 
-      {(booking.error || mpMutation.error) && (
-        <p className="mt-3 text-sm text-rose-600">
-          {mpMutation.error
-            ? "Pagamento indisponível. Tente novamente."
-            : "Erro ao agendar. Tente novamente."}
+      {/* Error */}
+      {error && (
+        <p className="mx-5 mb-3 rounded-lg bg-rose-500/20 px-3 py-2 text-xs text-rose-200">
+          {error}
         </p>
       )}
 
-      {professional.mpAccountAtivo && (
-        <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
-          <CreditCard className="h-3.5 w-3.5" />
-          Você será redirecionado para o Mercado Pago.
-        </p>
-      )}
+      {/* CTA */}
+      <div className="px-5 pb-6">
+        <button
+          disabled={!canConfirm || isConfirming}
+          onClick={onConfirm}
+          className="w-full rounded-xl py-3.5 text-sm font-bold transition-all"
+          style={{
+            background: canConfirm ? brand : "rgba(255,255,255,0.12)",
+            color: canConfirm ? "#fff" : "rgba(255,255,255,0.4)",
+            cursor: canConfirm ? "pointer" : "not-allowed",
+          }}
+        >
+          {isConfirming ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> Confirmando...
+            </span>
+          ) : professional.mpAccountAtivo ? (
+            <span className="flex items-center justify-center gap-2">
+              <CreditCard className="h-4 w-4" /> Ir para pagamento →
+            </span>
+          ) : (
+            "Confirmar agendamento →"
+          )}
+        </button>
 
-      <button
-        disabled={!nome || !email || !telefone || isPending}
-        onClick={() => booking.mutate()}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40"
-        style={{
-          background:
-            nome && email && telefone && !isPending ? "var(--brand)" : undefined,
-          backgroundColor:
-            !nome || !email || !telefone || isPending ? "#e2e8f0" : undefined,
-          color:
-            nome && email && telefone && !isPending
-              ? "var(--brand-foreground)"
-              : "#94a3b8",
-        }}
-      >
-        {isPending ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" /> Aguarde...
-          </>
-        ) : professional.mpAccountAtivo ? (
-          <>
-            <CreditCard className="h-4 w-4" /> Ir para pagamento
-          </>
-        ) : (
-          <>
-            <CheckCircle2 className="h-4 w-4" /> Confirmar agendamento
-          </>
+        {!canConfirm && phase.tag !== "idle" && (
+          <p className="mt-2 text-center text-[11px] opacity-40">
+            {!service
+              ? "Selecione um serviço"
+              : !selectedSlot
+                ? "Selecione data e horário"
+                : "Preencha nome, telefone e e-mail"}
+          </p>
         )}
-      </button>
+
+        {/* Trust micro-signals */}
+        <div className="mt-4 flex items-center justify-center gap-4 opacity-40">
+          <span className="flex items-center gap-1 text-[10px]">
+            <Shield className="h-3 w-3" /> Pagamento seguro
+          </span>
+          <span className="flex items-center gap-1 text-[10px]">
+            <CheckCircle2 className="h-3 w-3" /> Confirmação imediata
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-xs opacity-50 shrink-0">{label}</span>
+      {value ? (
+        <span className="text-xs font-semibold text-right max-w-[60%] leading-snug">{value}</span>
+      ) : (
+        <span className="text-xs opacity-20 font-bold">——</span>
+      )}
     </div>
   );
 }
@@ -987,27 +968,29 @@ function StepPatient({
 function SuccessScreen({
   phase,
   onReset,
+  brand,
 }: {
   phase: Extract<Phase, { tag: "confirmado" }>;
   onReset: () => void;
+  brand: string;
 }) {
   return (
-    <div className="rounded-2xl border border-emerald-200 bg-white p-8 text-center">
-      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+    <div className="rounded-2xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
+      <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
         <CheckCircle2 className="h-8 w-8 text-emerald-600" />
       </div>
-      <h2 className="text-xl font-bold text-slate-900">Agendamento confirmado!</h2>
+      <h2 className="text-xl font-black text-slate-900">Agendamento confirmado!</h2>
       <p className="mt-2 text-sm text-slate-500">
-        Uma confirmação foi enviada para <strong>{phase.email}</strong>.
+        Olá, <strong>{phase.nome}</strong>! Sua consulta foi agendada com sucesso.
       </p>
 
-      <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-left space-y-2 text-sm text-slate-700">
-        <div className="font-semibold text-slate-900">{phase.service.nome}</div>
-        <div className="flex items-center gap-1.5 text-slate-600">
+      <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-left space-y-2">
+        <p className="font-bold text-sm text-slate-900">{phase.service.nome}</p>
+        <div className="flex items-center gap-1.5 text-xs text-slate-600">
           <Calendar className="h-3.5 w-3.5" />
-          {fmtDate(phase.date)} às {phase.slot}
+          {fmtDate(phase.date)} · {phase.slot}
         </div>
-        <div className="flex items-center gap-1.5 text-slate-600">
+        <div className="flex items-center gap-1.5 text-xs text-slate-600">
           <Clock className="h-3.5 w-3.5" />
           {phase.service.duracaoMinutos} min · {fmt(phase.service.preco)}
         </div>
@@ -1020,13 +1003,13 @@ function SuccessScreen({
           rel="noreferrer"
           className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700 hover:bg-sky-100 transition"
         >
-          <Video className="h-4 w-4" /> Entrar na consulta online (Google Meet)
+          <Video className="h-4 w-4" /> Entrar na consulta (Google Meet)
         </a>
       )}
 
       <button
         onClick={onReset}
-        className="mt-6 text-sm text-slate-500 hover:text-slate-800 underline"
+        className="mt-6 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
       >
         Agendar outro serviço
       </button>
@@ -1034,86 +1017,93 @@ function SuccessScreen({
   );
 }
 
-// ─── SummaryPanel ─────────────────────────────────────────────────────────────
+// ─── ClinicTeamSection ────────────────────────────────────────────────────────
 
-function SummaryPanel({
-  phase,
+function ClinicTeamSection({
   professional,
+  brand,
+  textColor,
 }: {
-  phase: Phase;
   professional: ProfessionalPublic;
+  brand: string;
+  textColor: string;
 }) {
-  const brand = professional.corMarca ?? "#0d9488";
-
-  const service = phase.tag !== "idle" ? phase.service : null;
-  const date = (phase.tag === "hora" || phase.tag === "paciente" || phase.tag === "confirmado") ? phase.date : null;
-  const slot = (phase.tag === "paciente" || phase.tag === "confirmado") ? phase.slot : null;
+  const members = professional.members ?? [];
 
   return (
-    <div
-      className="rounded-2xl text-white overflow-hidden shadow-lg"
-      style={{ background: `linear-gradient(145deg, ${brand} 0%, ${brand}cc 100%)` }}
-    >
-      <div className="p-5">
-        <p className="text-xs font-semibold uppercase tracking-widest opacity-70">
-          SUA RESERVA
-        </p>
-        <h3 className="mt-1 text-lg font-bold">Resumo do agendamento</h3>
-      </div>
-
-      <div className="bg-white/10 backdrop-blur-sm px-5 py-4 space-y-3">
-        <SummaryRow
-          label="Especialidade"
-          value={service ? professional.especialidade : undefined}
-        />
-        <SummaryRow label="Serviço" value={service?.nome} />
-        <SummaryRow label="Profissional" value={professional.nomeCompleto} />
-        <SummaryRow
-          label="Data e hora"
-          value={date && slot ? `${date.toLocaleDateString("pt-BR")} às ${slot}` : undefined}
-        />
-
-        <div className="pt-2 border-t border-white/20">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wide opacity-70">
-              VALOR TOTAL
-            </span>
-            {service ? (
-              <span className="text-xl font-bold">{fmt(service.preco)}</span>
-            ) : (
-              <span className="text-sm opacity-40">—</span>
-            )}
-          </div>
+    <div>
+      <div className="flex items-start gap-3 mb-6">
+        <span
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black text-white shadow-sm"
+          style={{ background: brand }}
+        >
+          01
+        </span>
+        <div>
+          <h2 className="text-base font-bold" style={{ color: textColor }}>
+            Escolha o profissional
+          </h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Selecione o especialista desejado
+          </p>
         </div>
       </div>
 
-      {/* Trust signals */}
-      <div className="px-5 pb-5 pt-3">
-        <div className="space-y-2">
-          {[
-            { icon: Shield, text: "Pagamento 100% seguro" },
-            { icon: CheckCircle2, text: "Confirmação imediata" },
-            { icon: Star, text: "Médico certificado" },
-          ].map(({ icon: Icon, text }) => (
-            <div key={text} className="flex items-center gap-2 text-xs opacity-70">
-              <Icon className="h-3.5 w-3.5 shrink-0" />
-              {text}
-            </div>
-          ))}
+      {members.length === 0 ? (
+        <div className="rounded-2xl border-2 border-dashed border-slate-200 p-10 text-center text-sm text-slate-400">
+          Nenhum profissional disponível no momento.
         </div>
-      </div>
-    </div>
-  );
-}
-
-function SummaryRow({ label, value }: { label: string; value?: string }) {
-  return (
-    <div className="flex items-start justify-between gap-2">
-      <span className="text-xs opacity-60">{label}</span>
-      {value ? (
-        <span className="text-xs font-semibold text-right max-w-[55%]">{value}</span>
       ) : (
-        <span className="text-xs opacity-30">—</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {members.map((member, idx) => {
+            const activeServices = member.services.filter((s) => s.ativo);
+            const minPrice =
+              activeServices.length > 0
+                ? Math.min(...activeServices.map((s) => Number(s.preco)))
+                : null;
+            const palette = ICON_PALETTE[idx % ICON_PALETTE.length];
+
+            return (
+              <a
+                key={member.id}
+                href={`/${member.slug}`}
+                className="group flex flex-col bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-lg hover:border-[--brand]/30 transition-all duration-200"
+                style={{ "--brand": brand } as React.CSSProperties}
+              >
+                {member.fotoUrl ? (
+                  <img
+                    src={member.fotoUrl}
+                    alt={member.nomeCompleto}
+                    className="h-14 w-14 rounded-xl object-cover mb-3 ring-2 ring-slate-100"
+                  />
+                ) : (
+                  <div
+                    className="h-14 w-14 rounded-xl mb-3 flex items-center justify-center text-white font-black text-lg"
+                    style={{ background: palette.bg }}
+                  >
+                    <palette.Icon className="h-6 w-6" style={{ color: palette.color }} />
+                  </div>
+                )}
+
+                <p className="font-bold text-slate-900 text-sm">{member.nomeCompleto}</p>
+                <p className="text-xs mt-0.5" style={{ color: member.corMarca ?? brand }}>
+                  {member.especialidade}
+                </p>
+
+                <div className="mt-auto pt-3 mt-3 border-t border-slate-100 flex items-end justify-between gap-1">
+                  <span className="text-[11px] text-slate-400">
+                    {activeServices.length} serviço{activeServices.length !== 1 ? "s" : ""}
+                  </span>
+                  {minPrice !== null && (
+                    <span className="text-sm font-black text-slate-900">
+                      a partir de {fmt(minPrice)}
+                    </span>
+                  )}
+                </div>
+              </a>
+            );
+          })}
+        </div>
       )}
     </div>
   );

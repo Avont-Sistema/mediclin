@@ -430,19 +430,20 @@ function PageCustomizationTab({ data, onSaved }: { data: SettingsData; onSaved: 
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-              Título principal{" "}
-              <span className="text-xs font-normal text-slate-400">
-                (padrão: "Agende com {p.nomeCompleto}")
-              </span>
+              Título principal
             </label>
             <input
               type="text"
               value={form.heroTitulo}
               onChange={(e) => setForm((f) => ({ ...f, heroTitulo: e.target.value }))}
-              placeholder={`Agende com ${p.nomeCompleto}`}
+              placeholder={`Cuidado de saúde com ${p.especialidade}.`}
               maxLength={255}
               className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
             />
+            <p className="text-xs text-slate-500 mt-1">
+              💡 A <strong>última palavra</strong> do título será destacada na cor da sua marca.
+              Ex: "Cuidado de saúde com <em>longevidade.</em>"
+            </p>
           </div>
 
           <div>
@@ -462,8 +463,8 @@ function PageCustomizationTab({ data, onSaved }: { data: SettingsData; onSaved: 
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-              URL da imagem de capa{" "}
-              <span className="text-xs font-normal text-slate-400">(opcional — banner do topo)</span>
+              Foto / imagem de destaque{" "}
+              <span className="text-xs font-normal text-slate-400">(aparece no lado direito do hero)</span>
             </label>
             <input
               type="url"
