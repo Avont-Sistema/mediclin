@@ -20,6 +20,7 @@ import {
   Star,
   Users,
   ArrowRight,
+  MessageCircle,
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Calendar as CalendarPicker } from "./ui/calendar";
@@ -253,7 +254,12 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
             <div>
               {/* Success screen */}
               {phase.tag === "confirmado" && (
-                <SuccessScreen phase={phase} onReset={handleReset} brand={brand} />
+                <SuccessScreen
+                  phase={phase}
+                  professional={professional}
+                  onReset={handleReset}
+                  brand={brand}
+                />
               )}
 
               {/* Step: idle — services grid */}
@@ -963,56 +969,118 @@ function SummaryRow({ label, value }: { label: string; value?: string }) {
   );
 }
 
+// ─── WhatsApp confirmation helper ─────────────────────────────────────────────
+
+function buildWhatsAppUrl(
+  professional: ProfessionalPublic,
+  phase: Extract<Phase, { tag: "confirmado" }>,
+): string | null {
+  const phone = professional.telefoneWhatsapp?.replace(/\D/g, "");
+  if (!phone) return null;
+
+  const dateStr = fmtDate(phase.date);
+  const msg = [
+    `Olá, ${professional.nomeCompleto}! 👋`,
+    ``,
+    `Gostaria de *confirmar* meu agendamento:`,
+    ``,
+    `📋 *Serviço:* ${phase.service.nome}`,
+    `👤 *Nome:* ${phase.nome}`,
+    `📅 *Data:* ${dateStr}`,
+    `⏰ *Horário:* ${phase.slot}`,
+    `⏱️ *Duração:* ${phase.service.duracaoMinutos} min`,
+    `💰 *Valor:* ${fmt(phase.service.preco)}`,
+    ``,
+    `Agendado via MediClin 🩺`,
+  ].join("\n");
+
+  return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+}
+
 // ─── SuccessScreen ────────────────────────────────────────────────────────────
 
 function SuccessScreen({
   phase,
+  professional,
   onReset,
   brand,
 }: {
   phase: Extract<Phase, { tag: "confirmado" }>;
+  professional: ProfessionalPublic;
   onReset: () => void;
   brand: string;
 }) {
+  const whatsappUrl = buildWhatsAppUrl(professional, phase);
+
   return (
     <div className="rounded-2xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
+      {/* Icon */}
       <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
         <CheckCircle2 className="h-8 w-8 text-emerald-600" />
       </div>
+
       <h2 className="text-xl font-black text-slate-900">Agendamento confirmado!</h2>
       <p className="mt-2 text-sm text-slate-500">
         Olá, <strong>{phase.nome}</strong>! Sua consulta foi agendada com sucesso.
       </p>
 
-      <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-left space-y-2">
+      {/* Booking summary card */}
+      <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5 text-left space-y-3">
         <p className="font-bold text-sm text-slate-900">{phase.service.nome}</p>
-        <div className="flex items-center gap-1.5 text-xs text-slate-600">
-          <Calendar className="h-3.5 w-3.5" />
-          {fmtDate(phase.date)} · {phase.slot}
-        </div>
-        <div className="flex items-center gap-1.5 text-xs text-slate-600">
-          <Clock className="h-3.5 w-3.5" />
-          {phase.service.duracaoMinutos} min · {fmt(phase.service.preco)}
+
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 text-xs text-slate-600">
+            <Calendar className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            {fmtDate(phase.date)}
+          </div>
+          <div className="flex items-center gap-2 text-xs text-slate-600">
+            <Clock className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            {phase.slot} · {phase.service.duracaoMinutos} min
+          </div>
+          <div className="flex items-center gap-2 text-xs text-slate-600">
+            <span className="h-3.5 w-3.5 shrink-0 text-slate-400 flex items-center justify-center font-bold text-[10px]">R$</span>
+            {fmt(phase.service.preco)}
+          </div>
         </div>
       </div>
 
-      {phase.meetLink && (
-        <a
-          href={phase.meetLink}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700 hover:bg-sky-100 transition"
-        >
-          <Video className="h-4 w-4" /> Entrar na consulta (Google Meet)
-        </a>
-      )}
+      {/* Actions */}
+      <div className="mt-5 flex flex-col gap-3">
+        {/* WhatsApp confirmation button */}
+        {whatsappUrl && (
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center gap-2.5 rounded-xl py-3.5 text-sm font-bold text-white shadow-md transition hover:opacity-90"
+            style={{ background: "#25d366" }}
+          >
+            <MessageCircle className="h-4 w-4" />
+            Confirmar no WhatsApp
+          </a>
+        )}
 
-      <button
-        onClick={onReset}
-        className="mt-6 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
-      >
-        Agendar outro serviço
-      </button>
+        {/* Google Meet link (telemedicine) */}
+        {phase.meetLink && (
+          <a
+            href={phase.meetLink}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 py-3 text-sm font-semibold text-sky-700 hover:bg-sky-100 transition"
+          >
+            <Video className="h-4 w-4" />
+            Entrar na consulta (Google Meet)
+          </a>
+        )}
+
+        {/* Book again */}
+        <button
+          onClick={onReset}
+          className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
+        >
+          Agendar outro serviço
+        </button>
+      </div>
     </div>
   );
 }
