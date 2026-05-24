@@ -73,21 +73,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Ânima Clínica — Agendamento online de consultas médicas" },
+      { title: "MediClin — Agendamento online de consultas" },
       {
         name: "description",
         content:
-          "Agende consultas presenciais ou telemedicina com especialistas em odontologia, dermatologia, cardiologia e mais. Cuidado de saúde focado na sua longevidade.",
+          "Agende consultas presenciais ou telemedicina com especialistas. Confirmação imediata, sem filas de espera.",
       },
-      { property: "og:title", content: "Ânima Clínica — Agendamento online" },
+      { property: "og:title", content: "MediClin — Agendamento online" },
       {
         property: "og:description",
         content:
-          "Agende consultas com especialistas renomados. Um ecossistema de saúde completo, do diagnóstico ao tratamento.",
+          "Plataforma de agendamento médico online. Conecte-se com profissionais de saúde em poucos cliques.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
@@ -104,8 +103,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <head>
+        <meta charSet="utf-8" />
         <HeadContent />
       </head>
       <body>
