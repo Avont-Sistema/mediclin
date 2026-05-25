@@ -1,4 +1,4 @@
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate, useRouter } from "@tanstack/react-router";
 import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/tanstack-start";
 import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -29,6 +29,9 @@ import {
   Camera,
   Mic,
   Wifi,
+  MoreHorizontal,
+  UserX,
+  RotateCcw,
   type LucideIcon,
 } from "lucide-react";
 import { fetchCurrentProfessional } from "../lib/auth";
@@ -38,6 +41,7 @@ import { createMPSubscriptionCheckout, getMPSubscriptionPortalUrl } from "../lib
 import { fetchDashboardData, type DashboardData, type SubscriptionInfo, type UpcomingAppt } from "../lib/dashboard";
 import { DashboardLayout } from "../components/DashboardLayout";
 import { NovoAgendamentoModal } from "../components/NovoAgendamentoModal";
+import { updateAppointmentStatus } from "../lib/agenda";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -131,6 +135,32 @@ const EMPTY_WEEK = Array.from({ length: 7 }, (_, i) => {
   return { day: days[d.getDay()], consultas: 0, receita: 0 };
 });
 
+type DbAction = "confirmado" | "concluido" | "cancelado" | "no_show";
+type ActionDef = { label: string; action: DbAction; icon: LucideIcon; cls: string };
+
+const APPT_ACTIONS: Record<Appt["status"], ActionDef[]> = {
+  aguardando: [
+    { label: "Confirmar", action: "confirmado", icon: CheckCircle2, cls: "text-blue-600 hover:bg-blue-50" },
+    { label: "No-show", action: "no_show", icon: UserX, cls: "text-amber-600 hover:bg-amber-50" },
+    { label: "Cancelar", action: "cancelado", icon: XCircle, cls: "text-rose-600 hover:bg-rose-50" },
+  ],
+  confirmado: [
+    { label: "Concluir", action: "concluido", icon: CheckCircle2, cls: "text-emerald-600 hover:bg-emerald-50" },
+    { label: "No-show", action: "no_show", icon: UserX, cls: "text-amber-600 hover:bg-amber-50" },
+    { label: "Cancelar", action: "cancelado", icon: XCircle, cls: "text-rose-600 hover:bg-rose-50" },
+  ],
+  "em-andamento": [
+    { label: "Concluir", action: "concluido", icon: CheckCircle2, cls: "text-emerald-600 hover:bg-emerald-50" },
+    { label: "Cancelar", action: "cancelado", icon: XCircle, cls: "text-rose-600 hover:bg-rose-50" },
+  ],
+  concluido: [
+    { label: "Reabrir", action: "confirmado", icon: RotateCcw, cls: "text-slate-600 hover:bg-slate-50" },
+  ],
+  cancelado: [
+    { label: "Reabrir", action: "confirmado", icon: RotateCcw, cls: "text-slate-600 hover:bg-slate-50" },
+  ],
+};
+
 const statusStyle: Record<
   Appt["status"],
   { label: string; bg: string; text: string; dot: string }
@@ -173,9 +203,20 @@ function Dashboard() {
 function DashboardContent() {
   const data = Route.useLoaderData() ?? null;
   const navigate = useNavigate();
+  const router = useRouter();
   const [filter, setFilter] = useState<"todos" | Appt["status"]>("todos");
   const [showNotifs, setShowNotifs] = useState(false);
   const [showNewAppt, setShowNewAppt] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  const statusMutation = useMutation({
+    mutationFn: ({ appointmentId, status }: { appointmentId: string; status: DbAction }) =>
+      updateAppointmentStatus({ data: { appointmentId, status } }),
+    onSuccess: () => {
+      setOpenMenuId(null);
+      void router.invalidate();
+    },
+  });
 
   // Memoiza pra evitar nova referência de array a cada render (filtered depende dela).
   const appointments = useMemo<Appt[]>(
@@ -215,6 +256,11 @@ function DashboardContent() {
 
   return (
     <DashboardLayout>
+      {/* Close dropdown on outside click */}
+      {openMenuId && (
+        <div className="fixed inset-0 z-20" onClick={() => setOpenMenuId(null)} />
+      )}
+
       {/* Main content (DashboardLayout provides sidebar) */}
       <div className="flex-1 min-w-0">
         {/* Topbar */}
@@ -457,6 +503,9 @@ function DashboardContent() {
                 <ul className="divide-y divide-slate-100">
                   {filtered.map((a, idx) => {
                     const st = statusStyle[a.status];
+                    const actions = APPT_ACTIONS[a.status];
+                    const isMenuOpen = openMenuId === a.id;
+                    const isPending = statusMutation.isPending && statusMutation.variables?.appointmentId === a.id;
                     const isDestaque =
                       idx === 0 &&
                       filter === "todos" &&
@@ -492,9 +541,39 @@ function DashboardContent() {
                               <span className="h-1.5 w-1.5 rounded-full bg-white/80" />
                               {st.label}
                             </span>
-                            <button className="h-8 w-8 grid place-items-center rounded-lg bg-white/10 hover:bg-white/20 transition shrink-0">
-                              <ChevronRight className="h-4 w-4" />
-                            </button>
+                            {/* Action menu — destaque */}
+                            {actions.length > 0 && (
+                              <div className="relative shrink-0">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenMenuId(isMenuOpen ? null : a.id);
+                                  }}
+                                  disabled={isPending}
+                                  className="h-8 w-8 grid place-items-center rounded-lg bg-white/10 hover:bg-white/20 transition disabled:opacity-50"
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </button>
+                                {isMenuOpen && (
+                                  <div className="absolute right-0 top-9 z-30 w-44 bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden">
+                                    {actions.map((act) => (
+                                      <button
+                                        key={act.action}
+                                        disabled={statusMutation.isPending}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          statusMutation.mutate({ appointmentId: a.id, status: act.action });
+                                        }}
+                                        className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition disabled:opacity-50 ${act.cls}`}
+                                      >
+                                        <act.icon className="h-4 w-4 shrink-0" />
+                                        {act.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </li>
                       );
@@ -513,11 +592,7 @@ function DashboardContent() {
                           {a.avatar}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-slate-900 truncate">
-                              {a.patient}
-                            </span>
-                          </div>
+                          <span className="text-sm font-medium text-slate-900 truncate block">{a.patient}</span>
                           <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
                             {a.type === "Teleconsulta" ? (
                               <Video className="h-3 w-3 text-indigo-500" />
@@ -533,9 +608,43 @@ function DashboardContent() {
                           <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} />
                           {st.label}
                         </span>
-                        <button className="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 transition">
-                          <ChevronRight className="h-4 w-4 text-slate-400" />
-                        </button>
+                        {/* Action menu */}
+                        {actions.length > 0 && (
+                          <div className="relative shrink-0">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(isMenuOpen ? null : a.id);
+                              }}
+                              disabled={isPending}
+                              className="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 transition disabled:opacity-50"
+                            >
+                              {isPending ? (
+                                <span className="h-3.5 w-3.5 rounded-full border-2 border-slate-300 border-t-teal-500 animate-spin" />
+                              ) : (
+                                <MoreHorizontal className="h-4 w-4 text-slate-400" />
+                              )}
+                            </button>
+                            {isMenuOpen && (
+                              <div className="absolute right-0 top-9 z-30 w-44 bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden">
+                                {actions.map((act) => (
+                                  <button
+                                    key={act.action}
+                                    disabled={statusMutation.isPending}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      statusMutation.mutate({ appointmentId: a.id, status: act.action });
+                                    }}
+                                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition disabled:opacity-50 ${act.cls}`}
+                                  >
+                                    <act.icon className="h-4 w-4 shrink-0" />
+                                    {act.label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </li>
                     );
                   })}
