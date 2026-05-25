@@ -1,29 +1,53 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
-  MapPin,
+  Clock,
+  Video,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  Loader2,
+  CreditCard,
+  Stethoscope,
+  Shield,
+  Activity,
+  Heart,
+  Brain,
+  Leaf,
+  Thermometer,
+  Zap,
+  Star,
   MessageCircle,
+  MapPin,
   Phone,
   Mail,
   Instagram,
   Award,
   GraduationCap,
   Sparkles,
-  Stethoscope,
   Check,
-  ChevronRight,
 } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
-import { BookingWizard } from "./BookingWizard";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Calendar as CalendarPicker } from "./ui/calendar";
+import { fetchAvailableDays, fetchAvailableSlots, createBooking } from "../lib/availability";
+import { createMPPreference } from "../lib/mercadopago";
 import type { InferSelectModel } from "drizzle-orm";
 import type { professionals, services, professionalCards } from "../db/schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type Service = InferSelectModel<typeof services>;
+
 export type ProfessionalCard = InferSelectModel<typeof professionalCards>;
-export type ProfessionalService = InferSelectModel<typeof services>;
+
+export type ClinicMember = InferSelectModel<typeof professionals> & {
+  services: Service[];
+};
+
 export type ProfessionalPublic = InferSelectModel<typeof professionals> & {
-  services: ProfessionalService[];
+  services: Service[];
   cards: ProfessionalCard[];
+  members?: ClinicMember[];
 };
 
 interface Props {
@@ -31,8 +55,23 @@ interface Props {
   homeUrl?: string;
 }
 
-// Mapa estático de classes Tailwind por cor primária — necessário porque o Tailwind
-// faz tree-shaking de classes que não aparecem como strings literais no código.
+type Phase =
+  | { tag: "idle" }
+  | { tag: "servicos"; member: ClinicMember }
+  | { tag: "data"; service: Service; member?: ClinicMember }
+  | { tag: "hora"; service: Service; date: Date; member?: ClinicMember }
+  | {
+      tag: "confirmado";
+      service: Service;
+      date: Date;
+      slot: string;
+      nome: string;
+      meetLink?: string | null;
+      member?: ClinicMember;
+    };
+
+// ─── Static Tailwind color map ─────────────────────────────────────────────────
+
 const COLOR_MAP = {
   teal: {
     text: "text-teal-600",
@@ -67,15 +106,37 @@ const COLOR_MAP = {
 } as const;
 
 type ColorKey = keyof typeof COLOR_MAP;
+type ColorPalette = (typeof COLOR_MAP)[ColorKey];
 
-function getColors(cor: string | null): (typeof COLOR_MAP)[ColorKey] {
+function getColors(cor: string | null): ColorPalette {
   return COLOR_MAP[(cor ?? "teal") as ColorKey] ?? COLOR_MAP.teal;
 }
 
+// ─── Icon palette for service cards ───────────────────────────────────────────
+
+const ICON_PALETTE = [
+  { Icon: Stethoscope, bg: "#fff7ed", color: "#ea580c" },
+  { Icon: Heart, bg: "#fdf2f8", color: "#db2777" },
+  { Icon: Activity, bg: "#eff6ff", color: "#2563eb" },
+  { Icon: Thermometer, bg: "#fefce8", color: "#d97706" },
+  { Icon: Brain, bg: "#f5f3ff", color: "#7c3aed" },
+  { Icon: Leaf, bg: "#f0fdf4", color: "#16a34a" },
+  { Icon: Zap, bg: "#fff7f0", color: "#f97316" },
+  { Icon: Star, bg: "#fefce8", color: "#ca8a04" },
+];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatCurrency(v: string | number) {
+function fmt(v: string | number) {
   return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function fmtDate(d: Date) {
+  return d.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
+}
+
+function toDateStr(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function initials(name: string) {
@@ -87,11 +148,6 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-/**
- * Renderiza a headline destacando a palavra-chave (headlineDestaque) na cor primária.
- * Ex: headline="Cuidando a Saúde com Odontologia!" + destaque="Odontologia"
- *     → "Cuidando a Saúde com <span>Odontologia</span>!"
- */
 function renderHeadline(text: string, highlight: string | null, textClass: string) {
   if (!highlight) return <>{text}</>;
   const idx = text.toLowerCase().indexOf(highlight.toLowerCase());
@@ -105,26 +161,94 @@ function renderHeadline(text: string, highlight: string | null, textClass: strin
   );
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
-  const [selectedService, setSelectedService] = useState<ProfessionalService | null>(null);
+  const brand = professional.corMarca ?? "#0d9488";
+  const colors = getColors(professional.corPrimaria);
+
+  const [phase, setPhase] = useState<Phase>({ tag: "idle" });
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [telefone, setTelefone] = useState("");
   const [bookingSuccess, setBookingSuccess] = useState(false);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("booking") === "success") {
-      setBookingSuccess(true);
-      window.history.replaceState({}, "", homeUrl);
-    }
-  }, [homeUrl]);
+  const isClinic =
+    professional.plano === "clinic" && (professional.members?.length ?? 0) > 0;
 
-  const colors = getColors(professional.corPrimaria);
+  const mpMutation = useMutation({
+    mutationFn: (appointmentId: string) =>
+      createMPPreference({ data: { appointmentId } }),
+    onSuccess: ({ url }) => {
+      window.location.href = url;
+    },
+  });
+
+  const bookingMutation = useMutation({
+    mutationFn: () => {
+      if (phase.tag !== "hora" || !selectedSlot) throw new Error("Dados incompletos");
+      const targetId = phase.member?.id ?? professional.id;
+      return createBooking({
+        data: {
+          professionalId: targetId,
+          serviceId: phase.service.id,
+          dateStr: toDateStr(phase.date),
+          timeSlot: selectedSlot,
+          duracaoMinutos: phase.service.duracaoMinutos,
+          patient: { nome, email, telefone },
+        },
+      });
+    },
+    onSuccess: (result) => {
+      if (phase.tag !== "hora" || !selectedSlot) return;
+      if (professional.mpAccountAtivo) {
+        mpMutation.mutate(result.appointmentId);
+      } else {
+        const meetLink =
+          phase.service.modalidade === "online" || phase.service.modalidade === "ambos"
+            ? (phase.member?.meetLink ?? professional.meetLink)
+            : null;
+        setPhase({
+          tag: "confirmado",
+          service: phase.service,
+          date: phase.date,
+          slot: selectedSlot,
+          nome,
+          meetLink,
+          member: phase.member,
+        });
+      }
+    },
+  });
+
+  const canConfirm =
+    phase.tag === "hora" &&
+    !!selectedSlot &&
+    nome.trim().length >= 2 &&
+    telefone.trim().length >= 8;
+
+  const isConfirming = bookingMutation.isPending || mpMutation.isPending;
+
+  const handleConfirm = () => {
+    if (canConfirm && !isConfirming) bookingMutation.mutate();
+  };
+
+  const handleReset = () => {
+    setPhase({ tag: "idle" });
+    setSelectedSlot(null);
+    setNome("");
+    setEmail("");
+    setTelefone("");
+    bookingMutation.reset();
+    mpMutation.reset();
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
-      <main className="mx-auto max-w-md px-4 pt-6">
+
+      {/* ── Profile Header ─────────────────────────────────────────────── */}
+      <div className="mx-auto max-w-md px-4 pt-6">
         {/* Booking success banner */}
         {bookingSuccess && (
           <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3">
@@ -146,9 +270,9 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
           </div>
         )}
 
-        {/* ── Profile Header Card ─────────────────────────────────────────── */}
+        {/* Profile card */}
         <section className="rounded-3xl border border-slate-200 bg-white px-6 py-8 mb-4 text-center">
-          {/* Foto circular grande */}
+          {/* Circular photo */}
           <div className="mx-auto mb-4">
             {professional.fotoUrl ? (
               <img
@@ -169,20 +293,18 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
             )}
           </div>
 
-          {/* Nome + Especialidade */}
-          <h1 className="text-base font-semibold text-slate-900">
-            {professional.nomeCompleto}
-          </h1>
+          {/* Name + specialty */}
+          <h1 className="text-base font-semibold text-slate-900">{professional.nomeCompleto}</h1>
           <p className={`text-sm ${colors.text} mt-0.5`}>{professional.especialidade}</p>
 
-          {/* Headline (frase de impacto) */}
+          {/* Impact headline */}
           {professional.headline && (
             <h2 className="mt-5 text-2xl font-extrabold leading-tight text-slate-900 tracking-tight">
               {renderHeadline(professional.headline, professional.headlineDestaque, colors.text)}
             </h2>
           )}
 
-          {/* Bio (max 2 linhas) */}
+          {/* Bio */}
           {professional.bio && (
             <p className="mt-3 text-sm text-slate-500 leading-relaxed line-clamp-2">
               {professional.bio}
@@ -190,7 +312,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
           )}
         </section>
 
-        {/* ── Cards Grid ──────────────────────────────────────────────────── */}
+        {/* Cards grid */}
         {professional.cards.length > 0 && (
           <section className="grid grid-cols-2 gap-3 mb-6">
             {professional.cards.map((card) => (
@@ -198,69 +320,150 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
             ))}
           </section>
         )}
+      </div>
 
-        {/* ── Services ────────────────────────────────────────────────────── */}
-        {professional.services.length > 0 && (
-          <section>
-            <div className="flex items-center gap-2.5 mb-3">
-              <span
-                className={`grid size-7 place-items-center rounded-full ${colors.badge} text-xs font-bold text-white`}
-              >
-                01
-              </span>
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">Escolha a especialidade</h3>
-                <p className="text-xs text-slate-500">Comece selecionando o cuidado desejado</p>
-              </div>
-            </div>
+      {/* ── Booking Section (cascata inline) ───────────────────────────── */}
+      <section id="booking" className="mx-auto max-w-4xl px-4 lg:px-8">
 
-            <div className="space-y-3">
-              {professional.services.map((service) => (
-                <ServiceCard
-                  key={service.id}
-                  service={service}
-                  colors={colors}
-                  onClick={() => setSelectedService(service)}
-                />
-              ))}
-            </div>
-          </section>
+        {/* Success screen (full width) */}
+        {phase.tag === "confirmado" && (
+          <SuccessScreen
+            phase={phase}
+            professional={professional}
+            onReset={handleReset}
+            brand={brand}
+          />
         )}
-      </main>
 
-      {/* Booking sheet */}
-      <Sheet open={!!selectedService} onOpenChange={(open) => !open && setSelectedService(null)}>
-        <SheetContent side="bottom" className="h-[92dvh] rounded-t-2xl overflow-y-auto">
-          <SheetHeader className="mb-4">
-            <SheetTitle className="text-left text-base">Agendar consulta</SheetTitle>
-          </SheetHeader>
-          {selectedService && (
-            <BookingWizard
-              professionalId={professional.id}
-              service={selectedService}
-              professionalNome={professional.nomeCompleto}
-              mpEnabled={professional.mpAccountAtivo}
-              onBack={() => setSelectedService(null)}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
+        {/* Clinic: step 1 — choose professional */}
+        {isClinic && phase.tag === "idle" && (
+          <ClinicTeamSection
+            professional={professional}
+            brand={brand}
+            colors={colors}
+            onSelect={(member) => setPhase({ tag: "servicos", member })}
+          />
+        )}
+
+        {/* All phases except confirmado and clinic idle: 2-col grid */}
+        {phase.tag !== "confirmado" && !(isClinic && phase.tag === "idle") && (
+          <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
+            {/* LEFT: wizard steps */}
+            <div>
+              {/* Clinic: step 2 — choose service for member */}
+              {isClinic && phase.tag === "servicos" && (
+                <ClinicMemberServicesSection
+                  member={phase.member}
+                  brand={brand}
+                  colors={colors}
+                  onBack={() => setPhase({ tag: "idle" })}
+                  onSelect={(svc) => {
+                    setSelectedSlot(null);
+                    setPhase({ tag: "data", service: svc, member: phase.member });
+                  }}
+                />
+              )}
+
+              {/* Individual: step 1 — choose service */}
+              {!isClinic && phase.tag === "idle" && (
+                <ServicesSection
+                  professional={professional}
+                  brand={brand}
+                  colors={colors}
+                  onSelect={(svc) => {
+                    setSelectedSlot(null);
+                    setPhase({ tag: "data", service: svc });
+                  }}
+                />
+              )}
+
+              {/* Step 2: date picker */}
+              {phase.tag === "data" && (
+                <StepDate
+                  professionalId={phase.member?.id ?? professional.id}
+                  service={phase.service}
+                  brand={brand}
+                  onBack={() =>
+                    isClinic && phase.member
+                      ? setPhase({ tag: "servicos", member: phase.member })
+                      : setPhase({ tag: "idle" })
+                  }
+                  onNext={(date) =>
+                    setPhase({ tag: "hora", service: phase.service, date, member: phase.member })
+                  }
+                />
+              )}
+
+              {/* Step 3: time slots */}
+              {phase.tag === "hora" && (
+                <StepTime
+                  professionalId={phase.member?.id ?? professional.id}
+                  service={phase.service}
+                  date={phase.date}
+                  selectedSlot={selectedSlot}
+                  brand={brand}
+                  onBack={() =>
+                    setPhase({ tag: "data", service: phase.service, member: phase.member })
+                  }
+                  onSelectSlot={(slot) => setSelectedSlot(slot)}
+                />
+              )}
+            </div>
+
+            {/* RIGHT: sticky dark summary panel */}
+            <div className="lg:sticky lg:top-6">
+              <SummaryPanel
+                phase={phase}
+                selectedSlot={selectedSlot}
+                professional={professional}
+                member={
+                  phase.tag === "servicos" || phase.tag === "data" || phase.tag === "hora"
+                    ? phase.member
+                    : undefined
+                }
+                brand={brand}
+                nome={nome}
+                setNome={setNome}
+                email={email}
+                setEmail={setEmail}
+                telefone={telefone}
+                setTelefone={setTelefone}
+                canConfirm={canConfirm}
+                isConfirming={isConfirming}
+                onConfirm={handleConfirm}
+                error={
+                  bookingMutation.error instanceof Error
+                    ? bookingMutation.error.message
+                    : undefined
+                }
+              />
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Footer */}
+      <footer className="mt-16 border-t border-slate-100 py-8 text-center">
+        <p className="text-xs text-slate-400">
+          Powered by{" "}
+          <a href="/" className="font-semibold text-slate-500 hover:text-slate-800">
+            MediClin
+          </a>{" "}
+          · Agendamento online seguro
+        </p>
+      </footer>
     </div>
   );
 }
 
-// ─── Card Item ────────────────────────────────────────────────────────────────
-
-type ColorPalette = (typeof COLOR_MAP)[ColorKey];
+// ─── Card Item ─────────────────────────────────────────────────────────────────
 
 function CardItem({ card, colors }: { card: ProfessionalCard; colors: ColorPalette }) {
   const config = getCardConfig(card, colors);
 
   const content = (
     <div className="flex items-start gap-2.5">
-      <div
-        className={`grid size-9 place-items-center rounded-xl ${config.iconBg} ${config.iconColor} shrink-0`}
-      >
+      <div className={`grid size-9 place-items-center rounded-xl ${config.iconBg} ${config.iconColor} shrink-0`}>
         <config.Icon className="size-4" />
       </div>
       <div className="flex-1 min-w-0">
@@ -295,12 +498,7 @@ function getCardConfig(card: ProfessionalCard, colors: ColorPalette) {
     case "certificacao":
       return { Icon: Award, iconBg: colors.bgSoft, iconColor: colors.text, href: undefined };
     case "qualificacao":
-      return {
-        Icon: GraduationCap,
-        iconBg: colors.bgSoft,
-        iconColor: colors.text,
-        href: undefined,
-      };
+      return { Icon: GraduationCap, iconBg: colors.bgSoft, iconColor: colors.text, href: undefined };
     case "servico_extra":
       return { Icon: Sparkles, iconBg: colors.bgSoft, iconColor: colors.text, href: undefined };
     case "whatsapp":
@@ -322,12 +520,7 @@ function getCardConfig(card: ProfessionalCard, colors: ColorPalette) {
           : undefined,
       };
     case "localizacao":
-      return {
-        Icon: MapPin,
-        iconBg: "bg-rose-50",
-        iconColor: "text-rose-500",
-        href: card.valor ?? undefined,
-      };
+      return { Icon: MapPin, iconBg: "bg-rose-50", iconColor: "text-rose-500", href: card.valor ?? undefined };
     case "telefone":
       return {
         Icon: Phone,
@@ -343,55 +536,727 @@ function getCardConfig(card: ProfessionalCard, colors: ColorPalette) {
         href: card.valor ? `mailto:${card.valor}` : undefined,
       };
     default:
-      return {
-        Icon: Sparkles,
-        iconBg: "bg-slate-50",
-        iconColor: "text-slate-400",
-        href: undefined,
-      };
+      return { Icon: Sparkles, iconBg: "bg-slate-50", iconColor: "text-slate-400", href: undefined };
   }
 }
 
-// ─── Service Card ─────────────────────────────────────────────────────────────
+// ─── ServicesSection ──────────────────────────────────────────────────────────
 
-function ServiceCard({
-  service,
+function ServicesSection({
+  professional,
+  brand,
   colors,
-  onClick,
+  onSelect,
 }: {
-  service: ProfessionalService;
+  professional: ProfessionalPublic;
+  brand: string;
   colors: ColorPalette;
-  onClick: () => void;
+  onSelect: (s: Service) => void;
 }) {
   return (
-    <button
-      onClick={onClick}
-      className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-left transition-all hover:border-slate-300 hover:shadow-md group"
-    >
-      <div className="flex items-start gap-3">
-        <div
-          className={`grid size-10 place-items-center rounded-xl bg-orange-50 text-orange-500 shrink-0`}
+    <div id="servicos">
+      <div className="flex items-start gap-3 mb-6">
+        <span
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black text-white shadow-sm ${colors.badge}`}
         >
-          <Stethoscope className="size-5" />
+          01
+        </span>
+        <div>
+          <h2 className="text-base font-bold text-slate-900">Escolha a especialidade</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Comece selecionando o cuidado desejado</p>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-slate-900 text-sm">{service.nome}</p>
-          {service.descricao && (
-            <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{service.descricao}</p>
-          )}
-          <div className="flex items-center justify-between mt-2">
-            <p className="text-xs text-slate-400">
-              A partir de{" "}
-              <span className={`${colors.text} font-bold text-sm`}>
-                {formatCurrency(service.preco)}
-              </span>
-            </p>
-            <ChevronRight className="size-4 text-slate-300 group-hover:text-slate-500" />
-          </div>
+      </div>
+
+      {professional.services.length === 0 ? (
+        <div className="rounded-2xl border-2 border-dashed border-slate-200 p-10 text-center text-sm text-slate-400">
+          Nenhum serviço disponível no momento.
         </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {professional.services.map((svc, idx) => (
+            <ServiceCard key={svc.id} svc={svc} idx={idx} brand={brand} onSelect={onSelect} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ServiceCard({
+  svc,
+  idx,
+  brand,
+  onSelect,
+}: {
+  svc: Service;
+  idx: number;
+  brand: string;
+  onSelect: (s: Service) => void;
+}) {
+  const { Icon, bg, color } = ICON_PALETTE[idx % ICON_PALETTE.length];
+
+  return (
+    <button
+      onClick={() => onSelect(svc)}
+      className="group flex flex-col text-left bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-lg hover:border-slate-200 transition-all duration-200"
+    >
+      <div
+        className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl transition group-hover:scale-105"
+        style={{ background: bg }}
+      >
+        <Icon className="h-5 w-5" style={{ color }} />
+      </div>
+      <p className="text-sm font-bold text-slate-900 leading-snug">{svc.nome}</p>
+      {svc.descricao && (
+        <p className="mt-0.5 text-xs leading-snug" style={{ color: brand }}>
+          {svc.descricao}
+        </p>
+      )}
+      <div className="mt-auto pt-3 mt-3 border-t border-slate-100 flex items-end justify-between gap-1">
+        <span className="text-[11px] text-slate-400">A partir de</span>
+        <span className="text-sm font-black text-slate-900">{fmt(svc.preco)}</span>
       </div>
     </button>
   );
+}
+
+// ─── StepDate ─────────────────────────────────────────────────────────────────
+
+function StepDate({
+  professionalId,
+  service,
+  brand,
+  onBack,
+  onNext,
+}: {
+  professionalId: string;
+  service: Service;
+  brand: string;
+  onBack: () => void;
+  onNext: (date: Date) => void;
+}) {
+  const [selected, setSelected] = useState<Date | undefined>();
+
+  const { data: availableDays = [] } = useQuery({
+    queryKey: ["availableDays", professionalId],
+    queryFn: () => fetchAvailableDays({ data: { professionalId } }),
+  });
+
+  const today = new Date();
+  const maxDate = new Date();
+  maxDate.setDate(maxDate.getDate() + 60);
+
+  const isDisabled = (day: Date) => day < today || !availableDays.includes(day.getDay());
+
+  return (
+    <div>
+      <div className="flex items-start gap-3 mb-6">
+        <span
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black text-white shadow-sm"
+          style={{ background: brand }}
+        >
+          02
+        </span>
+        <div>
+          <h2 className="text-base font-bold text-slate-900">Escolha a data</h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Serviço: <strong className="text-slate-600">{service.nome}</strong>
+          </p>
+        </div>
+      </div>
+
+      <button
+        onClick={onBack}
+        className="mb-4 flex items-center gap-1 text-sm text-slate-400 hover:text-slate-700 transition"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Voltar aos serviços
+      </button>
+
+      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <CalendarPicker
+          mode="single"
+          selected={selected}
+          onSelect={setSelected}
+          disabled={isDisabled}
+          fromDate={today}
+          toDate={maxDate}
+          className="w-full"
+        />
+        <button
+          disabled={!selected}
+          onClick={() => selected && onNext(selected)}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition disabled:opacity-40"
+          style={{ background: selected ? brand : "#94a3b8" }}
+        >
+          Continuar <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── StepTime ─────────────────────────────────────────────────────────────────
+
+function StepTime({
+  professionalId,
+  service,
+  date,
+  selectedSlot,
+  brand,
+  onBack,
+  onSelectSlot,
+}: {
+  professionalId: string;
+  service: Service;
+  date: Date;
+  selectedSlot: string | null;
+  brand: string;
+  onBack: () => void;
+  onSelectSlot: (slot: string) => void;
+}) {
+  const { data: slots = [], isFetching } = useQuery({
+    queryKey: ["slots", professionalId, toDateStr(date)],
+    queryFn: () =>
+      fetchAvailableSlots({
+        data: { professionalId, dateStr: toDateStr(date), duracaoMinutos: service.duracaoMinutos },
+      }),
+  });
+
+  return (
+    <div>
+      <div className="flex items-start gap-3 mb-6">
+        <span
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black text-white shadow-sm"
+          style={{ background: brand }}
+        >
+          03
+        </span>
+        <div>
+          <h2 className="text-base font-bold text-slate-900">Escolha o horário</h2>
+          <p className="text-xs text-slate-400 mt-0.5">{fmtDate(date)}</p>
+        </div>
+      </div>
+
+      <button
+        onClick={onBack}
+        className="mb-4 flex items-center gap-1 text-sm text-slate-400 hover:text-slate-700 transition"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Mudar data
+      </button>
+
+      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        {isFetching ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          </div>
+        ) : slots.length === 0 ? (
+          <p className="py-6 text-center text-sm text-slate-400">
+            Nenhum horário disponível neste dia.
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {slots.map((slot) => (
+                <button
+                  key={slot}
+                  onClick={() => onSelectSlot(slot)}
+                  className="rounded-xl border py-2.5 text-sm font-semibold transition"
+                  style={
+                    selectedSlot === slot
+                      ? { background: brand, borderColor: brand, color: "#fff" }
+                      : { borderColor: "#e2e8f0", color: "#334155" }
+                  }
+                >
+                  {slot}
+                </button>
+              ))}
+            </div>
+            {selectedSlot && (
+              <p className="mt-4 text-center text-xs text-slate-500">
+                Horário <strong>{selectedSlot}</strong> selecionado. Preencha seus dados ao lado
+                para confirmar.
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── SummaryPanel ─────────────────────────────────────────────────────────────
+
+function SummaryPanel({
+  phase,
+  selectedSlot,
+  professional,
+  member,
+  brand,
+  nome,
+  setNome,
+  email,
+  setEmail,
+  telefone,
+  setTelefone,
+  canConfirm,
+  isConfirming,
+  onConfirm,
+  error,
+}: {
+  phase: Phase;
+  selectedSlot: string | null;
+  professional: ProfessionalPublic;
+  member?: ClinicMember;
+  brand: string;
+  nome: string;
+  setNome: (v: string) => void;
+  email: string;
+  setEmail: (v: string) => void;
+  telefone: string;
+  setTelefone: (v: string) => void;
+  canConfirm: boolean;
+  isConfirming: boolean;
+  onConfirm: () => void;
+  error?: string;
+}) {
+  const panelBg = `color-mix(in srgb, ${brand} 12%, #0a1420 88%)`;
+
+  const service =
+    phase.tag === "data" || phase.tag === "hora" || phase.tag === "confirmado"
+      ? phase.service
+      : null;
+  const date =
+    phase.tag === "hora" || phase.tag === "confirmado" ? phase.date : null;
+  const slot =
+    phase.tag === "hora"
+      ? selectedSlot
+      : phase.tag === "confirmado"
+        ? phase.slot
+        : null;
+
+  const profName = member?.nomeCompleto ?? professional.nomeCompleto;
+
+  return (
+    <div className="rounded-2xl overflow-hidden text-white shadow-xl" style={{ background: panelBg }}>
+      <div className="px-6 pt-6 pb-4">
+        <p className="text-[10px] font-bold uppercase tracking-[0.15em] opacity-50 mb-1">SUA RESERVA</p>
+        <h3 className="text-lg font-bold leading-snug">Resumo do agendamento</h3>
+      </div>
+
+      <div className="px-6 pb-4 space-y-3">
+        <SummaryRow
+          label="Especialidade"
+          value={service ? (member?.especialidade ?? professional.especialidade) : undefined}
+        />
+        <SummaryRow label="Serviço" value={service?.nome} />
+        <SummaryRow label="Profissional" value={profName} />
+        <SummaryRow
+          label="Data e hora"
+          value={
+            date && slot
+              ? `${date.toLocaleDateString("pt-BR")} · ${slot}`
+              : date
+                ? date.toLocaleDateString("pt-BR")
+                : undefined
+          }
+        />
+      </div>
+
+      <div className="mx-5 rounded-xl px-4 py-3 mb-5" style={{ background: "rgba(255,255,255,0.07)" }}>
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: brand }}>
+            VALOR TOTAL
+          </span>
+          {service ? (
+            <span className="text-xl font-black">{fmt(service.preco)}</span>
+          ) : (
+            <span className="font-bold text-sm opacity-30">——</span>
+          )}
+        </div>
+      </div>
+
+      <div className="px-5 space-y-3 pb-4">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider opacity-50 mb-1.5">NOME COMPLETO</p>
+          <input
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            placeholder="Como está no RG"
+            className="w-full rounded-xl border border-white/15 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-white/30 transition"
+            style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+          />
+        </div>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider opacity-50 mb-1.5">CELULAR / WHATSAPP</p>
+          <input
+            value={telefone}
+            onChange={(e) => setTelefone(e.target.value)}
+            placeholder="(11) 99999-9999"
+            className="w-full rounded-xl border border-white/15 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-white/30 transition"
+            style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+          />
+        </div>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider opacity-50 mb-1.5">
+            E-MAIL <span className="normal-case font-normal opacity-70">(opcional)</span>
+          </p>
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="para envio de confirmação"
+            type="email"
+            className="w-full rounded-xl border border-white/15 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-white/30 transition"
+            style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+          />
+        </div>
+      </div>
+
+      {error && (
+        <p className="mx-5 mb-3 rounded-lg bg-rose-500/20 px-3 py-2 text-xs text-rose-200">{error}</p>
+      )}
+
+      <div className="px-5 pb-6">
+        <button
+          disabled={!canConfirm || isConfirming}
+          onClick={onConfirm}
+          className="w-full rounded-xl py-3.5 text-sm font-bold transition-all"
+          style={{
+            background: canConfirm ? brand : "rgba(255,255,255,0.12)",
+            color: canConfirm ? "#fff" : "rgba(255,255,255,0.4)",
+            cursor: canConfirm ? "pointer" : "not-allowed",
+          }}
+        >
+          {isConfirming ? (
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> Confirmando...
+            </span>
+          ) : professional.mpAccountAtivo ? (
+            <span className="flex items-center justify-center gap-2">
+              <CreditCard className="h-4 w-4" /> Ir para pagamento →
+            </span>
+          ) : (
+            "Confirmar agendamento →"
+          )}
+        </button>
+
+        {!canConfirm && phase.tag !== "idle" && (
+          <p className="mt-2 text-center text-[11px] opacity-40">
+            {!service
+              ? "Selecione um serviço"
+              : !selectedSlot
+                ? "Selecione data e horário"
+                : "Preencha nome e telefone"}
+          </p>
+        )}
+
+        <div className="mt-4 flex items-center justify-center gap-4 opacity-40">
+          <span className="flex items-center gap-1 text-[10px]">
+            <Shield className="h-3 w-3" /> Pagamento seguro
+          </span>
+          <span className="flex items-center gap-1 text-[10px]">
+            <CheckCircle2 className="h-3 w-3" /> Confirmação imediata
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-xs opacity-50 shrink-0">{label}</span>
+      {value ? (
+        <span className="text-xs font-semibold text-right max-w-[60%] leading-snug">{value}</span>
+      ) : (
+        <span className="text-xs opacity-20 font-bold">——</span>
+      )}
+    </div>
+  );
+}
+
+// ─── SuccessScreen ────────────────────────────────────────────────────────────
+
+function SuccessScreen({
+  phase,
+  professional,
+  onReset,
+  brand,
+}: {
+  phase: Extract<Phase, { tag: "confirmado" }>;
+  professional: ProfessionalPublic;
+  onReset: () => void;
+  brand: string;
+}) {
+  const whatsappUrl = buildWhatsAppUrl(professional, phase);
+
+  return (
+    <div className="rounded-2xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
+      <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+        <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+      </div>
+      <h2 className="text-xl font-black text-slate-900">Agendamento confirmado!</h2>
+      <p className="mt-2 text-sm text-slate-500">
+        Olá, <strong>{phase.nome}</strong>! Sua consulta foi agendada com sucesso.
+      </p>
+
+      <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5 text-left space-y-3">
+        <p className="font-bold text-sm text-slate-900">{phase.service.nome}</p>
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 text-xs text-slate-600">
+            <Calendar className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            {fmtDate(phase.date)}
+          </div>
+          <div className="flex items-center gap-2 text-xs text-slate-600">
+            <Clock className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            {phase.slot} · {phase.service.duracaoMinutos} min
+          </div>
+          <div className="flex items-center gap-2 text-xs text-slate-600">
+            <span className="h-3.5 w-3.5 shrink-0 text-slate-400 flex items-center justify-center font-bold text-[10px]">R$</span>
+            {fmt(phase.service.preco)}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 rounded-xl border border-[#25d366]/30 bg-[#f0fdf4] px-4 py-3 text-left">
+        <p className="text-xs font-semibold text-emerald-800 mb-1">
+          📲 Confirme via WhatsApp e receba o lembrete
+        </p>
+        <p className="text-[11px] text-emerald-700 mb-3 leading-snug">
+          Envie os detalhes do agendamento para o consultório e guarde o comprovante na sua conversa.
+        </p>
+        <a
+          href={whatsappUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="flex w-full items-center justify-center gap-2.5 rounded-xl py-3 text-sm font-bold text-white shadow-sm transition hover:opacity-90"
+          style={{ background: "#25d366" }}
+        >
+          <MessageCircle className="h-4 w-4" />
+          Confirmar no WhatsApp
+        </a>
+      </div>
+
+      <div className="mt-3 flex flex-col gap-3">
+        {phase.meetLink && (
+          <a
+            href={phase.meetLink}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 py-3 text-sm font-semibold text-sky-700 hover:bg-sky-100 transition"
+          >
+            <Video className="h-4 w-4" />
+            Entrar na consulta (Google Meet)
+          </a>
+        )}
+        <button
+          onClick={onReset}
+          className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
+        >
+          Agendar outro serviço
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── ClinicTeamSection ────────────────────────────────────────────────────────
+
+function ClinicTeamSection({
+  professional,
+  brand,
+  colors,
+  onSelect,
+}: {
+  professional: ProfessionalPublic;
+  brand: string;
+  colors: ColorPalette;
+  onSelect: (member: ClinicMember) => void;
+}) {
+  const members = professional.members ?? [];
+
+  return (
+    <div>
+      <div className="flex items-start gap-3 mb-6">
+        <span
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black text-white shadow-sm ${colors.badge}`}
+        >
+          01
+        </span>
+        <div>
+          <h2 className="text-base font-bold text-slate-900">Escolha o profissional</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Selecione o especialista desejado</p>
+        </div>
+      </div>
+
+      {members.length === 0 ? (
+        <div className="rounded-2xl border-2 border-dashed border-slate-200 p-10 text-center text-sm text-slate-400">
+          Nenhum profissional disponível no momento.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {members.map((member, idx) => {
+            const activeServices = member.services.filter((s) => s.ativo);
+            const minPrice =
+              activeServices.length > 0
+                ? Math.min(...activeServices.map((s) => Number(s.preco)))
+                : null;
+            const { Icon, bg, color } = ICON_PALETTE[idx % ICON_PALETTE.length];
+
+            return (
+              <button
+                key={member.id}
+                onClick={() => onSelect(member)}
+                className="group flex flex-col text-left bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-lg transition-all duration-200 w-full"
+              >
+                {member.fotoUrl ? (
+                  <img
+                    src={member.fotoUrl}
+                    alt={member.nomeCompleto}
+                    className="h-14 w-14 rounded-xl object-cover mb-3 ring-2 ring-slate-100"
+                  />
+                ) : (
+                  <div
+                    className="h-14 w-14 rounded-xl mb-3 flex items-center justify-center"
+                    style={{ background: bg }}
+                  >
+                    <Icon className="h-6 w-6" style={{ color }} />
+                  </div>
+                )}
+                <p className="font-bold text-slate-900 text-sm">{member.nomeCompleto}</p>
+                <p className="text-xs mt-0.5" style={{ color: member.corMarca ?? brand }}>
+                  {member.especialidade}
+                </p>
+                {member.bio && (
+                  <p className="mt-1.5 text-[11px] text-slate-400 line-clamp-2 leading-snug">
+                    {member.bio}
+                  </p>
+                )}
+                <div className="mt-auto pt-3 border-t border-slate-100 flex items-end justify-between gap-1 mt-3">
+                  <span className="text-[11px] text-slate-400">
+                    {activeServices.length} serviço{activeServices.length !== 1 ? "s" : ""}
+                  </span>
+                  {minPrice !== null && (
+                    <span className="text-sm font-black text-slate-900">
+                      a partir de {fmt(minPrice)}
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ClinicMemberServicesSection ──────────────────────────────────────────────
+
+function ClinicMemberServicesSection({
+  member,
+  brand,
+  colors,
+  onBack,
+  onSelect,
+}: {
+  member: ClinicMember;
+  brand: string;
+  colors: ColorPalette;
+  onBack: () => void;
+  onSelect: (svc: Service) => void;
+}) {
+  const activeServices = member.services.filter((s) => s.ativo);
+  const memberBrand = member.corMarca ?? brand;
+
+  return (
+    <div>
+      <button
+        onClick={onBack}
+        className="mb-5 flex items-center gap-1 text-sm text-slate-400 hover:text-slate-700 transition"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Voltar aos profissionais
+      </button>
+
+      <div className="flex items-center gap-4 mb-6 p-4 rounded-2xl bg-slate-50 border border-slate-100">
+        {member.fotoUrl ? (
+          <img
+            src={member.fotoUrl}
+            alt={member.nomeCompleto}
+            className="h-14 w-14 rounded-xl object-cover ring-2 ring-white shadow-sm shrink-0"
+          />
+        ) : (
+          <div
+            className="h-14 w-14 rounded-xl flex items-center justify-center text-white font-black text-lg shrink-0 shadow-sm"
+            style={{ background: memberBrand }}
+          >
+            {member.nomeCompleto.split(" ").slice(0, 2).map((n) => n[0]).join("")}
+          </div>
+        )}
+        <div>
+          <p className="font-bold text-slate-900">{member.nomeCompleto}</p>
+          <p className="text-xs mt-0.5" style={{ color: memberBrand }}>{member.especialidade}</p>
+          {member.bio && (
+            <p className="text-xs text-slate-500 mt-1 leading-snug line-clamp-2">{member.bio}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-start gap-3 mb-6">
+        <span
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black text-white shadow-sm ${colors.badge}`}
+        >
+          02
+        </span>
+        <div>
+          <h2 className="text-base font-bold text-slate-900">Escolha a especialidade</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Selecione o serviço desejado</p>
+        </div>
+      </div>
+
+      {activeServices.length === 0 ? (
+        <div className="rounded-2xl border-2 border-dashed border-slate-200 p-10 text-center text-sm text-slate-400">
+          Nenhum serviço disponível no momento.
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {activeServices.map((svc, idx) => (
+            <ServiceCard key={svc.id} svc={svc} idx={idx} brand={memberBrand} onSelect={onSelect} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── WhatsApp URL helper ──────────────────────────────────────────────────────
+
+function buildWhatsAppUrl(
+  professional: ProfessionalPublic,
+  phase: Extract<Phase, { tag: "confirmado" }>,
+): string {
+  const rawPhone = phase.member?.telefoneWhatsapp ?? professional.telefoneWhatsapp;
+  const phone = rawPhone?.replace(/\D/g, "");
+  const recipientName = phase.member?.nomeCompleto ?? professional.nomeCompleto;
+  const msg = [
+    `Olá, ${recipientName}! 👋`,
+    ``,
+    `Gostaria de *confirmar* meu agendamento:`,
+    ``,
+    `📋 *Serviço:* ${phase.service.nome}`,
+    `👤 *Paciente:* ${phase.nome}`,
+    `📅 *Data:* ${fmtDate(phase.date)}`,
+    `⏰ *Horário:* ${phase.slot}`,
+    `⏱️ *Duração:* ${phase.service.duracaoMinutos} min`,
+    `💰 *Valor:* ${fmt(phase.service.preco)}`,
+    ``,
+    `Agendado via MediClin 🩺`,
+  ].join("\n");
+  const base = phone ? `https://wa.me/${phone}` : `https://wa.me`;
+  return `${base}?text=${encodeURIComponent(msg)}`;
 }
 
 // ─── Not-found ────────────────────────────────────────────────────────────────
