@@ -151,7 +151,6 @@ function renderHeadline(text: string, highlight: string | null, textClass: strin
 export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
   const brand = professional.corMarca ?? "#0d9488";
   const colors = getColors(professional.corPrimaria);
-  const highlightColors = getColors(professional.corDestaque ?? professional.corPrimaria);
 
   const [phase, setPhase] = useState<Phase>({ tag: "idle" });
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
@@ -286,7 +285,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
           {/* Impact headline */}
           {professional.headline && (
             <h2 className="mt-5 text-2xl font-extrabold leading-tight text-slate-900 tracking-tight">
-              {renderHeadline(professional.headline, professional.headlineDestaque, highlightColors.text)}
+              {renderHeadline(professional.headline, professional.headlineDestaque, colors.text)}
             </h2>
           )}
 

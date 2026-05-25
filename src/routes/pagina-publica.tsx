@@ -112,7 +112,6 @@ function PaginaPublicaPage() {
   const [headlineDestaque, setHeadlineDestaque] = useState("");
   const [bio, setBio] = useState("");
   const [corPrimaria, setCorPrimaria] = useState<ColorKey>("teal");
-  const [corDestaque, setCorDestaque] = useState<ColorKey | null>(null);
   const [identitySaved, setIdentitySaved] = useState(false);
 
   // Populate form once professional loads
@@ -123,13 +122,12 @@ function PaginaPublicaPage() {
     setHeadlineDestaque(prof.headlineDestaque ?? "");
     setBio(prof.bio ?? "");
     setCorPrimaria((prof.corPrimaria as ColorKey) ?? "teal");
-    setCorDestaque((prof.corDestaque as ColorKey) ?? null);
   }, [prof]);
 
   const identityMutation = useMutation({
     mutationFn: () =>
       updatePageIdentity({
-        data: { headline, headlineDestaque, bio, corPrimaria, corDestaque, fotoUrl },
+        data: { headline, headlineDestaque, bio, corPrimaria, corDestaque: null, fotoUrl },
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["currentProfessional"] });
@@ -224,7 +222,6 @@ function PaginaPublicaPage() {
 
   // ── Preview data (real-time) ────────────────────────────────────────────────
   const colors = COLOR_MAP_PREVIEW[corPrimaria] ?? COLOR_MAP_PREVIEW.teal;
-  const destaqueColors = COLOR_MAP_PREVIEW[corDestaque ?? corPrimaria] ?? colors;
   const previewName = prof?.nomeCompleto ?? "";
   const previewSpecialty = prof?.especialidade ?? "";
   const previewInitials = previewName.split(" ").filter(Boolean).slice(0, 2).map((n) => n[0]).join("").toUpperCase();
@@ -237,7 +234,7 @@ function PaginaPublicaPage() {
     return (
       <>
         {headline.slice(0, idx)}
-        <span className={destaqueColors.text}>{headline.slice(idx, idx + headlineDestaque.length)}</span>
+        <span className={colors.text}>{headline.slice(idx, idx + headlineDestaque.length)}</span>
         {headline.slice(idx + headlineDestaque.length)}
       </>
     );
@@ -341,23 +338,13 @@ function PaginaPublicaPage() {
                   <p className="text-xs text-slate-400 mt-1">{bio.length}/500 caracteres</p>
                 </div>
 
-                {/* Color pickers */}
-                <div className="space-y-4">
-                  <ColorPicker
-                    label="Cor tema"
-                    description="avatar, cards, botões"
-                    value={corPrimaria}
-                    onChange={setCorPrimaria}
-                  />
-                  <ColorPicker
-                    label="Cor da palavra destacada"
-                    description="a palavra colorida na frase de impacto"
-                    value={corDestaque ?? corPrimaria}
-                    onChange={(k) => setCorDestaque(k === corPrimaria ? null : k)}
-                    showSameAsTheme={corDestaque !== null}
-                    onSameAsTheme={() => setCorDestaque(null)}
-                  />
-                </div>
+                {/* Color picker */}
+                <ColorPicker
+                  label="Cor tema"
+                  description="aplicada em todo o perfil"
+                  value={corPrimaria}
+                  onChange={setCorPrimaria}
+                />
               </div>
 
               <div className="mt-6 flex items-center gap-3">
