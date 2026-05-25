@@ -25,6 +25,8 @@ export type DashboardAppt = {
   avatar: string;
 };
 
+export type UpcomingAppt = DashboardAppt & { date: string };
+
 export type DashboardStats = {
   consultasHoje: number;
   pacientesAtivos: number;
@@ -58,6 +60,7 @@ export type DashboardData = {
   subscription: SubscriptionInfo;
   stats: DashboardStats;
   todayAppointments: DashboardAppt[];
+  upcomingAppointments: UpcomingAppt[];
   weekData: WeekDay[];
 };
 
@@ -165,6 +168,44 @@ export const fetchDashboardData = createServerFn({ method: "GET" }).handler(
       avatar: initials(a.patient.nome),
     }));
 
+    // ── Upcoming (next 7 days, excluding today) ──────────────────────────────
+    const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+    const { start: tomorrowStart } = dayBounds(
+      new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1),
+    );
+    const { start: weekEndBound } = dayBounds(
+      new Date(now.getFullYear(), now.getMonth(), now.getDate() + 8),
+    );
+
+    const rawUpcoming = await db.query.appointments.findMany({
+      where: and(
+        eq(appointments.professionalId, profId),
+        gte(appointments.inicio, tomorrowStart),
+        lt(appointments.inicio, weekEndBound),
+      ),
+      with: { patient: true, service: true },
+      orderBy: [asc(appointments.inicio)],
+      limit: 15,
+    });
+
+    const upcomingAppointments: UpcomingAppt[] = rawUpcoming
+      .filter((a) => a.status !== "cancelado" && a.status !== "no_show")
+      .map((a) => {
+        const dd = String(a.inicio.getDate()).padStart(2, "0");
+        const mm = String(a.inicio.getMonth() + 1).padStart(2, "0");
+        return {
+          id: a.id,
+          time: toHHMM(a.inicio),
+          date: `${WEEK_DAYS[a.inicio.getDay()]}, ${dd}/${mm}`,
+          patient: a.patient.nome,
+          age: 0,
+          type: "Presencial" as const,
+          reason: a.service.nome,
+          status: mapStatus(a.status),
+          avatar: initials(a.patient.nome),
+        };
+      });
+
     // ── Month data for stats ─────────────────────────────────────────────────
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -260,6 +301,7 @@ export const fetchDashboardData = createServerFn({ method: "GET" }).handler(
         taxaNoShow,
       },
       todayAppointments,
+      upcomingAppointments,
       weekData,
     };
   },

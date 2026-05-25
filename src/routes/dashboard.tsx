@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/tanstack-start";
 import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -25,13 +25,14 @@ import {
   Zap,
   AlertTriangle,
   Crown,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { fetchCurrentProfessional } from "../lib/auth";
 import { checkOnboardingStatus } from "../lib/onboarding";
 import { createMPOAuthLink, activateMPAccount } from "../lib/mercadopago";
 import { createMPSubscriptionCheckout, getMPSubscriptionPortalUrl } from "../lib/mp-subscription";
-import { fetchDashboardData, type DashboardData, type SubscriptionInfo } from "../lib/dashboard";
+import { fetchDashboardData, type DashboardData, type SubscriptionInfo, type UpcomingAppt } from "../lib/dashboard";
 import { DashboardLayout } from "../components/DashboardLayout";
 
 export const Route = createFileRoute("/dashboard")({
@@ -167,7 +168,9 @@ function Dashboard() {
 
 function DashboardContent() {
   const data = Route.useLoaderData() ?? null;
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<"todos" | Appt["status"]>("todos");
+  const [showNotifs, setShowNotifs] = useState(false);
 
   // Memoiza pra evitar nova referência de array a cada render (filtered depende dela).
   const appointments = useMemo<Appt[]>(
@@ -180,6 +183,11 @@ function DashboardContent() {
   const filtered = useMemo(
     () => (filter === "todos" ? appointments : appointments.filter((a) => a.status === filter)),
     [filter, appointments],
+  );
+
+  const upcomingAppointments = useMemo<UpcomingAppt[]>(
+    () => (data?.upcomingAppointments ?? []) as UpcomingAppt[],
+    [data?.upcomingAppointments],
   );
 
   const maxConsultas = Math.max(...weekData.map((d) => d.consultas), 1);
@@ -221,11 +229,80 @@ function DashboardContent() {
               </div>
             </div>
             <div className="ml-auto flex items-center gap-2">
-              <button className="relative h-9 w-9 grid place-items-center rounded-lg hover:bg-slate-100 transition">
-                <Bell className="h-4 w-4 text-slate-600" />
-                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
-              </button>
-              <button className="hidden sm:inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-gradient-to-r from-teal-600 to-indigo-600 text-white hover:from-teal-700 hover:to-indigo-700 transition shadow-sm">
+              {/* Notifications bell */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowNotifs((v) => !v)}
+                  className="relative h-9 w-9 grid place-items-center rounded-lg hover:bg-slate-100 transition"
+                >
+                  <Bell className="h-4 w-4 text-slate-600" />
+                  {upcomingAppointments.length > 0 && (
+                    <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
+                  )}
+                </button>
+
+                {showNotifs && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowNotifs(false)} />
+                    <div className="absolute right-0 top-11 w-80 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 overflow-hidden">
+                      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">Lembretes</p>
+                          <p className="text-xs text-slate-400">Próximas consultas da semana</p>
+                        </div>
+                        <button
+                          onClick={() => setShowNotifs(false)}
+                          className="h-7 w-7 grid place-items-center rounded-lg hover:bg-slate-100 transition text-slate-400"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                      {upcomingAppointments.length === 0 ? (
+                        <div className="px-4 py-10 text-center">
+                          <Bell className="h-8 w-8 text-slate-200 mx-auto mb-2" />
+                          <p className="text-sm font-medium text-slate-500">Tudo em dia!</p>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            Nenhuma consulta nos próximos 7 dias.
+                          </p>
+                        </div>
+                      ) : (
+                        <ul className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                          {upcomingAppointments.map((a) => (
+                            <li
+                              key={a.id}
+                              className="px-4 py-3 hover:bg-slate-50 transition flex items-center gap-3"
+                            >
+                              <div className="h-8 w-8 rounded-full bg-teal-50 grid place-items-center text-xs font-semibold text-teal-700 shrink-0">
+                                {a.avatar}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-slate-900 truncate">{a.patient}</p>
+                                <p className="text-xs text-slate-500">
+                                  {a.date} · {a.time} · {a.reason}
+                                </p>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <div className="px-4 py-2 border-t border-slate-100">
+                        <button
+                          onClick={() => { setShowNotifs(false); void navigate({ to: "/agenda" }); }}
+                          className="w-full text-xs text-center text-teal-600 hover:text-teal-800 font-medium py-1 transition"
+                        >
+                          Ver agenda completa →
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Novo agendamento */}
+              <button
+                onClick={() => void navigate({ to: "/agenda" })}
+                className="hidden sm:inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-gradient-to-r from-teal-600 to-indigo-600 text-white hover:from-teal-700 hover:to-indigo-700 transition shadow-sm"
+              >
                 <Plus className="h-4 w-4" />
                 Novo agendamento
               </button>
@@ -279,74 +356,148 @@ function DashboardContent() {
                 <div>
                   <h2 className="text-base font-semibold tracking-tight">Agenda de hoje</h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    {appointments.length} consultas programadas
+                    {appointments.length > 0
+                      ? `${appointments.length} consulta${appointments.length !== 1 ? "s" : ""} programada${appointments.length !== 1 ? "s" : ""}`
+                      : "Nenhuma consulta agendada para hoje"}
                   </p>
                 </div>
-                <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg text-xs">
-                  {(["todos", "confirmado", "em-andamento", "concluido"] as const).map((f) => (
-                    <button
-                      key={f}
-                      onClick={() => setFilter(f)}
-                      className={`px-3 py-1.5 rounded-md font-medium transition ${
-                        filter === f
-                          ? "bg-white text-slate-900 shadow-sm"
-                          : "text-slate-600 hover:text-slate-900"
-                      }`}
-                    >
-                      {f === "todos" ? "Todos" : statusStyle[f].label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <ul className="divide-y divide-slate-100">
-                {filtered.map((a) => {
-                  const st = statusStyle[a.status];
-                  return (
-                    <li
-                      key={a.id}
-                      className="px-6 py-4 hover:bg-slate-50/60 transition flex items-center gap-4"
-                    >
-                      <div className="flex flex-col items-center min-w-[56px]">
-                        <div className="text-sm font-semibold text-slate-900">{a.time}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">30 min</div>
-                      </div>
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 grid place-items-center text-xs font-semibold text-slate-700 shrink-0">
-                        {a.avatar}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-slate-900 truncate">
-                            {a.patient}
-                          </span>
-                          <span className="text-xs text-slate-400">· {a.age} anos</span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
-                          {a.type === "Teleconsulta" ? (
-                            <Video className="h-3 w-3 text-indigo-500" />
-                          ) : (
-                            <MapPin className="h-3 w-3 text-teal-500" />
-                          )}
-                          <span className="truncate">{a.reason}</span>
-                        </div>
-                      </div>
-                      <span
-                        className={`hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${st.bg} ${st.text}`}
+                {appointments.length > 0 && (
+                  <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg text-xs">
+                    {(["todos", "confirmado", "em-andamento", "concluido"] as const).map((f) => (
+                      <button
+                        key={f}
+                        onClick={() => setFilter(f)}
+                        className={`px-3 py-1.5 rounded-md font-medium transition ${
+                          filter === f
+                            ? "bg-white text-slate-900 shadow-sm"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
                       >
-                        <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} />
-                        {st.label}
-                      </span>
-                      <button className="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 transition">
-                        <ChevronRight className="h-4 w-4 text-slate-400" />
+                        {f === "todos" ? "Todos" : statusStyle[f].label}
                       </button>
-                    </li>
-                  );
-                })}
-                {filtered.length === 0 && (
-                  <li className="px-6 py-12 text-center text-sm text-slate-500">
-                    Nenhuma consulta neste filtro.
-                  </li>
+                    ))}
+                  </div>
                 )}
-              </ul>
+              </div>
+
+              {/* Empty today → show upcoming week */}
+              {appointments.length === 0 ? (
+                <div className="px-6 py-8">
+                  <div className="flex flex-col items-center text-center mb-6">
+                    <div className="h-14 w-14 rounded-2xl bg-slate-100 grid place-items-center mb-3">
+                      <CalendarDays className="h-7 w-7 text-slate-400" />
+                    </div>
+                    <p className="text-sm font-semibold text-slate-700">Dia livre hoje! 🎉</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Aproveite para organizar sua agenda ou adicionar novos horários.
+                    </p>
+                  </div>
+
+                  {upcomingAppointments.length > 0 && (
+                    <>
+                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                        Próximas consultas da semana
+                      </p>
+                      <ul className="space-y-2">
+                        {upcomingAppointments.slice(0, 6).map((a) => {
+                          const st = statusStyle[a.status];
+                          return (
+                            <li
+                              key={a.id}
+                              className="flex items-center gap-4 rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3 hover:bg-slate-50 transition"
+                            >
+                              <div className="flex flex-col items-center min-w-[64px]">
+                                <div className="text-xs font-bold text-slate-700">{a.time}</div>
+                                <div className="text-[10px] text-slate-400 mt-0.5">{a.date}</div>
+                              </div>
+                              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-teal-200 to-indigo-200 grid place-items-center text-xs font-semibold text-slate-700 shrink-0">
+                                {a.avatar}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-slate-900 truncate">{a.patient}</p>
+                                <p className="text-xs text-slate-500 truncate">{a.reason}</p>
+                              </div>
+                              <span
+                                className={`hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${st.bg} ${st.text}`}
+                              >
+                                <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} />
+                                {st.label}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      <button
+                        onClick={() => void navigate({ to: "/agenda" })}
+                        className="mt-4 w-full text-xs text-center text-teal-600 hover:text-teal-800 font-medium py-2 transition"
+                      >
+                        Ver agenda completa →
+                      </button>
+                    </>
+                  )}
+
+                  {upcomingAppointments.length === 0 && (
+                    <div className="text-center">
+                      <button
+                        onClick={() => void navigate({ to: "/agenda" })}
+                        className="inline-flex items-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white transition shadow-sm"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Configurar disponibilidade
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {filtered.map((a) => {
+                    const st = statusStyle[a.status];
+                    return (
+                      <li
+                        key={a.id}
+                        className="px-6 py-4 hover:bg-slate-50/60 transition flex items-center gap-4"
+                      >
+                        <div className="flex flex-col items-center min-w-[56px]">
+                          <div className="text-sm font-semibold text-slate-900">{a.time}</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">30 min</div>
+                        </div>
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 grid place-items-center text-xs font-semibold text-slate-700 shrink-0">
+                          {a.avatar}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-slate-900 truncate">
+                              {a.patient}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
+                            {a.type === "Teleconsulta" ? (
+                              <Video className="h-3 w-3 text-indigo-500" />
+                            ) : (
+                              <MapPin className="h-3 w-3 text-teal-500" />
+                            )}
+                            <span className="truncate">{a.reason}</span>
+                          </div>
+                        </div>
+                        <span
+                          className={`hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${st.bg} ${st.text}`}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} />
+                          {st.label}
+                        </span>
+                        <button className="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 transition">
+                          <ChevronRight className="h-4 w-4 text-slate-400" />
+                        </button>
+                      </li>
+                    );
+                  })}
+                  {filtered.length === 0 && (
+                    <li className="px-6 py-12 text-center text-sm text-slate-500">
+                      Nenhuma consulta neste filtro.
+                    </li>
+                  )}
+                </ul>
+              )}
             </div>
 
             {/* Next patient card */}
