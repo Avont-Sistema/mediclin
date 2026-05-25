@@ -260,6 +260,10 @@ function DashboardContent() {
   const profEspecialidade = data?.professional?.especialidade ?? "";
   const profRegistro = data?.professional?.registro ?? "";
 
+  // Hoje — dia da semana e data para o chip da lista
+  const todayDow = new Date().toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
+  const todayDayMonth = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+
   // Day summary derived from real appointments
   const concluidos = appointments.filter((a) => a.status === "concluido").length;
   const cancelados = appointments.filter((a) => a.status === "cancelado").length;
@@ -619,10 +623,11 @@ function DashboardContent() {
                               key={a.id}
                               className="group flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-slate-50 transition"
                             >
-                              {/* Hora — destaque visual */}
-                              <div className="shrink-0 bg-slate-900 text-white rounded-lg px-2.5 py-1.5 text-center min-w-[56px]">
-                                <span className="text-sm font-bold tracking-tight leading-none">{a.time}</span>
-                                <div className="text-[9px] text-slate-400 mt-0.5">30 min</div>
+                              {/* Data em destaque */}
+                              <div className="shrink-0 bg-slate-900 text-white rounded-lg px-2.5 py-2 text-center min-w-[56px]">
+                                <div className="text-[9px] text-slate-400 uppercase tracking-wide font-semibold">{todayDow}</div>
+                                <div className="text-sm font-bold leading-tight mt-0.5">{todayDayMonth}</div>
+                                <div className="text-[10px] text-slate-400 mt-1">{a.time}</div>
                               </div>
 
                               {/* Barra de cor do status */}
