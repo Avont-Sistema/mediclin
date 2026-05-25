@@ -290,24 +290,11 @@ function PaginaPublicaPage() {
     <DashboardLayout>
       <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
         {/* Page header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Página Pública</h1>
-            <p className="text-sm text-slate-500 mt-0.5">
-              Personalize o que seus pacientes veem ao acessar seu link
-            </p>
-          </div>
-          {publicUrl && (
-            <a
-              href={publicUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
-            >
-              <ExternalLink className="size-4" />
-              Ver página
-            </a>
-          )}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-slate-900">Página Pública</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Personalize o que seus pacientes veem ao acessar seu link
+          </p>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-8 items-start">
@@ -543,9 +530,22 @@ function PaginaPublicaPage() {
           <div className="xl:sticky xl:top-8">
             {/* Header row */}
             <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Preview ao vivo
-              </p>
+              <div className="flex items-center gap-3">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Preview ao vivo
+                </p>
+                {publicUrl && (
+                  <a
+                    href={publicUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors shadow-sm"
+                  >
+                    <ExternalLink className="size-3" />
+                    Ver página do cliente
+                  </a>
+                )}
+              </div>
               {previewPhase !== "idle" && (
                 <button
                   onClick={() => { setPreviewPhase("idle"); setPreviewSvc(null); setPreviewDate(null); setPreviewSlot(null); }}
