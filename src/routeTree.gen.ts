@@ -9,23 +9,19 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
-import { Route as PaginaPublicaRouteImport } from './routes/pagina-publica'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as PatientsRouteImport } from './routes/patients'
+import { Route as PaginaPublicaRouteImport } from './routes/pagina-publica'
+import { Route as OnboardingPreviewRouteImport } from './routes/onboarding-preview'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AgendaRouteImport } from './routes/agenda'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as SlugRouteImport } from './routes/$slug'
 import { Route as IndexRouteImport } from './routes/index'
 
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SignUpRoute = SignUpRouteImport.update({
   id: '/sign-up',
   path: '/sign-up',
@@ -36,11 +32,6 @@ const SignInRoute = SignInRouteImport.update({
   path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PaginaPublicaRoute = PaginaPublicaRouteImport.update({
-  id: '/pagina-publica',
-  path: '/pagina-publica',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -49,6 +40,16 @@ const SettingsRoute = SettingsRouteImport.update({
 const PatientsRoute = PatientsRouteImport.update({
   id: '/patients',
   path: '/patients',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaginaPublicaRoute = PaginaPublicaRouteImport.update({
+  id: '/pagina-publica',
+  path: '/pagina-publica',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingPreviewRoute = OnboardingPreviewRouteImport.update({
+  id: '/onboarding-preview',
+  path: '/onboarding-preview',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -66,6 +67,11 @@ const AgendaRoute = AgendaRouteImport.update({
   path: '/agenda',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SlugRoute = SlugRouteImport.update({
   id: '/$slug',
   path: '/$slug',
@@ -79,11 +85,12 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/$slug': typeof SlugRoute
+  '/admin': typeof AdminRoute
   '/agenda': typeof AgendaRoute
   '/dashboard': typeof DashboardRoute
   '/onboarding': typeof OnboardingRoute
+  '/onboarding-preview': typeof OnboardingPreviewRoute
   '/pagina-publica': typeof PaginaPublicaRoute
   '/patients': typeof PatientsRoute
   '/settings': typeof SettingsRoute
@@ -92,11 +99,12 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/$slug': typeof SlugRoute
+  '/admin': typeof AdminRoute
   '/agenda': typeof AgendaRoute
   '/dashboard': typeof DashboardRoute
   '/onboarding': typeof OnboardingRoute
+  '/onboarding-preview': typeof OnboardingPreviewRoute
   '/pagina-publica': typeof PaginaPublicaRoute
   '/patients': typeof PatientsRoute
   '/settings': typeof SettingsRoute
@@ -106,11 +114,12 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/$slug': typeof SlugRoute
+  '/admin': typeof AdminRoute
   '/agenda': typeof AgendaRoute
   '/dashboard': typeof DashboardRoute
   '/onboarding': typeof OnboardingRoute
+  '/onboarding-preview': typeof OnboardingPreviewRoute
   '/pagina-publica': typeof PaginaPublicaRoute
   '/patients': typeof PatientsRoute
   '/settings': typeof SettingsRoute
@@ -121,11 +130,12 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/admin'
     | '/$slug'
+    | '/admin'
     | '/agenda'
     | '/dashboard'
     | '/onboarding'
+    | '/onboarding-preview'
     | '/pagina-publica'
     | '/patients'
     | '/settings'
@@ -134,11 +144,12 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin'
     | '/$slug'
+    | '/admin'
     | '/agenda'
     | '/dashboard'
     | '/onboarding'
+    | '/onboarding-preview'
     | '/pagina-publica'
     | '/patients'
     | '/settings'
@@ -147,11 +158,12 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/admin'
     | '/$slug'
+    | '/admin'
     | '/agenda'
     | '/dashboard'
     | '/onboarding'
+    | '/onboarding-preview'
     | '/pagina-publica'
     | '/patients'
     | '/settings'
@@ -161,11 +173,12 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
   SlugRoute: typeof SlugRoute
+  AdminRoute: typeof AdminRoute
   AgendaRoute: typeof AgendaRoute
   DashboardRoute: typeof DashboardRoute
   OnboardingRoute: typeof OnboardingRoute
+  OnboardingPreviewRoute: typeof OnboardingPreviewRoute
   PaginaPublicaRoute: typeof PaginaPublicaRoute
   PatientsRoute: typeof PatientsRoute
   SettingsRoute: typeof SettingsRoute
@@ -175,13 +188,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/sign-up': {
       id: '/sign-up'
       path: '/sign-up'
@@ -196,13 +202,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignInRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/pagina-publica': {
-      id: '/pagina-publica'
-      path: '/pagina-publica'
-      fullPath: '/pagina-publica'
-      preLoaderRoute: typeof PaginaPublicaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -215,6 +214,20 @@ declare module '@tanstack/react-router' {
       path: '/patients'
       fullPath: '/patients'
       preLoaderRoute: typeof PatientsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pagina-publica': {
+      id: '/pagina-publica'
+      path: '/pagina-publica'
+      fullPath: '/pagina-publica'
+      preLoaderRoute: typeof PaginaPublicaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding-preview': {
+      id: '/onboarding-preview'
+      path: '/onboarding-preview'
+      fullPath: '/onboarding-preview'
+      preLoaderRoute: typeof OnboardingPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -238,6 +251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AgendaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/$slug': {
       id: '/$slug'
       path: '/$slug'
@@ -257,11 +277,12 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
   SlugRoute: SlugRoute,
+  AdminRoute: AdminRoute,
   AgendaRoute: AgendaRoute,
   DashboardRoute: DashboardRoute,
   OnboardingRoute: OnboardingRoute,
+  OnboardingPreviewRoute: OnboardingPreviewRoute,
   PaginaPublicaRoute: PaginaPublicaRoute,
   PatientsRoute: PatientsRoute,
   SettingsRoute: SettingsRoute,
