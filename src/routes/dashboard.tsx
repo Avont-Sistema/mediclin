@@ -19,13 +19,16 @@ import {
   FileText,
   Plus,
   CalendarDays,
-  UserRound,
   Wallet,
   ExternalLink,
   Zap,
   AlertTriangle,
   Crown,
   X,
+  MonitorSmartphone,
+  Camera,
+  Mic,
+  Wifi,
   type LucideIcon,
 } from "lucide-react";
 import { fetchCurrentProfessional } from "../lib/auth";
@@ -452,8 +455,51 @@ function DashboardContent() {
                 </div>
               ) : (
                 <ul className="divide-y divide-slate-100">
-                  {filtered.map((a) => {
+                  {filtered.map((a, idx) => {
                     const st = statusStyle[a.status];
+                    const isDestaque =
+                      idx === 0 &&
+                      filter === "todos" &&
+                      (a.status === "confirmado" ||
+                        a.status === "aguardando" ||
+                        a.status === "em-andamento");
+
+                    if (isDestaque) {
+                      return (
+                        <li key={a.id} className="p-4">
+                          <div className="rounded-2xl bg-gradient-to-r from-teal-600 to-indigo-600 text-white flex items-center gap-4 px-5 py-4 shadow-sm">
+                            <div className="flex flex-col items-center min-w-[52px]">
+                              <div className="text-base font-bold">{a.time}</div>
+                              <div className="text-[10px] text-teal-200 mt-0.5 uppercase tracking-wide font-medium">
+                                {a.status === "em-andamento" ? "Em curso" : "Próxima"}
+                              </div>
+                            </div>
+                            <div className="h-11 w-11 rounded-full bg-white/20 ring-2 ring-white/40 grid place-items-center text-sm font-bold text-white shrink-0">
+                              {a.avatar}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold truncate">{a.patient}</p>
+                              <div className="flex items-center gap-1.5 mt-0.5 text-xs text-teal-100">
+                                {a.type === "Teleconsulta" ? (
+                                  <Video className="h-3 w-3" />
+                                ) : (
+                                  <MapPin className="h-3 w-3" />
+                                )}
+                                <span className="truncate">{a.reason}</span>
+                              </div>
+                            </div>
+                            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-white/15 text-white">
+                              <span className="h-1.5 w-1.5 rounded-full bg-white/80" />
+                              {st.label}
+                            </span>
+                            <button className="h-8 w-8 grid place-items-center rounded-lg bg-white/10 hover:bg-white/20 transition shrink-0">
+                              <ChevronRight className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    }
+
                     return (
                       <li
                         key={a.id}
@@ -537,16 +583,42 @@ function DashboardContent() {
                     </>
                   ) : (
                     <>
-                      <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-slate-400">
-                        <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
-                        Aguardando consulta
+                      <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-indigo-300">
+                        <MonitorSmartphone className="h-3.5 w-3.5" />
+                        Teleconsulta
                       </div>
-                      <h3 className="mt-3 text-base font-semibold tracking-tight text-slate-300">
-                        Nenhuma consulta em andamento
+                      <h3 className="mt-3 text-lg font-semibold tracking-tight">
+                        Sala virtual pronta
                       </h3>
                       <p className="text-sm text-slate-400 mt-1">
-                        A próxima consulta aparecerá aqui automaticamente.
+                        Atenda seus pacientes de qualquer lugar, sem sair do MediClin.
                       </p>
+
+                      <div className="mt-4 space-y-2.5">
+                        <div className="flex items-center gap-2 text-xs text-slate-300">
+                          <div className="h-5 w-5 rounded-full bg-emerald-500/20 grid place-items-center shrink-0">
+                            <Camera className="h-3 w-3 text-emerald-400" />
+                          </div>
+                          Câmera disponível
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-300">
+                          <div className="h-5 w-5 rounded-full bg-emerald-500/20 grid place-items-center shrink-0">
+                            <Mic className="h-3 w-3 text-emerald-400" />
+                          </div>
+                          Microfone disponível
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-300">
+                          <div className="h-5 w-5 rounded-full bg-emerald-500/20 grid place-items-center shrink-0">
+                            <Wifi className="h-3 w-3 text-emerald-400" />
+                          </div>
+                          Conexão estável
+                        </div>
+                      </div>
+
+                      <button className="mt-5 w-full inline-flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white transition">
+                        <Video className="h-4 w-4" />
+                        Iniciar sala virtual
+                      </button>
                     </>
                   )}
                 </div>
