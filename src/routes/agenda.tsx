@@ -246,7 +246,14 @@ function AgendaContent() {
             const today = isToday(dayStr);
             const folgaBlock = blockedByDate.get(dayStr) ?? null;
             return (
-              <div key={dayStr}>
+              <div
+                key={dayStr}
+                className={
+                  today
+                    ? "rounded-2xl border border-teal-200 bg-teal-50/50 px-4 pb-4 pt-3 shadow-sm"
+                    : ""
+                }
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <h2
                     className={`text-sm font-semibold capitalize ${today ? "text-teal-700" : "text-slate-700"}`}
@@ -254,7 +261,7 @@ function AgendaContent() {
                     {formatDayHeader(dayStr)}
                   </h2>
                   {today && (
-                    <span className="text-[10px] font-medium bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded-full">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-teal-500 text-white px-2 py-0.5 rounded-full shadow-sm">
                       Hoje
                     </span>
                   )}
@@ -310,8 +317,10 @@ function AgendaContent() {
                           key={appt.id}
                           className={`rounded-xl border bg-white transition ${
                             isSelected
-                              ? "border-teal-300 shadow-md"
-                              : "border-slate-200 hover:border-slate-300 hover:shadow-sm"
+                              ? "border-teal-400 shadow-md ring-1 ring-teal-200"
+                              : today
+                                ? "border-teal-100 hover:border-teal-300 hover:shadow-sm"
+                                : "border-slate-200 hover:border-slate-300 hover:shadow-sm"
                           }`}
                         >
                           {/* Card header */}
