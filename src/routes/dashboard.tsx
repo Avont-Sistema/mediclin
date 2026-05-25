@@ -34,6 +34,7 @@ import { createMPOAuthLink, activateMPAccount } from "../lib/mercadopago";
 import { createMPSubscriptionCheckout, getMPSubscriptionPortalUrl } from "../lib/mp-subscription";
 import { fetchDashboardData, type DashboardData, type SubscriptionInfo, type UpcomingAppt } from "../lib/dashboard";
 import { DashboardLayout } from "../components/DashboardLayout";
+import { NovoAgendamentoModal } from "../components/NovoAgendamentoModal";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -171,6 +172,7 @@ function DashboardContent() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<"todos" | Appt["status"]>("todos");
   const [showNotifs, setShowNotifs] = useState(false);
+  const [showNewAppt, setShowNewAppt] = useState(false);
 
   // Memoiza pra evitar nova referência de array a cada render (filtered depende dela).
   const appointments = useMemo<Appt[]>(
@@ -300,7 +302,7 @@ function DashboardContent() {
 
               {/* Novo agendamento */}
               <button
-                onClick={() => void navigate({ to: "/agenda" })}
+                onClick={() => setShowNewAppt(true)}
                 className="hidden sm:inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-gradient-to-r from-teal-600 to-indigo-600 text-white hover:from-teal-700 hover:to-indigo-700 transition shadow-sm"
               >
                 <Plus className="h-4 w-4" />
@@ -661,6 +663,8 @@ function DashboardContent() {
           </section>
         </div>
       </div>
+
+      <NovoAgendamentoModal open={showNewAppt} onClose={() => setShowNewAppt(false)} />
     </DashboardLayout>
   );
 }

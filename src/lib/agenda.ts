@@ -1,12 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { and, asc, eq, gte, lt } from "drizzle-orm";
-import { z } from "zod";
 import { getAuth } from "@clerk/tanstack-start/server";
 import { getWebRequest } from "vinxi/http";
+import { z } from "zod";
 import { db } from "../db";
-import { appointments, users } from "../db/schema";
+import { appointments, users, patients, services } from "../db/schema";
 import type { InferSelectModel } from "drizzle-orm";
-import type { patients, services, professionals } from "../db/schema";
+import type { professionals } from "../db/schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -104,4 +104,69 @@ export const updateAppointmentStatus = createServerFn({ method: "POST" })
       .where(eq(appointments.id, data.appointmentId));
 
     return { ok: true };
+  });
+
+// ─── createManualBooking ──────────────────────────────────────────────────────
+
+export const createManualBooking = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      serviceId: z.string(),
+      dateStr: z.string(), // YYYY-MM-DD
+      timeSlot: z.string(), // HH:mm
+      patientNome: z.string().min(2),
+      patientTelefone: z.string().min(8),
+      patientEmail: z.string().email().optional().or(z.literal("")),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const auth = await getAuth(getWebRequest());
+    if (!auth.userId) throw new Error("Não autenticado");
+
+    const userRecord = await db.query.users.findFirst({
+      where: eq(users.clerkId, auth.userId),
+      with: { professional: true },
+    });
+
+    const profId = userRecord?.professional?.id;
+    if (!profId) throw new Error("Profissional não encontrado");
+
+    // Verify service belongs to this professional (multi-tenant safety)
+    const svc = await db.query.services.findFirst({
+      where: and(eq(services.id, data.serviceId), eq(services.professionalId, profId)),
+    });
+    if (!svc) throw new Error("Serviço não encontrado");
+
+    const [y, mo, d] = data.dateStr.split("-").map(Number);
+    const [h, m] = data.timeSlot.split(":").map(Number);
+    const inicio = new Date(y, mo - 1, d, h, m, 0);
+    const fim = new Date(inicio.getTime() + svc.duracaoMinutos * 60_000);
+
+    const emailToUse =
+      data.patientEmail && data.patientEmail.length > 0
+        ? data.patientEmail
+        : `tel_${data.patientTelefone.replace(/\D/g, "")}@noemail.mediclin.app`;
+
+    const [pat] = await db
+      .insert(patients)
+      .values({ nome: data.patientNome, telefone: data.patientTelefone, email: emailToUse })
+      .onConflictDoUpdate({
+        target: patients.email,
+        set: { nome: data.patientNome, telefone: data.patientTelefone },
+      })
+      .returning();
+
+    const [appt] = await db
+      .insert(appointments)
+      .values({
+        professionalId: profId,
+        serviceId: svc.id,
+        patientId: pat.id,
+        inicio,
+        fim,
+        status: "confirmado",
+      })
+      .returning();
+
+    return { appointmentId: appt.id };
   });
