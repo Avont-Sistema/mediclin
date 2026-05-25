@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/tanstack-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -13,11 +13,17 @@ import {
   User,
   Stethoscope,
   Phone,
+  CalendarOff,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { z } from "zod";
 import { DashboardLayout } from "../components/DashboardLayout";
 import { fetchAgendaWeek, updateAppointmentStatus, getMonday, addDays } from "../lib/agenda";
 import type { AgendaAppointment } from "../lib/agenda";
+import { listFolgas, removeFolga, type FolgaBlock } from "../lib/folga";
+import { ModoFolgaModal } from "../components/ModoFolgaModal";
+import { NovoAgendamentoModal } from "../components/NovoAgendamentoModal";
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
@@ -101,6 +107,8 @@ function AgendaContent() {
   const { week: searchWeek } = Route.useSearch();
   const navigate = Route.useNavigate();
   const [selectedAppt, setSelectedAppt] = useState<AgendaAppointment | null>(null);
+  const [showFolga, setShowFolga] = useState(false);
+  const [showNewAppt, setShowNewAppt] = useState(false);
 
   const weekStart = searchWeek ?? todayMonday();
 
@@ -110,6 +118,28 @@ function AgendaContent() {
     queryKey: ["agendaWeek", weekStart],
     queryFn: () => fetchAgendaWeek({ data: { weekStart } }),
     staleTime: 30_000,
+  });
+
+  // Folgas
+  const { data: folgas = [] } = useQuery({
+    queryKey: ["folgas"],
+    queryFn: () => listFolgas(),
+  });
+
+  const blockedByDate = useMemo(() => {
+    const map = new Map<string, FolgaBlock>();
+    for (const f of folgas) {
+      const key = new Date(f.inicio).toISOString().split("T")[0];
+      map.set(key, f);
+    }
+    return map;
+  }, [folgas]);
+
+  const removeFolgaMutation = useMutation({
+    mutationFn: (blockId: string) => removeFolga({ data: { blockId } }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["folgas"] });
+    },
   });
 
   const statusMutation = useMutation({
@@ -161,24 +191,47 @@ function AgendaContent() {
             <h1 className="text-base font-semibold tracking-tight">Agenda</h1>
             <p className="text-xs text-slate-500">{weekLabel}</p>
           </div>
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-2">
+            {/* Nav semana */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => goWeek(-1)}
+                className="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 transition text-slate-600"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => void navigate({ search: { week: todayMonday() } })}
+                className="px-3 h-8 text-xs font-medium rounded-lg hover:bg-slate-100 text-slate-600 transition"
+              >
+                Hoje
+              </button>
+              <button
+                onClick={() => goWeek(1)}
+                className="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 transition text-slate-600"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="w-px h-5 bg-slate-200" />
+
+            {/* Novo agendamento */}
             <button
-              onClick={() => goWeek(-1)}
-              className="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 transition text-slate-600"
+              onClick={() => setShowNewAppt(true)}
+              className="inline-flex items-center gap-1.5 px-3 h-8 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-700 text-white transition shadow-sm"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <Plus className="h-3.5 w-3.5" />
+              Novo
             </button>
+
+            {/* Modo folga */}
             <button
-              onClick={() => void navigate({ search: { week: todayMonday() } })}
-              className="px-3 h-8 text-xs font-medium rounded-lg hover:bg-slate-100 text-slate-600 transition"
+              onClick={() => setShowFolga(true)}
+              className="inline-flex items-center gap-1.5 px-3 h-8 text-xs font-semibold rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 transition"
             >
-              Hoje
-            </button>
-            <button
-              onClick={() => goWeek(1)}
-              className="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 transition text-slate-600"
-            >
-              <ChevronRight className="h-4 w-4" />
+              <CalendarOff className="h-3.5 w-3.5" />
+              Folga
             </button>
           </div>
         </div>
@@ -191,11 +244,10 @@ function AgendaContent() {
           days.map((dayStr) => {
             const dayAppts = byDay.get(dayStr) ?? [];
             const today = isToday(dayStr);
+            const folgaBlock = blockedByDate.get(dayStr) ?? null;
             return (
               <div key={dayStr}>
-                <div
-                  className={`flex items-center gap-2 mb-2 ${today ? "text-teal-700" : "text-slate-500"}`}
-                >
+                <div className="flex items-center gap-2 mb-2">
                   <h2
                     className={`text-sm font-semibold capitalize ${today ? "text-teal-700" : "text-slate-700"}`}
                   >
@@ -206,12 +258,43 @@ function AgendaContent() {
                       Hoje
                     </span>
                   )}
-                  <span className="text-xs text-slate-400">
-                    {dayAppts.length > 0 ? `${dayAppts.length} consulta(s)` : "Sem consultas"}
-                  </span>
+                  {folgaBlock ? (
+                    <span className="text-[10px] font-medium bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                      <CalendarOff className="h-2.5 w-2.5" /> Folga
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-400">
+                      {dayAppts.length > 0 ? `${dayAppts.length} consulta(s)` : "Sem consultas"}
+                    </span>
+                  )}
                 </div>
 
-                {dayAppts.length === 0 ? (
+                {folgaBlock ? (
+                  /* ── Card de folga ─────────────────────────────────── */
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-5 py-4 flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-xl bg-rose-100 grid place-items-center shrink-0">
+                      <CalendarOff className="h-5 w-5 text-rose-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-rose-700">Folga configurada</p>
+                      {folgaBlock.motivo ? (
+                        <p className="text-xs text-rose-500 mt-0.5 truncate">
+                          "{folgaBlock.motivo}"
+                        </p>
+                      ) : (
+                        <p className="text-xs text-rose-400 mt-0.5">Sem mensagem personalizada</p>
+                      )}
+                    </div>
+                    <button
+                      disabled={removeFolgaMutation.isPending}
+                      onClick={() => removeFolgaMutation.mutate(folgaBlock.id)}
+                      className="h-8 w-8 grid place-items-center rounded-lg hover:bg-rose-200 text-rose-400 hover:text-rose-700 transition disabled:opacity-50 shrink-0"
+                      title="Remover folga"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : dayAppts.length === 0 ? (
                   <div
                     className={`rounded-xl border border-dashed py-4 text-center text-xs text-slate-400 ${today ? "border-teal-200 bg-teal-50/30" : "border-slate-200"}`}
                   >
@@ -346,6 +429,9 @@ function AgendaContent() {
           })
         )}
       </div>
+
+      <ModoFolgaModal open={showFolga} onClose={() => setShowFolga(false)} />
+      <NovoAgendamentoModal open={showNewAppt} onClose={() => setShowNewAppt(false)} />
     </DashboardLayout>
   );
 }
