@@ -6,6 +6,7 @@ import {
   Award, GraduationCap, Sparkles, MessageCircle,
   Instagram, MapPin, Phone, Mail, ExternalLink,
   Clock, Stethoscope, Monitor, MapPinned, ChevronDown,
+  ChevronLeft, CheckCircle2,
 } from "lucide-react";
 import { DashboardLayout } from "../components/DashboardLayout";
 import { PhotoUpload } from "../components/PhotoUpload";
@@ -85,6 +86,34 @@ const CARD_ICON_MAP: Record<CardType, React.ElementType> = {
   email: Mail,
 };
 
+// ─── Preview simulator helpers ────────────────────────────────────────────────
+
+type PreviewPhase = "idle" | "data" | "hora" | "confirmado";
+
+type PreviewDate = { day: string; num: string; dateStr: string };
+
+const PREVIEW_SLOTS = [
+  "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
+  "14:00", "14:30", "15:00", "15:30", "16:00", "16:30",
+];
+
+function getPreviewDates(): PreviewDate[] {
+  const DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+  const result: PreviewDate[] = [];
+  const today = new Date();
+  for (let i = 1; i <= 12 && result.length < 6; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    if (d.getDay() === 0) continue; // skip Sunday
+    result.push({
+      day: DAYS[d.getDay()],
+      num: String(d.getDate()),
+      dateStr: `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`,
+    });
+  }
+  return result;
+}
+
 // ─── Page component ───────────────────────────────────────────────────────────
 
 function PaginaPublicaPage() {
@@ -113,6 +142,12 @@ function PaginaPublicaPage() {
   const [bio, setBio] = useState("");
   const [corPrimaria, setCorPrimaria] = useState<ColorKey>("teal");
   const [identitySaved, setIdentitySaved] = useState(false);
+
+  // ── Preview booking simulator ─────────────────────────────────────────────
+  const [previewPhase, setPreviewPhase] = useState<PreviewPhase>("idle");
+  const [previewSvc, setPreviewSvc] = useState<Service | null>(null);
+  const [previewDate, setPreviewDate] = useState<PreviewDate | null>(null);
+  const [previewSlot, setPreviewSlot] = useState<string | null>(null);
 
   // Populate form once professional loads
   useEffect(() => {
@@ -222,6 +257,7 @@ function PaginaPublicaPage() {
 
   // ── Preview data (real-time) ────────────────────────────────────────────────
   const colors = COLOR_MAP_PREVIEW[corPrimaria] ?? COLOR_MAP_PREVIEW.teal;
+  const themeHex = ALL_COLORS.find((c) => c.key === corPrimaria)?.hex ?? "#14b8a6";
   const previewName = prof?.nomeCompleto ?? "";
   const previewSpecialty = prof?.especialidade ?? "";
   const previewInitials = previewName.split(" ").filter(Boolean).slice(0, 2).map((n) => n[0]).join("").toUpperCase();
@@ -505,9 +541,20 @@ function PaginaPublicaPage() {
 
           {/* ── RIGHT: Phone mockup preview ──────────────────────────────── */}
           <div className="xl:sticky xl:top-8">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-              Preview ao vivo
-            </p>
+            {/* Header row */}
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Preview ao vivo
+              </p>
+              {previewPhase !== "idle" && (
+                <button
+                  onClick={() => { setPreviewPhase("idle"); setPreviewSvc(null); setPreviewDate(null); setPreviewSlot(null); }}
+                  className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X className="size-3" /> Sair da simulação
+                </button>
+              )}
+            </div>
 
             {/* Phone frame */}
             <div className="relative mx-auto w-[280px]">
@@ -516,98 +563,253 @@ function PaginaPublicaPage() {
                 {/* Notch */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-slate-800 rounded-b-2xl z-10" />
 
-                {/* Screen — fixed height, scrollable */}
+                {/* Screen */}
                 <div className="relative h-[540px] overflow-hidden">
-                  <div className="absolute inset-0 overflow-y-auto bg-slate-50 pt-6 pb-6 px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <div className="absolute inset-0 overflow-y-auto bg-slate-50 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 
-                    {/* Profile card */}
-                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-5 mb-3 text-center">
-                      <div className="mx-auto mb-3">
-                        {fotoUrl ? (
-                          <img src={fotoUrl} alt={previewName} className="mx-auto size-16 rounded-full object-cover ring-2 ring-white shadow" />
-                        ) : (
-                          <div className={`mx-auto size-16 rounded-full bg-gradient-to-br ${colors.gradient} ring-2 ring-white shadow grid place-items-center`}>
-                            <span className="text-lg font-bold text-white">{previewInitials}</span>
+                    {/* ── IDLE: perfil + cards + serviços clicáveis ── */}
+                    {previewPhase === "idle" && (
+                      <div className="pt-6 pb-16 px-3">
+                        {/* Profile card */}
+                        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-5 mb-3 text-center">
+                          <div className="mx-auto mb-3">
+                            {fotoUrl ? (
+                              <img src={fotoUrl} alt={previewName} className="mx-auto size-16 rounded-full object-cover ring-2 ring-white shadow" />
+                            ) : (
+                              <div className={`mx-auto size-16 rounded-full bg-gradient-to-br ${colors.gradient} ring-2 ring-white shadow grid place-items-center`}>
+                                <span className="text-lg font-bold text-white">{previewInitials}</span>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-xs font-semibold text-slate-900">{previewName || "Seu nome"}</p>
+                          <p className={`text-[11px] ${colors.text} mt-0.5`}>{previewSpecialty || "Especialidade"}</p>
+                          {headline && (
+                            <p className="mt-3 text-sm font-extrabold text-slate-900 leading-tight">
+                              {renderPreviewHeadline()}
+                            </p>
+                          )}
+                          {bio && (
+                            <p className="mt-2 text-[11px] text-slate-500 leading-snug line-clamp-2">{bio}</p>
+                          )}
+                        </div>
+
+                        {/* Cards grid */}
+                        {sortedCards.length > 0 && (
+                          <div className="grid grid-cols-2 gap-2 mb-3">
+                            {sortedCards.slice(0, 6).map((card) => {
+                              const Icon = CARD_ICON_MAP[card.tipo as CardType] ?? Sparkles;
+                              return (
+                                <div key={card.id} className="rounded-xl border border-slate-200 bg-white p-2">
+                                  <div className="flex items-start gap-1.5">
+                                    <div className={`grid size-7 place-items-center rounded-lg ${colors.soft} ${colors.text} shrink-0`}>
+                                      <Icon className="size-3.5" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-[9px] text-slate-500 leading-tight truncate">{card.titulo}</p>
+                                      {card.subtitulo && (
+                                        <p className="text-[10px] font-bold text-slate-900 truncate">{card.subtitulo}</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
-                      </div>
-                      <p className="text-xs font-semibold text-slate-900">{previewName || "Seu nome"}</p>
-                      <p className={`text-[11px] ${colors.text} mt-0.5`}>{previewSpecialty || "Especialidade"}</p>
-                      {headline && (
-                        <p className="mt-3 text-sm font-extrabold text-slate-900 leading-tight">
-                          {renderPreviewHeadline()}
-                        </p>
-                      )}
-                      {bio && (
-                        <p className="mt-2 text-[11px] text-slate-500 leading-snug line-clamp-2">{bio}</p>
-                      )}
-                    </div>
 
-                    {/* Cards grid */}
-                    {sortedCards.length > 0 && (
-                      <div className="grid grid-cols-2 gap-2 mb-3">
-                        {sortedCards.slice(0, 6).map((card) => {
-                          const Icon = CARD_ICON_MAP[card.tipo as CardType] ?? Sparkles;
-                          return (
-                            <div key={card.id} className="rounded-xl border border-slate-200 bg-white p-2">
-                              <div className="flex items-start gap-1.5">
-                                <div className={`grid size-7 place-items-center rounded-lg ${colors.soft} ${colors.text} shrink-0`}>
-                                  <Icon className="size-3.5" />
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="text-[9px] text-slate-500 leading-tight truncate">{card.titulo}</p>
-                                  {card.subtitulo && (
-                                    <p className="text-[10px] font-bold text-slate-900 truncate">{card.subtitulo}</p>
-                                  )}
-                                </div>
-                              </div>
+                        {/* Serviços — clique para simular agendamento */}
+                        <div className="mb-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className={`size-5 rounded-full ${colors.badge} flex items-center justify-center shrink-0`}>
+                              <span className="text-[8px] font-black text-white">01</span>
                             </div>
-                          );
-                        })}
+                            <p className="text-[10px] font-semibold text-slate-700">Escolha a especialidade</p>
+                          </div>
+                          {svcs.filter((s) => s.ativo).length === 0 ? (
+                            <div className="rounded-xl border-2 border-dashed border-slate-200 p-4 text-center opacity-50">
+                              <p className="text-[9px] text-slate-400">Seus serviços aparecerão aqui</p>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-2">
+                              {svcs.filter((s) => s.ativo).map((svc) => (
+                                <button
+                                  key={svc.id}
+                                  onClick={() => {
+                                    setPreviewSvc(svc);
+                                    setPreviewDate(null);
+                                    setPreviewSlot(null);
+                                    setPreviewPhase("data");
+                                  }}
+                                  className="rounded-xl border border-slate-100 bg-white p-2 shadow-sm text-left w-full active:scale-95 hover:border-teal-200 hover:shadow-md transition-all group"
+                                >
+                                  <p className="text-[10px] font-bold text-slate-900 leading-tight truncate">{svc.nome}</p>
+                                  {svc.descricao && (
+                                    <p className={`text-[9px] mt-0.5 truncate ${colors.text}`}>{svc.descricao}</p>
+                                  )}
+                                  <div className="mt-1.5 border-t border-slate-100 pt-1 flex items-center justify-between">
+                                    <span className="text-[8px] text-slate-400">{svc.duracaoMinutos} min</span>
+                                    <span className="text-[10px] font-black text-slate-900">
+                                      {Number(svc.preco).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                                    </span>
+                                  </div>
+                                  <p className={`mt-1 text-[8px] font-bold ${colors.text} opacity-0 group-hover:opacity-100 transition-opacity text-center`}>
+                                    Toque para agendar →
+                                  </p>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 
-                    {/* Services section */}
-                    <div className="mb-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className={`size-5 rounded-full ${colors.badge} flex items-center justify-center shrink-0`}>
-                          <span className="text-[8px] font-black text-white">01</span>
+                    {/* ── DATA: escolha a data ── */}
+                    {previewPhase === "data" && previewSvc && (
+                      <div className="pt-6 pb-6 px-3">
+                        {/* Back */}
+                        <div className="flex items-center gap-2 mb-4">
+                          <button
+                            onClick={() => { setPreviewPhase("idle"); setPreviewSvc(null); }}
+                            className="size-6 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center shrink-0 transition-colors"
+                          >
+                            <ChevronLeft className="size-3.5 text-slate-600" />
+                          </button>
+                          <p className="text-[10px] font-semibold text-slate-800 truncate flex-1">{previewSvc.nome}</p>
                         </div>
-                        <p className="text-[10px] font-semibold text-slate-700">Escolha a especialidade</p>
-                      </div>
-                      {svcs.filter((s) => s.ativo).length === 0 ? (
-                        <div className="rounded-xl border-2 border-dashed border-slate-200 p-4 text-center opacity-50">
-                          <p className="text-[9px] text-slate-400">Seus serviços aparecerão aqui</p>
+                        {/* Step */}
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className={`size-5 rounded-full ${colors.badge} flex items-center justify-center shrink-0`}>
+                            <span className="text-[8px] font-black text-white">02</span>
+                          </div>
+                          <p className="text-[11px] font-semibold text-slate-800">Escolha a data</p>
                         </div>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-2">
-                          {svcs.filter((s) => s.ativo).map((svc) => (
-                            <div key={svc.id} className="rounded-xl border border-slate-100 bg-white p-2 shadow-sm">
-                              <p className="text-[10px] font-bold text-slate-900 leading-tight truncate">{svc.nome}</p>
-                              {svc.descricao && (
-                                <p className={`text-[9px] mt-0.5 truncate ${colors.text}`}>{svc.descricao}</p>
-                              )}
-                              <div className="mt-1.5 border-t border-slate-100 pt-1 flex items-center justify-between">
-                                <span className="text-[8px] text-slate-400">{svc.duracaoMinutos} min</span>
-                                <span className="text-[10px] font-black text-slate-900">
-                                  {Number(svc.preco).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                                </span>
-                              </div>
-                            </div>
+                        {/* Mini service card */}
+                        <div className="rounded-xl bg-white border border-slate-100 p-2.5 mb-4 flex items-center gap-2">
+                          <div className={`size-7 rounded-lg ${colors.soft} flex items-center justify-center shrink-0`}>
+                            <Stethoscope className={`size-3.5 ${colors.text}`} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[9px] text-slate-400">Serviço selecionado</p>
+                            <p className="text-[10px] font-bold text-slate-900 truncate">{previewSvc.nome}</p>
+                          </div>
+                          <p className="text-[10px] font-black text-slate-900 shrink-0">
+                            {Number(previewSvc.preco).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                          </p>
+                        </div>
+                        {/* Date chips */}
+                        <div className="grid grid-cols-3 gap-2 mb-3">
+                          {getPreviewDates().map((d) => (
+                            <button
+                              key={d.dateStr}
+                              onClick={() => { setPreviewDate(d); setPreviewPhase("hora"); }}
+                              className="rounded-xl border border-slate-200 bg-white py-2.5 text-center hover:border-teal-300 hover:bg-teal-50 active:scale-95 transition-all"
+                            >
+                              <p className="text-[9px] text-slate-500 leading-none mb-0.5">{d.day}</p>
+                              <p className="text-base font-black text-slate-800 leading-none">{d.num}</p>
+                            </button>
                           ))}
                         </div>
-                      )}
-                    </div>
+                        <p className="text-center text-[9px] text-slate-400">Toque em uma data para continuar</p>
+                      </div>
+                    )}
+
+                    {/* ── HORA: escolha o horário ── */}
+                    {previewPhase === "hora" && previewSvc && previewDate && (
+                      <div className="pt-6 pb-6 px-3">
+                        {/* Back */}
+                        <div className="flex items-center gap-2 mb-4">
+                          <button
+                            onClick={() => { setPreviewPhase("data"); setPreviewSlot(null); }}
+                            className="size-6 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center shrink-0 transition-colors"
+                          >
+                            <ChevronLeft className="size-3.5 text-slate-600" />
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[10px] font-semibold text-slate-800 truncate">{previewSvc.nome}</p>
+                            <p className="text-[9px] text-slate-500">{previewDate.day}, {previewDate.dateStr}</p>
+                          </div>
+                        </div>
+                        {/* Step */}
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className={`size-5 rounded-full ${colors.badge} flex items-center justify-center shrink-0`}>
+                            <span className="text-[8px] font-black text-white">03</span>
+                          </div>
+                          <p className="text-[11px] font-semibold text-slate-800">Escolha o horário</p>
+                        </div>
+                        {/* Slot grid */}
+                        <div className="grid grid-cols-3 gap-2 mb-3">
+                          {PREVIEW_SLOTS.map((slot) => (
+                            <button
+                              key={slot}
+                              onClick={() => { setPreviewSlot(slot); setPreviewPhase("confirmado"); }}
+                              className="rounded-xl border border-slate-200 bg-white py-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
+                            >
+                              {slot}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-center text-[9px] text-slate-400">Toque em um horário para confirmar</p>
+                      </div>
+                    )}
+
+                    {/* ── CONFIRMADO: tela de sucesso ── */}
+                    {previewPhase === "confirmado" && previewSvc && previewDate && previewSlot && (
+                      <div className="pt-8 pb-6 px-3 flex flex-col items-center">
+                        {/* Check icon */}
+                        <div className="size-14 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
+                          <CheckCircle2 className="size-7 text-emerald-600" />
+                        </div>
+                        <p className="text-sm font-black text-slate-900 mb-0.5 text-center">Agendado com sucesso!</p>
+                        <p className="text-[10px] text-slate-500 mb-4 text-center leading-snug">
+                          Seu paciente vê esta tela após confirmar
+                        </p>
+                        {/* Booking summary */}
+                        <div className="w-full rounded-xl border border-slate-200 bg-white p-3 mb-3 space-y-1.5">
+                          <p className="text-[10px] font-bold text-slate-900">{previewSvc.nome}</p>
+                          <div className="space-y-1 pt-1 border-t border-slate-100">
+                            <div className="flex items-center gap-1.5 text-[9px] text-slate-600">
+                              <span>📅</span>{previewDate.day}, {previewDate.dateStr}
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[9px] text-slate-600">
+                              <span>⏰</span>{previewSlot} · {previewSvc.duracaoMinutos} min
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[9px] text-slate-600">
+                              <span>💰</span>
+                              {Number(previewSvc.preco).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                            </div>
+                          </div>
+                        </div>
+                        {/* WhatsApp mock button */}
+                        <button
+                          className="w-full rounded-xl py-2.5 text-[10px] font-bold text-white mb-2 flex items-center justify-center gap-1.5"
+                          style={{ background: "#25d366" }}
+                        >
+                          <MessageCircle className="size-3.5" /> Confirmar no WhatsApp
+                        </button>
+                        {/* Reset */}
+                        <button
+                          onClick={() => { setPreviewPhase("idle"); setPreviewSvc(null); setPreviewDate(null); setPreviewSlot(null); }}
+                          className="w-full rounded-xl border border-slate-200 bg-white py-2 text-[9px] font-medium text-slate-500 hover:bg-slate-50 transition-colors"
+                        >
+                          ↺ Reiniciar simulação
+                        </button>
+                        <p className="mt-3 text-center text-[9px] font-semibold leading-snug" style={{ color: themeHex }}>
+                          ✨ Este é o fluxo completo do seu paciente
+                        </p>
+                      </div>
+                    )}
 
                   </div>
 
-                  {/* Gradient fade at bottom — scroll hint */}
-                  <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-slate-800/60 to-transparent flex items-end justify-center pb-2">
-                    <div className="flex items-center gap-1 text-white/70">
-                      <ChevronDown className="size-3 animate-bounce" />
-                      <span className="text-[9px] font-medium">role para ver mais</span>
+                  {/* Gradient scroll hint — só no idle */}
+                  {previewPhase === "idle" && (
+                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-slate-800/60 to-transparent flex items-end justify-center pb-2">
+                      <div className="flex items-center gap-1 text-white/70">
+                        <ChevronDown className="size-3 animate-bounce" />
+                        <span className="text-[9px] font-medium">role para ver mais</span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Home indicator */}
@@ -618,7 +820,11 @@ function PaginaPublicaPage() {
             </div>
 
             <p className="text-center text-xs text-slate-400 mt-3">
-              Preview em tempo real · salve para publicar
+              {previewPhase !== "idle"
+                ? "Simulação do fluxo do paciente · navegue pelas etapas"
+                : svcs.filter((s) => s.ativo).length > 0
+                  ? "Toque em um serviço para simular o agendamento"
+                  : "Preview em tempo real · salve para publicar"}
             </p>
           </div>
         </div>
