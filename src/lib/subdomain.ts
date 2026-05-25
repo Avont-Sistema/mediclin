@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, eq } from "drizzle-orm";
 import { getWebRequest } from "vinxi/http";
 import { db } from "../db";
-import { professionals, services } from "../db/schema";
+import { professionalCards, professionals, services } from "../db/schema";
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
@@ -62,6 +62,10 @@ async function loadProfessional(slug: string) {
       services: {
         where: eq(services.ativo, true),
         orderBy: (s, { asc }) => [asc(s.criadoEm)],
+      },
+      cards: {
+        where: eq(professionalCards.ativo, true),
+        orderBy: (c, { asc }) => [asc(c.ordem)],
       },
     },
   });

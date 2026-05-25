@@ -49,6 +49,17 @@ export const diasSemanaEnum = pgEnum("dia_semana", [
   "sabado",
 ]);
 
+export const cardTypeEnum = pgEnum("card_type", [
+  "certificacao",      // CRM, registro profissional
+  "qualificacao",      // "Especialização: Odontopediatria"
+  "servico_extra",     // "Laserterapia", "Ortopedia Funcional"
+  "whatsapp",          // valor = número, gera link wa.me automaticamente
+  "instagram",         // valor = @handle ou URL completa
+  "localizacao",       // valor = URL do Google Maps
+  "telefone",          // valor = telefone fixo
+  "email",             // valor = email
+]);
+
 // ─── users ────────────────────────────────────────────────────────────────────
 // Espelho do usuário Clerk — sincronizado via webhook
 
@@ -101,9 +112,12 @@ export const professionals = pgTable(
     nomeCompleto: varchar("nome_completo", { length: 255 }).notNull(),
     especialidade: varchar("especialidade", { length: 100 }).notNull(),
     registro: varchar("registro", { length: 30 }).notNull(), // CRM, CRO, etc.
-    bio: text("bio"),
+    headline: varchar("headline", { length: 160 }), // "Cuidando a Saúde com Odontologia!"
+    headlineDestaque: varchar("headline_destaque", { length: 60 }), // palavra colorida ex: "Odontologia"
+    bio: text("bio"), // limitar 2 linhas no front (~200 chars)
     fotoUrl: text("foto_url"),
     telefoneWhatsapp: varchar("telefone_whatsapp", { length: 20 }),
+    corPrimaria: varchar("cor_primaria", { length: 20 }).default("teal"), // teal, rose, indigo, etc.
 
     // Personalização da página pública
     corMarca: varchar("cor_marca", { length: 7 }).default("#0d9488").notNull(),
@@ -128,6 +142,31 @@ export const professionals = pgTable(
     atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
   },
   (t) => [index("professionals_slug_idx").on(t.slug)],
+);
+
+// ─── professional_cards ───────────────────────────────────────────────────────
+// Cards customizáveis que aparecem na página pública do médico
+// (redes sociais, certificações, qualificações, localização, etc.)
+
+export const professionalCards = pgTable(
+  "professional_cards",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    professionalId: uuid("professional_id")
+      .notNull()
+      .references(() => professionals.id, { onDelete: "cascade" }),
+
+    tipo: cardTypeEnum("tipo").notNull(),
+    titulo: varchar("titulo", { length: 80 }).notNull(), // "Especialização:", "Qualificação em:"
+    subtitulo: varchar("subtitulo", { length: 120 }), // "Odontopediatria", "Ortopedia Facial"
+    valor: text("valor"), // URL, telefone, link Maps, etc. (interpretado por tipo)
+    ordem: integer("ordem").notNull().default(0),
+    ativo: boolean("ativo").default(true).notNull(),
+
+    criadoEm: timestamp("criado_em").defaultNow().notNull(),
+    atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
+  },
+  (t) => [index("cards_professional_idx").on(t.professionalId, t.ordem)],
 );
 
 // ─── services ─────────────────────────────────────────────────────────────────
@@ -328,6 +367,7 @@ export const professionalsRelations = relations(professionals, ({ one, many }) =
   }),
   members: many(professionals, { relationName: "clinic_members" }),
   services: many(services),
+  cards: many(professionalCards),
   availabilityRules: many(availabilityRules),
   availabilityBlocks: many(availabilityBlocks),
   appointments: many(appointments),
@@ -336,6 +376,13 @@ export const professionalsRelations = relations(professionals, ({ one, many }) =
     references: [subscriptions.professionalId],
   }),
   payments: many(payments),
+}));
+
+export const professionalCardsRelations = relations(professionalCards, ({ one }) => ({
+  professional: one(professionals, {
+    fields: [professionalCards.professionalId],
+    references: [professionals.id],
+  }),
 }));
 
 export const servicesRelations = relations(services, ({ one, many }) => ({

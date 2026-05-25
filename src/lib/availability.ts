@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, eq, gte, lt, lte, not } from "drizzle-orm";
+import { and, asc, eq, gte, lt, lte, not } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db";
 import {
@@ -7,6 +7,7 @@ import {
   availabilityBlocks,
   availabilityRules,
   patients,
+  professionalCards,
   professionals,
   services,
 } from "../db/schema";
@@ -51,6 +52,10 @@ export const fetchProfessionalBySlug = createServerFn({ method: "GET" })
       with: {
         services: {
           where: eq(services.ativo, true),
+        },
+        cards: {
+          where: eq(professionalCards.ativo, true),
+          orderBy: [asc(professionalCards.ordem)],
         },
         // Include clinic team members if this is a clinic-plan professional
         members: {
