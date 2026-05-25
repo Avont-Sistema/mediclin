@@ -204,7 +204,6 @@ function DashboardContent() {
   const data = Route.useLoaderData() ?? null;
   const navigate = useNavigate();
   const router = useRouter();
-  const [filter, setFilter] = useState<"todos" | Appt["status"]>("todos");
   const [showNotifs, setShowNotifs] = useState(false);
   const [showNewAppt, setShowNewAppt] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -226,9 +225,21 @@ function DashboardContent() {
   const stats = buildStats(data);
   const weekData = data?.weekData ?? EMPTY_WEEK;
 
-  const filtered = useMemo(
-    () => (filter === "todos" ? appointments : appointments.filter((a) => a.status === filter)),
-    [filter, appointments],
+  // Próximo agendamento ativo do dia
+  const proximaConsulta = useMemo(
+    () =>
+      appointments.find(
+        (a) =>
+          a.status === "confirmado" ||
+          a.status === "aguardando" ||
+          a.status === "em-andamento",
+      ) ?? null,
+    [appointments],
+  );
+  // Demais agendamentos (sem o próximo destacado)
+  const remainingAppts = useMemo(
+    () => appointments.filter((a) => a.id !== proximaConsulta?.id),
+    [appointments, proximaConsulta],
   );
 
   const upcomingAppointments = useMemo<UpcomingAppt[]>(
@@ -403,7 +414,7 @@ function DashboardContent() {
           <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             {/* Appointments */}
             <div className="xl:col-span-2 rounded-2xl bg-white border border-slate-200 overflow-hidden">
-              <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between gap-4 flex-wrap">
+              <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-base font-semibold tracking-tight">Agenda de hoje</h2>
                   <p className="text-xs text-slate-500 mt-0.5">
@@ -412,23 +423,13 @@ function DashboardContent() {
                       : "Nenhuma consulta agendada para hoje"}
                   </p>
                 </div>
-                {appointments.length > 0 && (
-                  <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg text-xs">
-                    {(["todos", "confirmado", "em-andamento", "concluido"] as const).map((f) => (
-                      <button
-                        key={f}
-                        onClick={() => setFilter(f)}
-                        className={`px-3 py-1.5 rounded-md font-medium transition ${
-                          filter === f
-                            ? "bg-white text-slate-900 shadow-sm"
-                            : "text-slate-600 hover:text-slate-900"
-                        }`}
-                      >
-                        {f === "todos" ? "Todos" : statusStyle[f].label}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <button
+                  onClick={() => setShowNewAppt(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Novo
+                </button>
               </div>
 
               {/* Empty today → show upcoming week */}
@@ -500,160 +501,207 @@ function DashboardContent() {
                   )}
                 </div>
               ) : (
-                <ul className="divide-y divide-slate-100">
-                  {filtered.map((a, idx) => {
-                    const st = statusStyle[a.status];
-                    const actions = APPT_ACTIONS[a.status];
-                    const isMenuOpen = openMenuId === a.id;
-                    const isPending = statusMutation.isPending && statusMutation.variables?.appointmentId === a.id;
-                    const isDestaque =
-                      idx === 0 &&
-                      filter === "todos" &&
-                      (a.status === "confirmado" ||
-                        a.status === "aguardando" ||
-                        a.status === "em-andamento");
+                <div className="p-4 space-y-4">
+                  {/* ── Próximo agendamento — card destaque ───────────────── */}
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 mb-3">
+                      {proximaConsulta?.status === "em-andamento"
+                        ? "Em andamento"
+                        : "Próximo agendamento"}
+                    </p>
 
-                    if (isDestaque) {
-                      return (
-                        <li key={a.id} className="p-4">
-                          <div className="rounded-2xl bg-gradient-to-r from-teal-600 to-indigo-600 text-white flex items-center gap-4 px-5 py-4 shadow-sm">
-                            <div className="flex flex-col items-center min-w-[52px]">
-                              <div className="text-base font-bold">{a.time}</div>
-                              <div className="text-[10px] text-teal-200 mt-0.5 uppercase tracking-wide font-medium">
-                                {a.status === "em-andamento" ? "Em curso" : "Próxima"}
-                              </div>
+                    {proximaConsulta ? (
+                      <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white overflow-hidden shadow-sm">
+                        {/* Info row */}
+                        <div className="px-5 pt-5 pb-4 flex items-center gap-4">
+                          {/* Time em destaque */}
+                          <div className="shrink-0 text-center">
+                            <div className="text-3xl font-bold tracking-tight leading-none">
+                              {proximaConsulta.time}
                             </div>
-                            <div className="h-11 w-11 rounded-full bg-white/20 ring-2 ring-white/40 grid place-items-center text-sm font-bold text-white shrink-0">
-                              {a.avatar}
+                            <div className="text-[10px] text-slate-400 mt-1.5 uppercase tracking-wide">
+                              {proximaConsulta.status === "em-andamento" ? "em curso" : "próxima"}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold truncate">{a.patient}</p>
-                              <div className="flex items-center gap-1.5 mt-0.5 text-xs text-teal-100">
-                                {a.type === "Teleconsulta" ? (
-                                  <Video className="h-3 w-3" />
-                                ) : (
-                                  <MapPin className="h-3 w-3" />
-                                )}
-                                <span className="truncate">{a.reason}</span>
-                              </div>
-                            </div>
-                            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-white/15 text-white">
-                              <span className="h-1.5 w-1.5 rounded-full bg-white/80" />
-                              {st.label}
-                            </span>
-                            {/* Action menu — destaque */}
-                            {actions.length > 0 && (
-                              <div className="relative shrink-0">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenMenuId(isMenuOpen ? null : a.id);
-                                  }}
-                                  disabled={isPending}
-                                  className="h-8 w-8 grid place-items-center rounded-lg bg-white/10 hover:bg-white/20 transition disabled:opacity-50"
-                                >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </button>
-                                {isMenuOpen && (
-                                  <div className="absolute right-0 top-9 z-30 w-44 bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden">
-                                    {actions.map((act) => (
-                                      <button
-                                        key={act.action}
-                                        disabled={statusMutation.isPending}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          statusMutation.mutate({ appointmentId: a.id, status: act.action });
-                                        }}
-                                        className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition disabled:opacity-50 ${act.cls}`}
-                                      >
-                                        <act.icon className="h-4 w-4 shrink-0" />
-                                        {act.label}
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            )}
                           </div>
-                        </li>
-                      );
-                    }
-
-                    return (
-                      <li
-                        key={a.id}
-                        className="px-6 py-4 hover:bg-slate-50/60 transition flex items-center gap-4"
-                      >
-                        <div className="flex flex-col items-center min-w-[56px]">
-                          <div className="text-sm font-semibold text-slate-900">{a.time}</div>
-                          <div className="text-[10px] text-slate-400 mt-0.5">30 min</div>
-                        </div>
-                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 grid place-items-center text-xs font-semibold text-slate-700 shrink-0">
-                          {a.avatar}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-sm font-medium text-slate-900 truncate block">{a.patient}</span>
-                          <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
-                            {a.type === "Teleconsulta" ? (
-                              <Video className="h-3 w-3 text-indigo-500" />
-                            ) : (
-                              <MapPin className="h-3 w-3 text-teal-500" />
-                            )}
-                            <span className="truncate">{a.reason}</span>
+                          <div className="w-px self-stretch bg-white/10" />
+                          {/* Avatar */}
+                          <div className="h-12 w-12 rounded-full bg-white/15 ring-2 ring-white/20 grid place-items-center text-base font-bold shrink-0">
+                            {proximaConsulta.avatar}
                           </div>
-                        </div>
-                        <span
-                          className={`hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${st.bg} ${st.text}`}
-                        >
-                          <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} />
-                          {st.label}
-                        </span>
-                        {/* Action menu */}
-                        {actions.length > 0 && (
-                          <div className="relative shrink-0">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(isMenuOpen ? null : a.id);
-                              }}
-                              disabled={isPending}
-                              className="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 transition disabled:opacity-50"
-                            >
-                              {isPending ? (
-                                <span className="h-3.5 w-3.5 rounded-full border-2 border-slate-300 border-t-teal-500 animate-spin" />
+                          {/* Dados do paciente */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-base font-semibold truncate">{proximaConsulta.patient}</p>
+                            <div className="flex items-center gap-1.5 text-sm text-slate-400 mt-0.5">
+                              {proximaConsulta.type === "Teleconsulta" ? (
+                                <Video className="h-3.5 w-3.5" />
                               ) : (
-                                <MoreHorizontal className="h-4 w-4 text-slate-400" />
+                                <MapPin className="h-3.5 w-3.5" />
                               )}
-                            </button>
-                            {isMenuOpen && (
-                              <div className="absolute right-0 top-9 z-30 w-44 bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden">
-                                {actions.map((act) => (
-                                  <button
-                                    key={act.action}
-                                    disabled={statusMutation.isPending}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      statusMutation.mutate({ appointmentId: a.id, status: act.action });
-                                    }}
-                                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition disabled:opacity-50 ${act.cls}`}
-                                  >
-                                    <act.icon className="h-4 w-4 shrink-0" />
-                                    {act.label}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
+                              <span className="truncate">{proximaConsulta.reason}</span>
+                            </div>
+                            <span className="inline-flex items-center gap-1 mt-2 text-xs font-medium px-2 py-0.5 rounded-full bg-white/10 text-slate-300">
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full ${statusStyle[proximaConsulta.status].dot}`}
+                              />
+                              {statusStyle[proximaConsulta.status].label}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Action buttons inline */}
+                        {APPT_ACTIONS[proximaConsulta.status].length > 0 && (
+                          <div className="px-4 pb-4 flex gap-2 border-t border-white/5 pt-3">
+                            {APPT_ACTIONS[proximaConsulta.status].map((act) => {
+                              const isThis =
+                                statusMutation.isPending &&
+                                statusMutation.variables?.appointmentId === proximaConsulta.id &&
+                                statusMutation.variables?.status === act.action;
+                              const isDestructive =
+                                act.action === "cancelado" || act.action === "no_show";
+                              return (
+                                <button
+                                  key={act.action}
+                                  disabled={statusMutation.isPending}
+                                  onClick={() =>
+                                    statusMutation.mutate({
+                                      appointmentId: proximaConsulta.id,
+                                      status: act.action,
+                                    })
+                                  }
+                                  className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-xl transition disabled:opacity-50 ${
+                                    isDestructive
+                                      ? "bg-white/10 hover:bg-white/20 text-slate-300"
+                                      : "bg-white text-slate-900 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  {isThis ? (
+                                    <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <act.icon className="h-4 w-4" />
+                                  )}
+                                  {act.label}
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
-                      </li>
-                    );
-                  })}
-                  {filtered.length === 0 && (
-                    <li className="px-6 py-12 text-center text-sm text-slate-500">
-                      Nenhuma consulta neste filtro.
-                    </li>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl bg-emerald-50 border border-emerald-100 px-5 py-6 flex items-center gap-4">
+                        <CheckCircle2 className="h-8 w-8 text-emerald-500 shrink-0" />
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">
+                            Todos os atendimentos concluídos!
+                          </p>
+                          <p className="text-xs text-slate-500 mt-0.5">Ótimo trabalho hoje. 🎉</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Demais agendamentos ───────────────────────────────── */}
+                  {remainingAppts.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 mb-2">
+                        Demais agendamentos
+                      </p>
+                      <ul className="space-y-0.5">
+                        {remainingAppts.map((a) => {
+                          const st = statusStyle[a.status];
+                          const actions = APPT_ACTIONS[a.status];
+                          const isMenuOpen = openMenuId === a.id;
+                          const isPending =
+                            statusMutation.isPending &&
+                            statusMutation.variables?.appointmentId === a.id;
+
+                          return (
+                            <li
+                              key={a.id}
+                              className="group flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-slate-50 transition"
+                            >
+                              {/* Hora — destaque visual */}
+                              <div className="shrink-0 min-w-[48px] text-right">
+                                <span className="text-sm font-bold text-slate-900">{a.time}</span>
+                                <div className="text-[10px] text-slate-400">30 min</div>
+                              </div>
+
+                              {/* Barra de cor do status */}
+                              <div className={`w-0.5 h-8 rounded-full shrink-0 ${st.dot}`} />
+
+                              {/* Avatar */}
+                              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 grid place-items-center text-xs font-semibold text-slate-700 shrink-0">
+                                {a.avatar}
+                              </div>
+
+                              {/* Dados */}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-slate-900 truncate">
+                                  {a.patient}
+                                </p>
+                                <p className="text-xs text-slate-500 truncate">{a.reason}</p>
+                              </div>
+
+                              {/* Badge de status */}
+                              <span
+                                className={`hidden sm:inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}
+                              >
+                                {st.label}
+                              </span>
+
+                              {/* Menu ••• */}
+                              {actions.length > 0 && (
+                                <div className="relative shrink-0">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenMenuId(isMenuOpen ? null : a.id);
+                                    }}
+                                    disabled={isPending}
+                                    className="h-7 w-7 grid place-items-center rounded-lg hover:bg-slate-200 transition opacity-0 group-hover:opacity-100 focus:opacity-100 disabled:opacity-50"
+                                  >
+                                    {isPending ? (
+                                      <span className="h-3 w-3 border-2 border-slate-300 border-t-teal-500 rounded-full animate-spin" />
+                                    ) : (
+                                      <MoreHorizontal className="h-3.5 w-3.5 text-slate-400" />
+                                    )}
+                                  </button>
+                                  {isMenuOpen && (
+                                    <div className="absolute right-0 top-8 z-30 w-44 bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden">
+                                      {actions.map((act) => (
+                                        <button
+                                          key={act.action}
+                                          disabled={statusMutation.isPending}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            statusMutation.mutate({
+                                              appointmentId: a.id,
+                                              status: act.action,
+                                            });
+                                          }}
+                                          className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition disabled:opacity-50 ${act.cls}`}
+                                        >
+                                          <act.icon className="h-4 w-4 shrink-0" />
+                                          {act.label}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
                   )}
-                </ul>
+
+                  <button
+                    onClick={() => void navigate({ to: "/agenda" })}
+                    className="w-full text-xs text-center text-teal-600 hover:text-teal-800 font-medium py-1 transition"
+                  >
+                    Ver agenda completa →
+                  </button>
+                </div>
               )}
             </div>
 
