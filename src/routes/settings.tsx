@@ -26,6 +26,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { DashboardLayout } from "../components/DashboardLayout";
+import { PhotoUpload } from "../components/PhotoUpload";
 import { buildPublicUrl } from "../lib/subdomain";
 import {
   fetchSettingsData,
@@ -227,10 +228,16 @@ function ProfileTab({ data, onSaved }: { data: SettingsData; onSaved: () => void
             placeholder: "+5511999990000",
             hint: "Exibido no link público para reagendamentos",
           })}
-          {field("Foto (URL)", "fotoUrl", {
-            placeholder: "https://...",
-            hint: "URL pública de uma imagem (JPEG/PNG)",
-          })}
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 mb-3">Foto de perfil</label>
+            <PhotoUpload
+              currentUrl={form.fotoUrl || null}
+              name={form.nomeCompleto}
+              size="sm"
+              onUploaded={(url) => setForm((f) => ({ ...f, fotoUrl: url }))}
+              onRemove={() => setForm((f) => ({ ...f, fotoUrl: "" }))}
+            />
+          </div>
           {field("Slug (URL pública)", "slug", {
             hint: `Seu link: ${buildPublicUrl(form.slug || "seu-nome")}`,
           })}

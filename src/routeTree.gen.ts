@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as PaginaPublicaRouteImport } from './routes/pagina-publica'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as PatientsRouteImport } from './routes/patients'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
@@ -33,6 +34,11 @@ const SignUpRoute = SignUpRouteImport.update({
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaginaPublicaRoute = PaginaPublicaRouteImport.update({
+  id: '/pagina-publica',
+  path: '/pagina-publica',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/agenda': typeof AgendaRoute
   '/dashboard': typeof DashboardRoute
   '/onboarding': typeof OnboardingRoute
+  '/pagina-publica': typeof PaginaPublicaRoute
   '/patients': typeof PatientsRoute
   '/settings': typeof SettingsRoute
   '/sign-in': typeof SignInRoute
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/agenda': typeof AgendaRoute
   '/dashboard': typeof DashboardRoute
   '/onboarding': typeof OnboardingRoute
+  '/pagina-publica': typeof PaginaPublicaRoute
   '/patients': typeof PatientsRoute
   '/settings': typeof SettingsRoute
   '/sign-in': typeof SignInRoute
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/agenda': typeof AgendaRoute
   '/dashboard': typeof DashboardRoute
   '/onboarding': typeof OnboardingRoute
+  '/pagina-publica': typeof PaginaPublicaRoute
   '/patients': typeof PatientsRoute
   '/settings': typeof SettingsRoute
   '/sign-in': typeof SignInRoute
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/agenda'
     | '/dashboard'
     | '/onboarding'
+    | '/pagina-publica'
     | '/patients'
     | '/settings'
     | '/sign-in'
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/agenda'
     | '/dashboard'
     | '/onboarding'
+    | '/pagina-publica'
     | '/patients'
     | '/settings'
     | '/sign-in'
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/agenda'
     | '/dashboard'
     | '/onboarding'
+    | '/pagina-publica'
     | '/patients'
     | '/settings'
     | '/sign-in'
@@ -154,6 +166,7 @@ export interface RootRouteChildren {
   AgendaRoute: typeof AgendaRoute
   DashboardRoute: typeof DashboardRoute
   OnboardingRoute: typeof OnboardingRoute
+  PaginaPublicaRoute: typeof PaginaPublicaRoute
   PatientsRoute: typeof PatientsRoute
   SettingsRoute: typeof SettingsRoute
   SignInRoute: typeof SignInRoute
@@ -181,6 +194,13 @@ declare module '@tanstack/react-router' {
       path: '/sign-in'
       fullPath: '/sign-in'
       preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pagina-publica': {
+      id: '/pagina-publica'
+      path: '/pagina-publica'
+      fullPath: '/pagina-publica'
+      preLoaderRoute: typeof PaginaPublicaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -242,6 +262,7 @@ const rootRouteChildren: RootRouteChildren = {
   AgendaRoute: AgendaRoute,
   DashboardRoute: DashboardRoute,
   OnboardingRoute: OnboardingRoute,
+  PaginaPublicaRoute: PaginaPublicaRoute,
   PatientsRoute: PatientsRoute,
   SettingsRoute: SettingsRoute,
   SignInRoute: SignInRoute,

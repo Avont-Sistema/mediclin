@@ -1,0 +1,621 @@
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import {
+  Plus, Trash2, Pencil, Check, X, GripVertical,
+  Award, GraduationCap, Sparkles, MessageCircle,
+  Instagram, MapPin, Phone, Mail, ExternalLink,
+} from "lucide-react";
+import { DashboardLayout } from "../components/DashboardLayout";
+import { PhotoUpload } from "../components/PhotoUpload";
+import { fetchCurrentProfessional } from "../lib/auth";
+import {
+  listCards, createCard, updateCard, deleteCard,
+  updatePageIdentity, CARD_TYPES,
+  type ProfessionalCard, type CardType,
+} from "../lib/cards";
+
+// ─── Route ───────────────────────────────────────────────────────────────────
+
+export const Route = createFileRoute("/pagina-publica")({
+  beforeLoad: async () => {
+    const prof = await fetchCurrentProfessional();
+    if (!prof) throw redirect({ to: "/sign-in" });
+  },
+  head: () => ({ meta: [{ title: "MediClin — Página Pública" }] }),
+  component: PaginaPublicaPage,
+});
+
+// ─── Color map ────────────────────────────────────────────────────────────────
+
+const COLORS = [
+  { key: "teal", label: "Teal", bg: "bg-teal-500", ring: "ring-teal-500" },
+  { key: "emerald", label: "Esmeralda", bg: "bg-emerald-500", ring: "ring-emerald-500" },
+  { key: "rose", label: "Rosa", bg: "bg-rose-500", ring: "ring-rose-500" },
+  { key: "indigo", label: "Índigo", bg: "bg-indigo-500", ring: "ring-indigo-500" },
+  { key: "amber", label: "Âmbar", bg: "bg-amber-500", ring: "ring-amber-500" },
+] as const;
+
+type ColorKey = (typeof COLORS)[number]["key"];
+
+const COLOR_MAP_PREVIEW = {
+  teal: { text: "text-teal-600", gradient: "from-teal-500 to-teal-700", badge: "bg-teal-600", soft: "bg-teal-50" },
+  emerald: { text: "text-emerald-600", gradient: "from-emerald-500 to-emerald-700", badge: "bg-emerald-600", soft: "bg-emerald-50" },
+  rose: { text: "text-rose-600", gradient: "from-rose-500 to-rose-700", badge: "bg-rose-600", soft: "bg-rose-50" },
+  indigo: { text: "text-indigo-600", gradient: "from-indigo-500 to-indigo-700", badge: "bg-indigo-600", soft: "bg-indigo-50" },
+  amber: { text: "text-amber-600", gradient: "from-amber-500 to-amber-700", badge: "bg-amber-600", soft: "bg-amber-50" },
+} as const;
+
+// ─── Card icon map ────────────────────────────────────────────────────────────
+
+const CARD_ICON_MAP: Record<CardType, React.ElementType> = {
+  certificacao: Award,
+  qualificacao: GraduationCap,
+  servico_extra: Sparkles,
+  whatsapp: MessageCircle,
+  instagram: Instagram,
+  localizacao: MapPin,
+  telefone: Phone,
+  email: Mail,
+};
+
+// ─── Page component ───────────────────────────────────────────────────────────
+
+function PaginaPublicaPage() {
+  const qc = useQueryClient();
+
+  const { data: prof, isLoading: profLoading } = useQuery({
+    queryKey: ["currentProfessional"],
+    queryFn: () => fetchCurrentProfessional(),
+    staleTime: 30_000,
+  });
+
+  const { data: cards = [], isLoading: cardsLoading } = useQuery({
+    queryKey: ["myCards"],
+    queryFn: () => listCards(),
+  });
+
+  // ── Identity form state ─────────────────────────────────────────────────────
+  const [fotoUrl, setFotoUrl] = useState<string>("");
+  const [headline, setHeadline] = useState("");
+  const [headlineDestaque, setHeadlineDestaque] = useState("");
+  const [bio, setBio] = useState("");
+  const [corPrimaria, setCorPrimaria] = useState<ColorKey>("teal");
+  const [identitySaved, setIdentitySaved] = useState(false);
+
+  // Populate form once professional loads
+  useEffect(() => {
+    if (!prof) return;
+    setFotoUrl(prof.fotoUrl ?? "");
+    setHeadline(prof.headline ?? "");
+    setHeadlineDestaque(prof.headlineDestaque ?? "");
+    setBio(prof.bio ?? "");
+    setCorPrimaria((prof.corPrimaria as ColorKey) ?? "teal");
+  }, [prof]);
+
+  const identityMutation = useMutation({
+    mutationFn: () =>
+      updatePageIdentity({
+        data: { headline, headlineDestaque, bio, corPrimaria, fotoUrl },
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["currentProfessional"] });
+      setIdentitySaved(true);
+      setTimeout(() => setIdentitySaved(false), 2500);
+    },
+  });
+
+  // ── Card state ──────────────────────────────────────────────────────────────
+  const [showCardForm, setShowCardForm] = useState(false);
+  const [editingCard, setEditingCard] = useState<ProfessionalCard | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteCard({ data: { id } }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["myCards"] }),
+  });
+
+  // ── Preview data (real-time) ────────────────────────────────────────────────
+  const colors = COLOR_MAP_PREVIEW[corPrimaria] ?? COLOR_MAP_PREVIEW.teal;
+  const previewName = prof?.nomeCompleto ?? "";
+  const previewSpecialty = prof?.especialidade ?? "";
+  const previewInitials = previewName.split(" ").filter(Boolean).slice(0, 2).map((n) => n[0]).join("").toUpperCase();
+
+  function renderPreviewHeadline() {
+    if (!headline) return null;
+    if (!headlineDestaque) return <span>{headline}</span>;
+    const idx = headline.toLowerCase().indexOf(headlineDestaque.toLowerCase());
+    if (idx === -1) return <span>{headline}</span>;
+    return (
+      <>
+        {headline.slice(0, idx)}
+        <span className={colors.text}>{headline.slice(idx, idx + headlineDestaque.length)}</span>
+        {headline.slice(idx + headlineDestaque.length)}
+      </>
+    );
+  }
+
+  const publicUrl = prof?.slug ? `/${prof.slug}` : null;
+
+  if (profLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64 text-slate-400">Carregando...</div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
+        {/* Page header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Página Pública</h1>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Personalize o que seus pacientes veem ao acessar seu link
+            </p>
+          </div>
+          {publicUrl && (
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+            >
+              <ExternalLink className="size-4" />
+              Ver página
+            </a>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-8 items-start">
+
+          {/* ── LEFT: Editor ──────────────────────────────────────────────── */}
+          <div className="space-y-6">
+
+            {/* Section: Foto & Identidade */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-6">
+              <h2 className="text-base font-semibold text-slate-900 mb-6">Foto & Identidade</h2>
+
+              {/* Photo upload */}
+              <div className="flex justify-center mb-6">
+                <PhotoUpload
+                  currentUrl={fotoUrl || null}
+                  name={previewName}
+                  onUploaded={(url) => setFotoUrl(url)}
+                  onRemove={() => setFotoUrl("")}
+                />
+              </div>
+
+              <div className="space-y-4">
+                {/* Headline */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Frase de impacto
+                  </label>
+                  <input
+                    value={headline}
+                    onChange={(e) => setHeadline(e.target.value)}
+                    maxLength={160}
+                    placeholder="Ex: Cuidando da sua saúde com Cardiologia."
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none transition"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">{headline.length}/160 caracteres</p>
+                </div>
+
+                {/* Headline highlight */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Palavra destacada{" "}
+                    <span className="text-xs font-normal text-slate-400">(aparece colorida)</span>
+                  </label>
+                  <input
+                    value={headlineDestaque}
+                    onChange={(e) => setHeadlineDestaque(e.target.value)}
+                    maxLength={60}
+                    placeholder="Ex: Cardiologia"
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none transition"
+                  />
+                </div>
+
+                {/* Bio */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Bio</label>
+                  <textarea
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    maxLength={500}
+                    rows={3}
+                    placeholder="Apresentação curta sobre você e seu atendimento…"
+                    className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none transition resize-none"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">{bio.length}/500 caracteres</p>
+                </div>
+
+                {/* Color */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Cor principal
+                  </label>
+                  <div className="flex gap-3">
+                    {COLORS.map((c) => (
+                      <button
+                        key={c.key}
+                        type="button"
+                        onClick={() => setCorPrimaria(c.key)}
+                        title={c.label}
+                        className={`size-9 rounded-full ${c.bg} transition-all ${
+                          corPrimaria === c.key
+                            ? `ring-2 ring-offset-2 ${c.ring} scale-110`
+                            : "opacity-60 hover:opacity-100"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center gap-3">
+                <button
+                  onClick={() => identityMutation.mutate()}
+                  disabled={identityMutation.isPending}
+                  className="inline-flex items-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors disabled:opacity-60"
+                >
+                  {identityMutation.isPending ? "Salvando..." : "Salvar identidade"}
+                </button>
+                {identitySaved && (
+                  <span className="inline-flex items-center gap-1.5 text-sm text-emerald-600 font-medium">
+                    <Check className="size-4" /> Salvo!
+                  </span>
+                )}
+                {identityMutation.error && (
+                  <span className="text-sm text-rose-500">
+                    {identityMutation.error instanceof Error
+                      ? identityMutation.error.message
+                      : "Erro ao salvar"}
+                  </span>
+                )}
+              </div>
+            </section>
+
+            {/* Section: Cards */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">Cards</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Aparecem em grade 2 colunas abaixo do seu perfil
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setEditingCard(null);
+                    setShowCardForm(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3.5 py-2 text-sm font-medium text-teal-700 hover:bg-teal-100 transition-colors"
+                >
+                  <Plus className="size-4" /> Adicionar card
+                </button>
+              </div>
+
+              {cardsLoading ? (
+                <p className="text-sm text-slate-400 py-4 text-center">Carregando cards…</p>
+              ) : cards.length === 0 && !showCardForm ? (
+                <div className="rounded-xl border-2 border-dashed border-slate-200 p-8 text-center">
+                  <p className="text-sm text-slate-400">Nenhum card adicionado ainda.</p>
+                  <button
+                    onClick={() => setShowCardForm(true)}
+                    className="mt-3 text-sm text-teal-600 hover:underline font-medium"
+                  >
+                    + Adicionar o primeiro card
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {cards.map((card) => (
+                    <CardRow
+                      key={card.id}
+                      card={card}
+                      onEdit={() => {
+                        setEditingCard(card);
+                        setShowCardForm(true);
+                      }}
+                      onDelete={() => deleteMutation.mutate(card.id)}
+                      deleting={deleteMutation.isPending}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {showCardForm && (
+                <CardForm
+                  initial={editingCard}
+                  nextOrdem={cards.length}
+                  onSave={() => {
+                    void qc.invalidateQueries({ queryKey: ["myCards"] });
+                    setShowCardForm(false);
+                    setEditingCard(null);
+                  }}
+                  onCancel={() => {
+                    setShowCardForm(false);
+                    setEditingCard(null);
+                  }}
+                />
+              )}
+            </section>
+          </div>
+
+          {/* ── RIGHT: Phone mockup preview ──────────────────────────────── */}
+          <div className="xl:sticky xl:top-8">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+              Preview ao vivo
+            </p>
+
+            {/* Phone frame */}
+            <div className="relative mx-auto w-[280px]">
+              {/* Phone shell */}
+              <div className="relative rounded-[2.5rem] border-[10px] border-slate-800 bg-slate-800 shadow-2xl overflow-hidden">
+                {/* Notch */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-slate-800 rounded-b-2xl z-10" />
+                {/* Screen */}
+                <div className="bg-slate-50 overflow-y-auto max-h-[600px] pt-6 pb-4 px-3 scrollbar-hide">
+                  {/* Profile card preview */}
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-5 mb-3 text-center">
+                    {/* Photo */}
+                    <div className="mx-auto mb-3">
+                      {fotoUrl ? (
+                        <img
+                          src={fotoUrl}
+                          alt={previewName}
+                          className={`mx-auto size-16 rounded-full object-cover ring-2 ring-white shadow`}
+                        />
+                      ) : (
+                        <div
+                          className={`mx-auto size-16 rounded-full bg-gradient-to-br ${colors.gradient} ring-2 ring-white shadow grid place-items-center`}
+                        >
+                          <span className="text-lg font-bold text-white">{previewInitials}</span>
+                        </div>
+                      )}
+                    </div>
+                    {/* Name */}
+                    <p className="text-xs font-semibold text-slate-900">{previewName || "Seu nome"}</p>
+                    <p className={`text-[11px] ${colors.text} mt-0.5`}>{previewSpecialty || "Especialidade"}</p>
+                    {/* Headline */}
+                    {headline && (
+                      <p className="mt-3 text-sm font-extrabold text-slate-900 leading-tight">
+                        {renderPreviewHeadline()}
+                      </p>
+                    )}
+                    {/* Bio */}
+                    {bio && (
+                      <p className="mt-2 text-[11px] text-slate-500 leading-snug line-clamp-2">{bio}</p>
+                    )}
+                  </div>
+
+                  {/* Cards grid preview */}
+                  {cards.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      {cards.slice(0, 6).map((card) => {
+                        const Icon = CARD_ICON_MAP[card.tipo as CardType] ?? Sparkles;
+                        return (
+                          <div key={card.id} className="rounded-xl border border-slate-200 bg-white p-2">
+                            <div className="flex items-start gap-1.5">
+                              <div className={`grid size-7 place-items-center rounded-lg ${colors.soft} ${colors.text} shrink-0`}>
+                                <Icon className="size-3.5" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-[9px] text-slate-500 leading-tight truncate">{card.titulo}</p>
+                                {card.subtitulo && (
+                                  <p className="text-[10px] font-bold text-slate-900 truncate">{card.subtitulo}</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Services placeholder */}
+                  <div className="rounded-xl border border-slate-200 bg-white p-3 opacity-40">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`size-5 rounded-full ${colors.badge} flex items-center justify-center`}>
+                        <span className="text-[8px] font-black text-white">01</span>
+                      </div>
+                      <p className="text-[10px] font-semibold text-slate-700">Escolha a especialidade</p>
+                    </div>
+                    {[1, 2].map((i) => (
+                      <div key={i} className="rounded-lg bg-slate-100 h-10 mb-1.5 last:mb-0" />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-center text-xs text-slate-400 mt-3">
+              Preview em tempo real · salve para publicar
+            </p>
+          </div>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}
+
+// ─── Card Row ─────────────────────────────────────────────────────────────────
+
+function CardRow({
+  card,
+  onEdit,
+  onDelete,
+  deleting,
+}: {
+  card: ProfessionalCard;
+  onEdit: () => void;
+  onDelete: () => void;
+  deleting: boolean;
+}) {
+  const Icon = CARD_ICON_MAP[card.tipo as CardType] ?? Sparkles;
+  const typeLabel = CARD_TYPES.find((t) => t.value === card.tipo)?.label ?? card.tipo;
+
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+      <GripVertical className="size-4 text-slate-300 shrink-0 cursor-grab" />
+      <div className="size-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0">
+        <Icon className="size-4 text-slate-500" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-slate-900 truncate">{card.titulo}</p>
+        <p className="text-xs text-slate-400 truncate">
+          {typeLabel}{card.subtitulo ? ` · ${card.subtitulo}` : ""}
+        </p>
+      </div>
+      <div className="flex gap-1 shrink-0">
+        <button
+          onClick={onEdit}
+          className="size-8 rounded-lg hover:bg-slate-200 flex items-center justify-center transition-colors text-slate-500 hover:text-slate-700"
+          title="Editar"
+        >
+          <Pencil className="size-3.5" />
+        </button>
+        <button
+          onClick={onDelete}
+          disabled={deleting}
+          className="size-8 rounded-lg hover:bg-rose-50 flex items-center justify-center transition-colors text-slate-400 hover:text-rose-500"
+          title="Excluir"
+        >
+          <Trash2 className="size-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Card Form ────────────────────────────────────────────────────────────────
+
+function CardForm({
+  initial,
+  nextOrdem,
+  onSave,
+  onCancel,
+}: {
+  initial: ProfessionalCard | null;
+  nextOrdem: number;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const [tipo, setTipo] = useState<CardType>((initial?.tipo as CardType) ?? "qualificacao");
+  const [titulo, setTitulo] = useState(initial?.titulo ?? "");
+  const [subtitulo, setSubtitulo] = useState(initial?.subtitulo ?? "");
+  const [valor, setValor] = useState(initial?.valor ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const needsValor = ["whatsapp", "instagram", "localizacao", "telefone", "email"].includes(tipo);
+  const valorLabel: Record<string, string> = {
+    whatsapp: "Número WhatsApp (+5511...)",
+    instagram: "Usuário ou URL do Instagram",
+    localizacao: "Link do Google Maps",
+    telefone: "Número de telefone",
+    email: "Endereço de e-mail",
+  };
+
+  async function handleSave() {
+    if (!titulo.trim()) { setError("Título obrigatório"); return; }
+    setSaving(true);
+    setError(null);
+    try {
+      if (initial) {
+        await updateCard({ data: { id: initial.id, tipo, titulo, subtitulo: subtitulo || undefined, valor: valor || undefined, ordem: initial.ordem } });
+      } else {
+        await createCard({ data: { tipo, titulo, subtitulo: subtitulo || undefined, valor: valor || undefined, ordem: nextOrdem } });
+      }
+      onSave();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erro ao salvar");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-xl border-2 border-teal-200 bg-teal-50/50 p-4 space-y-3">
+      <h3 className="text-sm font-semibold text-slate-900">
+        {initial ? "Editar card" : "Novo card"}
+      </h3>
+
+      {/* Type selector */}
+      <div>
+        <label className="block text-xs font-medium text-slate-600 mb-1.5">Tipo</label>
+        <select
+          value={tipo}
+          onChange={(e) => setTipo(e.target.value as CardType)}
+          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
+        >
+          {CARD_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Title */}
+      <div>
+        <label className="block text-xs font-medium text-slate-600 mb-1.5">Título</label>
+        <input
+          value={titulo}
+          onChange={(e) => setTitulo(e.target.value)}
+          maxLength={80}
+          placeholder="Ex: Especialização:"
+          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
+        />
+      </div>
+
+      {/* Subtitle */}
+      <div>
+        <label className="block text-xs font-medium text-slate-600 mb-1.5">Subtítulo</label>
+        <input
+          value={subtitulo}
+          onChange={(e) => setSubtitulo(e.target.value)}
+          maxLength={120}
+          placeholder="Ex: Cardiologia Intervencionista"
+          className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
+        />
+      </div>
+
+      {/* Value (conditional) */}
+      {needsValor && (
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">
+            {valorLabel[tipo] ?? "Valor / Link"}
+          </label>
+          <input
+            value={valor}
+            onChange={(e) => setValor(e.target.value)}
+            placeholder={valorLabel[tipo]}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
+          />
+        </div>
+      )}
+
+      {error && <p className="text-xs text-rose-500">{error}</p>}
+
+      <div className="flex gap-2 pt-1">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 px-4 py-2 text-sm font-semibold text-white transition-colors disabled:opacity-60"
+        >
+          <Check className="size-3.5" />
+          {saving ? "Salvando…" : "Salvar card"}
+        </button>
+        <button
+          onClick={onCancel}
+          className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 px-4 py-2 text-sm font-medium text-slate-600 transition-colors"
+        >
+          <X className="size-3.5" />
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}

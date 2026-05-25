@@ -12,6 +12,7 @@ import {
   Wallet,
   Menu,
   X,
+  Globe,
 } from "lucide-react";
 import { fetchCurrentProfessional } from "../lib/auth";
 
@@ -25,6 +26,7 @@ const NAV_ITEMS: NavItem[] = [
   { kind: "link", icon: LayoutDashboard, label: "Visão geral", href: "/dashboard" },
   { kind: "link", icon: CalendarDays, label: "Agenda", href: "/agenda" },
   { kind: "link", icon: UserRound, label: "Pacientes", href: "/patients" },
+  { kind: "link", icon: Globe, label: "Página Pública", href: "/pagina-publica" },
   { kind: "stub", icon: Wallet, label: "Financeiro", badge: "Em breve" },
   { kind: "link", icon: Settings, label: "Configurações", href: "/settings" },
 ];

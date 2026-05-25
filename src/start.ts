@@ -7,6 +7,7 @@ import { renderErrorPage } from "./lib/error-page";
 import { handleClerkWebhook } from "./server/clerk-webhook";
 import { handleMPWebhook } from "./server/mp-webhook";
 import { handleReminders } from "./server/reminders";
+import { handleUploadFoto } from "./server/upload-foto";
 
 const webhookMiddleware = createMiddleware().server(async ({ next }) => {
   const req = getRequest();
@@ -22,6 +23,10 @@ const webhookMiddleware = createMiddleware().server(async ({ next }) => {
 
   if (url.pathname === "/api/cron/reminders" && req.method === "GET") {
     return handleReminders(req);
+  }
+
+  if (url.pathname === "/api/upload-foto" && req.method === "POST") {
+    return handleUploadFoto(req);
   }
 
   return next();
