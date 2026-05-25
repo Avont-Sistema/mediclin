@@ -620,9 +620,9 @@ function DashboardContent() {
                               className="group flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-slate-50 transition"
                             >
                               {/* Hora — destaque visual */}
-                              <div className="shrink-0 min-w-[48px] text-right">
-                                <span className="text-sm font-bold text-slate-900">{a.time}</span>
-                                <div className="text-[10px] text-slate-400">30 min</div>
+                              <div className="shrink-0 bg-slate-900 text-white rounded-lg px-2.5 py-1.5 text-center min-w-[56px]">
+                                <span className="text-sm font-bold tracking-tight leading-none">{a.time}</span>
+                                <div className="text-[9px] text-slate-400 mt-0.5">30 min</div>
                               </div>
 
                               {/* Barra de cor do status */}
