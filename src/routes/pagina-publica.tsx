@@ -26,25 +26,46 @@ export const Route = createFileRoute("/pagina-publica")({
   component: PaginaPublicaPage,
 });
 
-// ─── Color map ────────────────────────────────────────────────────────────────
+// ─── Color system ─────────────────────────────────────────────────────────────
 
-const COLORS = [
-  { key: "teal", label: "Teal", bg: "bg-teal-500", ring: "ring-teal-500" },
-  { key: "emerald", label: "Esmeralda", bg: "bg-emerald-500", ring: "ring-emerald-500" },
-  { key: "rose", label: "Rosa", bg: "bg-rose-500", ring: "ring-rose-500" },
-  { key: "indigo", label: "Índigo", bg: "bg-indigo-500", ring: "ring-indigo-500" },
-  { key: "amber", label: "Âmbar", bg: "bg-amber-500", ring: "ring-amber-500" },
+const ALL_COLORS = [
+  { key: "teal",    hex: "#14b8a6", label: "Teal"     },
+  { key: "emerald", hex: "#10b981", label: "Esmeralda"},
+  { key: "cyan",    hex: "#06b6d4", label: "Ciano"    },
+  { key: "sky",     hex: "#0ea5e9", label: "Céu"      },
+  { key: "blue",    hex: "#3b82f6", label: "Azul"     },
+  { key: "indigo",  hex: "#6366f1", label: "Índigo"   },
+  { key: "violet",  hex: "#8b5cf6", label: "Violeta"  },
+  { key: "purple",  hex: "#a855f7", label: "Roxo"     },
+  { key: "fuchsia", hex: "#d946ef", label: "Fúcsia"   },
+  { key: "pink",    hex: "#ec4899", label: "Rosa"     },
+  { key: "rose",    hex: "#f43f5e", label: "Vermelho" },
+  { key: "orange",  hex: "#f97316", label: "Laranja"  },
+  { key: "amber",   hex: "#f59e0b", label: "Âmbar"    },
+  { key: "yellow",  hex: "#eab308", label: "Amarelo"  },
+  { key: "lime",    hex: "#84cc16", label: "Lima"     },
 ] as const;
 
-type ColorKey = (typeof COLORS)[number]["key"];
+type ColorKey = (typeof ALL_COLORS)[number]["key"];
 
-const COLOR_MAP_PREVIEW = {
-  teal: { text: "text-teal-600", gradient: "from-teal-500 to-teal-700", badge: "bg-teal-600", soft: "bg-teal-50" },
+// All Tailwind classes must be present in source for JIT to include them
+const COLOR_MAP_PREVIEW: Record<ColorKey, { text: string; gradient: string; badge: string; soft: string }> = {
+  teal:    { text: "text-teal-600",    gradient: "from-teal-500 to-teal-700",    badge: "bg-teal-600",    soft: "bg-teal-50"    },
   emerald: { text: "text-emerald-600", gradient: "from-emerald-500 to-emerald-700", badge: "bg-emerald-600", soft: "bg-emerald-50" },
-  rose: { text: "text-rose-600", gradient: "from-rose-500 to-rose-700", badge: "bg-rose-600", soft: "bg-rose-50" },
-  indigo: { text: "text-indigo-600", gradient: "from-indigo-500 to-indigo-700", badge: "bg-indigo-600", soft: "bg-indigo-50" },
-  amber: { text: "text-amber-600", gradient: "from-amber-500 to-amber-700", badge: "bg-amber-600", soft: "bg-amber-50" },
-} as const;
+  cyan:    { text: "text-cyan-600",    gradient: "from-cyan-500 to-cyan-700",    badge: "bg-cyan-600",    soft: "bg-cyan-50"    },
+  sky:     { text: "text-sky-600",     gradient: "from-sky-500 to-sky-700",     badge: "bg-sky-600",     soft: "bg-sky-50"     },
+  blue:    { text: "text-blue-600",    gradient: "from-blue-500 to-blue-700",   badge: "bg-blue-600",    soft: "bg-blue-50"    },
+  indigo:  { text: "text-indigo-600",  gradient: "from-indigo-500 to-indigo-700", badge: "bg-indigo-600", soft: "bg-indigo-50"  },
+  violet:  { text: "text-violet-600",  gradient: "from-violet-500 to-violet-700", badge: "bg-violet-600", soft: "bg-violet-50"  },
+  purple:  { text: "text-purple-600",  gradient: "from-purple-500 to-purple-700", badge: "bg-purple-600", soft: "bg-purple-50"  },
+  fuchsia: { text: "text-fuchsia-600", gradient: "from-fuchsia-500 to-fuchsia-700", badge: "bg-fuchsia-600", soft: "bg-fuchsia-50" },
+  pink:    { text: "text-pink-600",    gradient: "from-pink-500 to-pink-700",   badge: "bg-pink-600",    soft: "bg-pink-50"    },
+  rose:    { text: "text-rose-600",    gradient: "from-rose-500 to-rose-700",   badge: "bg-rose-600",    soft: "bg-rose-50"    },
+  orange:  { text: "text-orange-600",  gradient: "from-orange-500 to-orange-700", badge: "bg-orange-600", soft: "bg-orange-50"  },
+  amber:   { text: "text-amber-600",   gradient: "from-amber-500 to-amber-700", badge: "bg-amber-600",   soft: "bg-amber-50"   },
+  yellow:  { text: "text-yellow-600",  gradient: "from-yellow-500 to-yellow-700", badge: "bg-yellow-600", soft: "bg-yellow-50"  },
+  lime:    { text: "text-lime-600",    gradient: "from-lime-500 to-lime-700",   badge: "bg-lime-600",    soft: "bg-lime-50"    },
+};
 
 // ─── Card icon map ────────────────────────────────────────────────────────────
 
@@ -81,6 +102,7 @@ function PaginaPublicaPage() {
   const [headlineDestaque, setHeadlineDestaque] = useState("");
   const [bio, setBio] = useState("");
   const [corPrimaria, setCorPrimaria] = useState<ColorKey>("teal");
+  const [corDestaque, setCorDestaque] = useState<ColorKey | null>(null);
   const [identitySaved, setIdentitySaved] = useState(false);
 
   // Populate form once professional loads
@@ -91,12 +113,13 @@ function PaginaPublicaPage() {
     setHeadlineDestaque(prof.headlineDestaque ?? "");
     setBio(prof.bio ?? "");
     setCorPrimaria((prof.corPrimaria as ColorKey) ?? "teal");
+    setCorDestaque((prof.corDestaque as ColorKey) ?? null);
   }, [prof]);
 
   const identityMutation = useMutation({
     mutationFn: () =>
       updatePageIdentity({
-        data: { headline, headlineDestaque, bio, corPrimaria, fotoUrl },
+        data: { headline, headlineDestaque, bio, corPrimaria, corDestaque, fotoUrl },
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["currentProfessional"] });
@@ -166,6 +189,7 @@ function PaginaPublicaPage() {
 
   // ── Preview data (real-time) ────────────────────────────────────────────────
   const colors = COLOR_MAP_PREVIEW[corPrimaria] ?? COLOR_MAP_PREVIEW.teal;
+  const destaqueColors = COLOR_MAP_PREVIEW[corDestaque ?? corPrimaria] ?? colors;
   const previewName = prof?.nomeCompleto ?? "";
   const previewSpecialty = prof?.especialidade ?? "";
   const previewInitials = previewName.split(" ").filter(Boolean).slice(0, 2).map((n) => n[0]).join("").toUpperCase();
@@ -178,7 +202,7 @@ function PaginaPublicaPage() {
     return (
       <>
         {headline.slice(0, idx)}
-        <span className={colors.text}>{headline.slice(idx, idx + headlineDestaque.length)}</span>
+        <span className={destaqueColors.text}>{headline.slice(idx, idx + headlineDestaque.length)}</span>
         {headline.slice(idx + headlineDestaque.length)}
       </>
     );
@@ -282,26 +306,22 @@ function PaginaPublicaPage() {
                   <p className="text-xs text-slate-400 mt-1">{bio.length}/500 caracteres</p>
                 </div>
 
-                {/* Color */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Cor principal
-                  </label>
-                  <div className="flex gap-3">
-                    {COLORS.map((c) => (
-                      <button
-                        key={c.key}
-                        type="button"
-                        onClick={() => setCorPrimaria(c.key)}
-                        title={c.label}
-                        className={`size-9 rounded-full ${c.bg} transition-all ${
-                          corPrimaria === c.key
-                            ? `ring-2 ring-offset-2 ${c.ring} scale-110`
-                            : "opacity-60 hover:opacity-100"
-                        }`}
-                      />
-                    ))}
-                  </div>
+                {/* Color pickers */}
+                <div className="space-y-4">
+                  <ColorPicker
+                    label="Cor tema"
+                    description="avatar, cards, botões"
+                    value={corPrimaria}
+                    onChange={setCorPrimaria}
+                  />
+                  <ColorPicker
+                    label="Cor da palavra destacada"
+                    description="a palavra colorida na frase de impacto"
+                    value={corDestaque ?? corPrimaria}
+                    onChange={(k) => setCorDestaque(k === corPrimaria ? null : k)}
+                    showSameAsTheme={corDestaque !== null}
+                    onSameAsTheme={() => setCorDestaque(null)}
+                  />
                 </div>
               </div>
 
@@ -495,6 +515,65 @@ function PaginaPublicaPage() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+// ─── Color Picker ────────────────────────────────────────────────────────────
+
+function ColorPicker({
+  label,
+  description,
+  value,
+  onChange,
+  showSameAsTheme,
+  onSameAsTheme,
+}: {
+  label: string;
+  description: string;
+  value: ColorKey;
+  onChange: (k: ColorKey) => void;
+  showSameAsTheme?: boolean;
+  onSameAsTheme?: () => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <span className="text-sm font-medium text-slate-700">{label}</span>
+          <span className="ml-1.5 text-xs text-slate-400">({description})</span>
+        </div>
+        {showSameAsTheme && onSameAsTheme && (
+          <button
+            type="button"
+            onClick={onSameAsTheme}
+            className="text-xs text-teal-600 hover:underline font-medium"
+          >
+            Usar cor do tema
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {ALL_COLORS.map((c) => {
+          const active = value === c.key;
+          return (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => onChange(c.key as ColorKey)}
+              title={c.label}
+              className="size-7 rounded-full transition-all hover:scale-110 focus:outline-none"
+              style={{
+                background: c.hex,
+                outline: active ? `3px solid ${c.hex}` : "none",
+                outlineOffset: "2px",
+                opacity: active ? 1 : 0.65,
+                transform: active ? "scale(1.2)" : undefined,
+              }}
+            />
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

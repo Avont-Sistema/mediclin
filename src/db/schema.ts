@@ -119,6 +119,7 @@ export const professionals = pgTable(
     fotoUrl: text("foto_url"),
     telefoneWhatsapp: varchar("telefone_whatsapp", { length: 20 }),
     corPrimaria: varchar("cor_primaria", { length: 20 }).default("teal"), // teal, rose, indigo, etc.
+    corDestaque: varchar("cor_destaque", { length: 20 }), // cor da palavra destacada (null = usa corPrimaria)
 
     // Personalização da página pública
     corMarca: varchar("cor_marca", { length: 7 }).default("#0d9488").notNull(),

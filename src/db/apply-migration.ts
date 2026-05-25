@@ -17,6 +17,7 @@ const MIGRATIONS = [
   "./migrations/0003_customizacao_publica.sql",
   "./migrations/0004_clinic_members.sql",
   "./migrations/0005_add_uf.sql",
+  "./migrations/0006_add_cor_destaque.sql",
 ];
 
 for (const rel of MIGRATIONS) {

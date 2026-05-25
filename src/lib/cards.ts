@@ -140,13 +140,20 @@ export const reorderCards = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+const COLOR_VALUES = [
+  "teal", "emerald", "cyan", "sky", "blue", "indigo",
+  "violet", "purple", "fuchsia", "pink", "rose",
+  "orange", "amber", "yellow", "lime",
+] as const;
+
 export const updatePageIdentity = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
       headline: z.string().max(160).optional(),
       headlineDestaque: z.string().max(60).optional(),
       bio: z.string().max(500).optional(),
-      corPrimaria: z.enum(["teal", "emerald", "rose", "indigo", "amber"]),
+      corPrimaria: z.enum(COLOR_VALUES),
+      corDestaque: z.enum(COLOR_VALUES).nullable().optional(),
       fotoUrl: z.string().optional(),
     }),
   )
@@ -159,6 +166,7 @@ export const updatePageIdentity = createServerFn({ method: "POST" })
         headlineDestaque: data.headlineDestaque ?? null,
         bio: data.bio ?? null,
         corPrimaria: data.corPrimaria,
+        corDestaque: data.corDestaque ?? null,
         ...(data.fotoUrl !== undefined ? { fotoUrl: data.fotoUrl || null } : {}),
         atualizadoEm: new Date(),
       })

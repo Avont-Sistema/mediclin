@@ -73,36 +73,21 @@ type Phase =
 // ─── Static Tailwind color map ─────────────────────────────────────────────────
 
 const COLOR_MAP = {
-  teal: {
-    text: "text-teal-600",
-    bgGradient: "from-teal-500 to-teal-700",
-    bgSoft: "bg-teal-50",
-    badge: "bg-teal-600",
-  },
-  emerald: {
-    text: "text-emerald-600",
-    bgGradient: "from-emerald-500 to-emerald-700",
-    bgSoft: "bg-emerald-50",
-    badge: "bg-emerald-600",
-  },
-  rose: {
-    text: "text-rose-600",
-    bgGradient: "from-rose-500 to-rose-700",
-    bgSoft: "bg-rose-50",
-    badge: "bg-rose-600",
-  },
-  indigo: {
-    text: "text-indigo-600",
-    bgGradient: "from-indigo-500 to-indigo-700",
-    bgSoft: "bg-indigo-50",
-    badge: "bg-indigo-600",
-  },
-  amber: {
-    text: "text-amber-600",
-    bgGradient: "from-amber-500 to-amber-700",
-    bgSoft: "bg-amber-50",
-    badge: "bg-amber-600",
-  },
+  teal:    { text: "text-teal-600",    bgGradient: "from-teal-500 to-teal-700",    bgSoft: "bg-teal-50",    badge: "bg-teal-600"    },
+  emerald: { text: "text-emerald-600", bgGradient: "from-emerald-500 to-emerald-700", bgSoft: "bg-emerald-50", badge: "bg-emerald-600" },
+  cyan:    { text: "text-cyan-600",    bgGradient: "from-cyan-500 to-cyan-700",    bgSoft: "bg-cyan-50",    badge: "bg-cyan-600"    },
+  sky:     { text: "text-sky-600",     bgGradient: "from-sky-500 to-sky-700",     bgSoft: "bg-sky-50",     badge: "bg-sky-600"     },
+  blue:    { text: "text-blue-600",    bgGradient: "from-blue-500 to-blue-700",   bgSoft: "bg-blue-50",    badge: "bg-blue-600"    },
+  indigo:  { text: "text-indigo-600",  bgGradient: "from-indigo-500 to-indigo-700", bgSoft: "bg-indigo-50", badge: "bg-indigo-600"  },
+  violet:  { text: "text-violet-600",  bgGradient: "from-violet-500 to-violet-700", bgSoft: "bg-violet-50", badge: "bg-violet-600"  },
+  purple:  { text: "text-purple-600",  bgGradient: "from-purple-500 to-purple-700", bgSoft: "bg-purple-50", badge: "bg-purple-600"  },
+  fuchsia: { text: "text-fuchsia-600", bgGradient: "from-fuchsia-500 to-fuchsia-700", bgSoft: "bg-fuchsia-50", badge: "bg-fuchsia-600" },
+  pink:    { text: "text-pink-600",    bgGradient: "from-pink-500 to-pink-700",   bgSoft: "bg-pink-50",    badge: "bg-pink-600"    },
+  rose:    { text: "text-rose-600",    bgGradient: "from-rose-500 to-rose-700",   bgSoft: "bg-rose-50",    badge: "bg-rose-600"    },
+  orange:  { text: "text-orange-600",  bgGradient: "from-orange-500 to-orange-700", bgSoft: "bg-orange-50", badge: "bg-orange-600"  },
+  amber:   { text: "text-amber-600",   bgGradient: "from-amber-500 to-amber-700", bgSoft: "bg-amber-50",   badge: "bg-amber-600"   },
+  yellow:  { text: "text-yellow-600",  bgGradient: "from-yellow-500 to-yellow-700", bgSoft: "bg-yellow-50", badge: "bg-yellow-600"  },
+  lime:    { text: "text-lime-600",    bgGradient: "from-lime-500 to-lime-700",   bgSoft: "bg-lime-50",    badge: "bg-lime-600"    },
 } as const;
 
 type ColorKey = keyof typeof COLOR_MAP;
@@ -166,6 +151,7 @@ function renderHeadline(text: string, highlight: string | null, textClass: strin
 export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
   const brand = professional.corMarca ?? "#0d9488";
   const colors = getColors(professional.corPrimaria);
+  const highlightColors = getColors(professional.corDestaque ?? professional.corPrimaria);
 
   const [phase, setPhase] = useState<Phase>({ tag: "idle" });
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
@@ -300,7 +286,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
           {/* Impact headline */}
           {professional.headline && (
             <h2 className="mt-5 text-2xl font-extrabold leading-tight text-slate-900 tracking-tight">
-              {renderHeadline(professional.headline, professional.headlineDestaque, colors.text)}
+              {renderHeadline(professional.headline, professional.headlineDestaque, highlightColors.text)}
             </h2>
           )}
 
