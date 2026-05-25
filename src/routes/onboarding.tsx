@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { createProfessional, checkSlugAvailability, slugify } from "../lib/onboarding";
 import { buildPublicUrl } from "../lib/subdomain";
-import { InstagramSimulator } from "../components/InstagramSimulator";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({ meta: [{ title: "MediClin — Configure seu perfil" }] }),
@@ -23,7 +22,7 @@ export const Route = createFileRoute("/onboarding")({
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3;
 type AgendaAtual = "whatsapp" | "telefone" | "secretaria" | "papel";
 
 // ─── Pain mirror data ─────────────────────────────────────────────────────────
@@ -147,7 +146,6 @@ const STEP_LABELS: { num: Step; label: string }[] = [
   { num: 1, label: "Situação" },
   { num: 2, label: "Perfil" },
   { num: 3, label: "Link" },
-  { num: 4, label: "Confirmar" },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -171,8 +169,6 @@ function OnboardingPage() {
   const [slug, setSlug] = useState("");
   const [slugStatus, setSlugStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
   const slugDebounceRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Step 4
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -206,13 +202,9 @@ function OnboardingPage() {
     }, 500);
   }
 
-  function handleStep3(e: React.FormEvent) {
+  async function handleStep3(e: React.FormEvent) {
     e.preventDefault();
-    if (slugStatus !== "available") return;
-    setStep(4);
-  }
-
-  async function handleSubmit() {
+    if (slugStatus !== "available" || submitting) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -483,36 +475,6 @@ function OnboardingPage() {
               </p>
             )}
 
-            <div className="flex gap-3">
-              <button type="button" onClick={() => setStep(2)}
-                className="flex-1 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50">
-                Voltar
-              </button>
-              <button type="submit" disabled={slugStatus !== "available"}
-                className="flex-[2] inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
-                Próximo <ChevronRight className="size-4" />
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* ── Step 4: Instagram simulator + confirm ── */}
-        {step === 4 && (
-          <div className="space-y-5">
-            <div>
-              <h1 className="text-xl font-bold text-slate-900">É isso que vai aparecer na sua bio</h1>
-              <p className="mt-1 text-sm text-slate-500">
-                Clique no link para ver como seus pacientes vão agendar.
-              </p>
-            </div>
-
-            <InstagramSimulator
-              nome={nome}
-              especialidade={especialidade}
-              slug={slug}
-              uf={uf}
-            />
-
             {error && (
               <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 flex items-center gap-2.5 text-sm text-rose-700">
                 <AlertCircle className="size-4 shrink-0" />
@@ -521,21 +483,22 @@ function OnboardingPage() {
             )}
 
             <div className="flex gap-3">
-              <button type="button" onClick={() => setStep(3)} disabled={submitting}
-                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 disabled:opacity-50">
+              <button type="button" onClick={() => setStep(2)} disabled={submitting}
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 disabled:opacity-50">
                 Voltar
               </button>
-              <button onClick={handleSubmit} disabled={submitting}
+              <button type="submit" disabled={slugStatus !== "available" || submitting}
                 className="flex-[2] inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed">
                 {submitting ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
-                  <><Stethoscope className="size-4" /> Quero isso! Criar meu perfil</>
+                  <><Stethoscope className="size-4" /> Criar meu perfil</>
                 )}
               </button>
             </div>
-          </div>
+          </form>
         )}
+
       </div>
 
       <p className="mt-6 text-xs text-slate-400 text-center">
