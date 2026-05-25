@@ -10,7 +10,7 @@ import { DashboardLayout } from "../components/DashboardLayout";
 import { PhotoUpload } from "../components/PhotoUpload";
 import { fetchCurrentProfessional } from "../lib/auth";
 import {
-  listCards, createCard, updateCard, deleteCard,
+  listCards, createCard, updateCard, deleteCard, reorderCards,
   updatePageIdentity, CARD_TYPES,
   type ProfessionalCard, type CardType,
 } from "../lib/cards";
@@ -113,6 +113,56 @@ function PaginaPublicaPage() {
     mutationFn: (id: string) => deleteCard({ data: { id } }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["myCards"] }),
   });
+
+  // ── Drag-and-drop reorder ───────────────────────────────────────────────────
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [localOrder, setLocalOrder] = useState<string[]>([]);
+
+  // Sync local order from server (but not while dragging)
+  useEffect(() => {
+    if (!draggingId) setLocalOrder(cards.map((c) => c.id));
+  }, [cards, draggingId]);
+
+  const sortedCards =
+    localOrder.length > 0
+      ? localOrder
+          .map((id) => cards.find((c) => c.id === id))
+          .filter((c): c is ProfessionalCard => c != null)
+      : cards;
+
+  const reorderMutation = useMutation({
+    mutationFn: (ids: string[]) => reorderCards({ data: { ids } }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["myCards"] }),
+  });
+
+  function handleDragStart(id: string) {
+    setDraggingId(id);
+  }
+
+  function handleDragOver(targetId: string) {
+    if (targetId === draggingId || targetId === dragOverId) return;
+    setDragOverId(targetId);
+    const from = localOrder.indexOf(draggingId!);
+    const to = localOrder.indexOf(targetId);
+    if (from === -1 || to === -1) return;
+    const next = [...localOrder];
+    next.splice(from, 1);
+    next.splice(to, 0, draggingId!);
+    setLocalOrder(next);
+  }
+
+  function handleDrop() {
+    setDraggingId(null);
+    setDragOverId(null);
+    if (localOrder.length > 0) reorderMutation.mutate(localOrder);
+  }
+
+  function handleDragEnd() {
+    // Fired if dropped outside a valid target — reset without saving
+    setDraggingId(null);
+    setDragOverId(null);
+  }
 
   // ── Preview data (real-time) ────────────────────────────────────────────────
   const colors = COLOR_MAP_PREVIEW[corPrimaria] ?? COLOR_MAP_PREVIEW.teal;
@@ -312,16 +362,22 @@ function PaginaPublicaPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {cards.map((card) => (
+                  {sortedCards.map((card) => (
                     <CardRow
                       key={card.id}
                       card={card}
+                      isDragging={draggingId === card.id}
+                      isDragOver={dragOverId === card.id}
                       onEdit={() => {
                         setEditingCard(card);
                         setShowCardForm(true);
                       }}
                       onDelete={() => deleteMutation.mutate(card.id)}
                       deleting={deleteMutation.isPending}
+                      onDragStart={() => handleDragStart(card.id)}
+                      onDragOver={() => handleDragOver(card.id)}
+                      onDrop={handleDrop}
+                      onDragEnd={handleDragEnd}
                     />
                   ))}
                 </div>
@@ -393,9 +449,9 @@ function PaginaPublicaPage() {
                   </div>
 
                   {/* Cards grid preview */}
-                  {cards.length > 0 && (
+                  {sortedCards.length > 0 && (
                     <div className="grid grid-cols-2 gap-2 mb-3">
-                      {cards.slice(0, 6).map((card) => {
+                      {sortedCards.slice(0, 6).map((card) => {
                         const Icon = CARD_ICON_MAP[card.tipo as CardType] ?? Sparkles;
                         return (
                           <div key={card.id} className="rounded-xl border border-slate-200 bg-white p-2">
@@ -446,21 +502,46 @@ function PaginaPublicaPage() {
 
 function CardRow({
   card,
+  isDragging,
+  isDragOver,
   onEdit,
   onDelete,
   deleting,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: {
   card: ProfessionalCard;
+  isDragging: boolean;
+  isDragOver: boolean;
   onEdit: () => void;
   onDelete: () => void;
   deleting: boolean;
+  onDragStart: () => void;
+  onDragOver: () => void;
+  onDrop: () => void;
+  onDragEnd: () => void;
 }) {
   const Icon = CARD_ICON_MAP[card.tipo as CardType] ?? Sparkles;
   const typeLabel = CARD_TYPES.find((t) => t.value === card.tipo)?.label ?? card.tipo;
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-      <GripVertical className="size-4 text-slate-300 shrink-0 cursor-grab" />
+    <div
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={(e) => { e.preventDefault(); onDragOver(); }}
+      onDrop={(e) => { e.preventDefault(); onDrop(); }}
+      onDragEnd={onDragEnd}
+      className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition-all select-none ${
+        isDragging
+          ? "opacity-40 border-slate-200 bg-slate-50"
+          : isDragOver
+            ? "border-teal-400 bg-teal-50 shadow-sm"
+            : "border-slate-100 bg-slate-50 hover:border-slate-200"
+      }`}
+    >
+      <GripVertical className="size-4 text-slate-400 shrink-0 cursor-grab active:cursor-grabbing" />
       <div className="size-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0">
         <Icon className="size-4 text-slate-500" />
       </div>
