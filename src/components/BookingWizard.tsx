@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Calendar } from "./ui/calendar";
 import { Button } from "./ui/button";
@@ -6,6 +6,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { ChevronLeft, Clock, CheckCircle2, Loader2, CreditCard } from "lucide-react";
 import { fetchAvailableDays, fetchAvailableSlots, createBooking } from "../lib/availability";
+import { fetchBlockedDates } from "../lib/folga";
 import { createMPPreference } from "../lib/mercadopago";
 import type { InferSelectModel } from "drizzle-orm";
 import type { services } from "../db/schema";
@@ -48,10 +49,33 @@ export function BookingWizard({
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
 
+  // ── Date range for booking window (60 days ahead) ──────────────────────────
+  const today = new Date();
+  const maxDate = new Date();
+  maxDate.setDate(maxDate.getDate() + 60);
+  const fromDate = toDateStr(today);
+  const toDate = toDateStr(maxDate);
+
   const { data: availableDays = [] } = useQuery({
     queryKey: ["availableDays", professionalId],
     queryFn: () => fetchAvailableDays({ data: { professionalId } }),
   });
+
+  const { data: blockedDates = [] } = useQuery({
+    queryKey: ["blockedDates", professionalId, fromDate, toDate],
+    queryFn: () => fetchBlockedDates({ data: { professionalId, fromDate, toDate } }),
+  });
+
+  const blockedSet = useMemo(
+    () => new Set(blockedDates.map((b) => b.dateStr)),
+    [blockedDates],
+  );
+
+  const motivoMap = useMemo(() => {
+    const m = new Map<string, string | null>();
+    for (const b of blockedDates) m.set(b.dateStr, b.motivo);
+    return m;
+  }, [blockedDates]);
 
   const { data: slots = [], isFetching: loadingSlots } = useQuery({
     queryKey: ["slots", professionalId, selectedDate ? toDateStr(selectedDate) : null],
@@ -94,12 +118,9 @@ export function BookingWizard({
     },
   });
 
-  const today = new Date();
-  const maxDate = new Date();
-  maxDate.setDate(maxDate.getDate() + 60);
-
   const isDisabledDay = (day: Date) => {
     if (day < today) return true;
+    if (blockedSet.has(toDateStr(day))) return true;
     return !availableDays.includes(day.getDay());
   };
 
@@ -164,9 +185,20 @@ export function BookingWizard({
               <Loader2 className="h-6 w-6 animate-spin text-teal-500" />
             </div>
           ) : slots.length === 0 ? (
-            <p className="text-sm text-slate-500 text-center py-8">
-              Nenhum horário disponível neste dia.
-            </p>
+            <div className="text-center py-8 space-y-1">
+              {selectedDate && motivoMap.has(toDateStr(selectedDate)) ? (
+                <>
+                  <p className="text-sm font-medium text-rose-600">
+                    Profissional indisponível neste dia
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {motivoMap.get(toDateStr(selectedDate)) ?? "Não haverá atendimento neste dia."}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-slate-500">Nenhum horário disponível neste dia.</p>
+              )}
+            </div>
           ) : (
             <div className="grid grid-cols-3 gap-2">
               {slots.map((slot) => (
