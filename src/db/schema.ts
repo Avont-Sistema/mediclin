@@ -112,9 +112,14 @@ export const professionals = pgTable(
     nomeCompleto: varchar("nome_completo", { length: 255 }).notNull(),
     especialidade: varchar("especialidade", { length: 100 }).notNull(),
     registro: varchar("registro", { length: 30 }).notNull(), // CRM, CRO, etc.
+<<<<<<< HEAD
     headline: varchar("headline", { length: 160 }), // "Cuidando a Saúde com Odontologia!"
     headlineDestaque: varchar("headline_destaque", { length: 60 }), // palavra colorida ex: "Odontologia"
     bio: text("bio"), // limitar 2 linhas no front (~200 chars)
+=======
+    uf: varchar("uf", { length: 2 }), // Estado (SP, RJ, MG...)
+    bio: text("bio"),
+>>>>>>> cf8784e (feat: adiciona campo UF no onboarding e configuracoes do profissional)
     fotoUrl: text("foto_url"),
     telefoneWhatsapp: varchar("telefone_whatsapp", { length: 20 }),
     corPrimaria: varchar("cor_primaria", { length: 20 }).default("teal"), // teal, rose, indigo, etc.

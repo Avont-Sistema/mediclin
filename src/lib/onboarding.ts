@@ -54,6 +54,7 @@ const createProfessionalSchema = z.object({
   nomeCompleto: z.string().min(2).max(120),
   especialidade: z.string().min(2).max(80),
   registro: z.string().min(2).max(40), // CRM / CRO / etc.
+  uf: z.string().length(2).optional(),
   slug: z
     .string()
     .min(2)
@@ -88,6 +89,7 @@ export const createProfessional = createServerFn({ method: "POST" })
       nomeCompleto: data.nomeCompleto,
       especialidade: data.especialidade,
       registro: data.registro,
+      uf: data.uf ?? null,
       slug: data.slug,
       ativo: true,
       plano: data.plano,

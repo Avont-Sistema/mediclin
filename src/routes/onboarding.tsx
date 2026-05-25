@@ -23,6 +23,7 @@ function OnboardingPage() {
   const [nome, setNome] = useState("");
   const [especialidade, setEspecialidade] = useState("");
   const [registro, setRegistro] = useState("");
+  const [uf, setUf] = useState("");
   const [slug, setSlug] = useState("");
   const [slugStatus, setSlugStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
   const [submitting, setSubmitting] = useState(false);
@@ -79,7 +80,13 @@ function OnboardingPage() {
     setError(null);
     try {
       await createProfessional({
-        data: { nomeCompleto: nome, especialidade, registro, slug },
+        data: {
+          nomeCompleto: nome,
+          especialidade,
+          registro,
+          uf: uf || undefined,
+          slug,
+        },
       });
       await navigate({ to: "/dashboard" });
     } catch (err) {
@@ -178,6 +185,19 @@ function OnboardingPage() {
               />
             </Field>
 
+            <Field label="Estado (UF)">
+              <select
+                value={uf}
+                onChange={(e) => setUf(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition-all focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/20"
+              >
+                <option value="">Selecione o estado...</option>
+                {["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"].map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </Field>
+
             <button
               type="submit"
               disabled={!step1Complete}
@@ -270,6 +290,7 @@ function OnboardingPage() {
               <SummaryRow label="Nome" value={nome} />
               <SummaryRow label="Especialidade" value={especialidade} />
               <SummaryRow label="Registro" value={registro} />
+              {uf && <SummaryRow label="UF" value={uf} />}
               <SummaryRow label="Link público" value={publicUrl} mono />
             </div>
 

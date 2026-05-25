@@ -172,6 +172,7 @@ function ProfileTab({ data, onSaved }: { data: SettingsData; onSaved: () => void
     nomeCompleto: p.nomeCompleto,
     especialidade: p.especialidade,
     registro: p.registro,
+    uf: p.uf ?? "",
     bio: p.bio ?? "",
     fotoUrl: p.fotoUrl ?? "",
     telefoneWhatsapp: p.telefoneWhatsapp ?? "",
@@ -224,6 +225,19 @@ function ProfileTab({ data, onSaved }: { data: SettingsData; onSaved: () => void
           {field("Nome completo", "nomeCompleto", { placeholder: "Dr. João Silva" })}
           {field("Especialidade", "especialidade", { placeholder: "Cardiologia" })}
           {field("Registro (CRM/CRO)", "registro", { placeholder: "CRM 123456-SP" })}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Estado (UF)</label>
+            <select
+              value={form.uf}
+              onChange={(e) => setForm((f) => ({ ...f, uf: e.target.value }))}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none transition bg-white"
+            >
+              <option value="">Selecione...</option>
+              {["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"].map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
           {field("WhatsApp", "telefoneWhatsapp", {
             placeholder: "+5511999990000",
             hint: "Exibido no link público para reagendamentos",
