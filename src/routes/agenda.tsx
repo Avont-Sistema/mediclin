@@ -288,10 +288,12 @@ function AgendaContent() {
                   {HOURS.map(hour => (
                     <div
                       key={hour}
-                      className="absolute right-2 text-[11px] text-slate-400 tabular-nums leading-none"
-                      style={{ top: Math.max(2, (hour - START_HOUR) * HOUR_HEIGHT - 7) }}
+                      className="absolute inset-x-0 flex items-center justify-center"
+                      style={{ top: (hour - START_HOUR) * HOUR_HEIGHT, height: HOUR_HEIGHT }}
                     >
-                      {String(hour).padStart(2, "0")}:00
+                      <span className="text-[11px] text-slate-400 tabular-nums leading-none">
+                        {String(hour).padStart(2, "0")}:00
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -350,7 +352,7 @@ function AgendaContent() {
                           <button
                             key={appt.id}
                             onClick={() => setSelectedAppt(isSel ? null : appt)}
-                            className="absolute inset-x-0 mx-px rounded overflow-hidden text-left transition-all focus:outline-none hover:brightness-95 hover:shadow-md"
+                            className="absolute inset-x-0 rounded overflow-hidden text-left transition-all focus:outline-none hover:brightness-95 hover:shadow-md"
                             style={{
                               top: topPx + 1,
                               height: Math.min(heightPx - 2, TOTAL_HEIGHT - topPx - 2),
