@@ -395,7 +395,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
               )}
             </div>
 
-            {/* RIGHT: sticky dark summary panel */}
+            {/* RIGHT: sticky summary panel */}
             <div className="lg:sticky lg:top-6">
               <SummaryPanel
                 phase={phase}
@@ -806,8 +806,6 @@ function SummaryPanel({
   onConfirm: () => void;
   error?: string;
 }) {
-  const panelBg = `color-mix(in srgb, ${brand} 12%, #0a1420 88%)`;
-
   const service =
     phase.tag === "data" || phase.tag === "hora" || phase.tag === "confirmado"
       ? phase.service
@@ -824,13 +822,17 @@ function SummaryPanel({
   const profName = member?.nomeCompleto ?? professional.nomeCompleto;
 
   return (
-    <div className="rounded-2xl overflow-hidden text-white shadow-xl" style={{ background: panelBg }}>
-      <div className="px-6 pt-6 pb-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.15em] opacity-50 mb-1">SUA RESERVA</p>
-        <h3 className="text-lg font-bold leading-snug">Resumo do agendamento</h3>
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="px-6 pt-5 pb-4 border-b border-slate-100">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">
+          SUA RESERVA
+        </p>
+        <h3 className="text-base font-bold text-slate-900">Resumo do agendamento</h3>
       </div>
 
-      <div className="px-6 pb-4 space-y-3">
+      {/* Summary rows */}
+      <div className="px-6 py-4 space-y-3 border-b border-slate-100">
         <SummaryRow
           label="Especialidade"
           value={service ? (member?.especialidade ?? professional.especialidade) : undefined}
@@ -849,69 +851,77 @@ function SummaryPanel({
         />
       </div>
 
-      <div className="mx-5 rounded-xl px-4 py-3 mb-5" style={{ background: "rgba(255,255,255,0.07)" }}>
+      {/* Total */}
+      <div
+        className="mx-5 my-4 rounded-xl px-4 py-3"
+        style={{ backgroundColor: `${brand}18` }}
+      >
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: brand }}>
+          <span
+            className="text-[10px] font-bold uppercase tracking-widest"
+            style={{ color: brand }}
+          >
             VALOR TOTAL
           </span>
           {service ? (
-            <span className="text-xl font-black">{fmt(service.preco)}</span>
+            <span className="text-xl font-black text-slate-900">{fmt(service.preco)}</span>
           ) : (
-            <span className="font-bold text-sm opacity-30">——</span>
+            <span className="text-sm font-bold text-slate-300">——</span>
           )}
         </div>
       </div>
 
+      {/* Patient inputs */}
       <div className="px-5 space-y-3 pb-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider opacity-50 mb-1.5">NOME COMPLETO</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            NOME COMPLETO
+          </p>
           <input
             value={nome}
             onChange={(e) => setNome(e.target.value)}
             placeholder="Como está no RG"
-            className="w-full rounded-xl border border-white/15 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-white/30 transition"
-            style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition"
           />
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider opacity-50 mb-1.5">CELULAR / WHATSAPP</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            CELULAR / WHATSAPP
+          </p>
           <input
             value={telefone}
             onChange={(e) => setTelefone(e.target.value)}
             placeholder="(11) 99999-9999"
-            className="w-full rounded-xl border border-white/15 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-white/30 transition"
-            style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition"
           />
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider opacity-50 mb-1.5">
-            E-MAIL <span className="normal-case font-normal opacity-70">(opcional)</span>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            E-MAIL{" "}
+            <span className="normal-case font-normal text-slate-300">(opcional)</span>
           </p>
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="para envio de confirmação"
             type="email"
-            className="w-full rounded-xl border border-white/15 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-white/30 transition"
-            style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition"
           />
         </div>
       </div>
 
       {error && (
-        <p className="mx-5 mb-3 rounded-lg bg-rose-500/20 px-3 py-2 text-xs text-rose-200">{error}</p>
+        <p className="mx-5 mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">
+          {error}
+        </p>
       )}
 
       <div className="px-5 pb-6">
         <button
           disabled={!canConfirm || isConfirming}
           onClick={onConfirm}
-          className="w-full rounded-xl py-3.5 text-sm font-bold transition-all"
-          style={{
-            background: canConfirm ? brand : "rgba(255,255,255,0.12)",
-            color: canConfirm ? "#fff" : "rgba(255,255,255,0.4)",
-            cursor: canConfirm ? "pointer" : "not-allowed",
-          }}
+          className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ background: brand }}
         >
           {isConfirming ? (
             <span className="flex items-center justify-center gap-2">
@@ -927,7 +937,7 @@ function SummaryPanel({
         </button>
 
         {!canConfirm && phase.tag !== "idle" && (
-          <p className="mt-2 text-center text-[11px] opacity-40">
+          <p className="mt-2 text-center text-[11px] text-slate-400">
             {!service
               ? "Selecione um serviço"
               : !selectedSlot
@@ -936,7 +946,7 @@ function SummaryPanel({
           </p>
         )}
 
-        <div className="mt-4 flex items-center justify-center gap-4 opacity-40">
+        <div className="mt-4 flex items-center justify-center gap-4 text-slate-400">
           <span className="flex items-center gap-1 text-[10px]">
             <Shield className="h-3 w-3" /> Pagamento seguro
           </span>
@@ -951,12 +961,14 @@ function SummaryPanel({
 
 function SummaryRow({ label, value }: { label: string; value?: string }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-xs opacity-50 shrink-0">{label}</span>
+    <div className="flex items-start justify-between gap-3">
+      <span className="text-xs text-slate-400 shrink-0">{label}</span>
       {value ? (
-        <span className="text-xs font-semibold text-right max-w-[60%] leading-snug">{value}</span>
+        <span className="text-xs font-semibold text-slate-900 text-right max-w-[60%] leading-snug">
+          {value}
+        </span>
       ) : (
-        <span className="text-xs opacity-20 font-bold">——</span>
+        <span className="text-xs font-bold text-slate-200">——</span>
       )}
     </div>
   );
