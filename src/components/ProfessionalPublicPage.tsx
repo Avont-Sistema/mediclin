@@ -659,19 +659,23 @@ function StepDate({
       </button>
 
       <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-        <CalendarPicker
-          mode="single"
-          selected={selected}
-          onSelect={setSelected}
-          disabled={isDisabled}
-          fromDate={today}
-          toDate={maxDate}
-          className="w-full"
-        />
+        {/* isolate creates a new stacking context so z-10 on focused day
+            buttons never bleeds outside the calendar and over the button below */}
+        <div className="isolate">
+          <CalendarPicker
+            mode="single"
+            selected={selected}
+            onSelect={setSelected}
+            disabled={isDisabled}
+            fromDate={today}
+            toDate={maxDate}
+            className="w-full"
+          />
+        </div>
         <button
           disabled={!selected}
           onClick={() => selected && onNext(selected)}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition disabled:opacity-40"
+          className="relative mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition disabled:opacity-40"
           style={{ background: selected ? brand : "#94a3b8" }}
         >
           Continuar <ChevronRight className="h-4 w-4" />
