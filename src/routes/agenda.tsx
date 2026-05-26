@@ -280,11 +280,11 @@ function AgendaContent() {
               })}
             </div>
 
-            {/* Time grid */}
+            {/* Time grid — flex para containing block confiável */}
             <div className="overflow-x-auto">
-              <div className="min-w-[600px]" style={{ display: "grid", gridTemplateColumns: COL_TEMPLATE, height: TOTAL_HEIGHT }}>
-                {/* Hour labels */}
-                <div className="border-r border-slate-100 relative select-none">
+              <div className="flex min-w-[600px]" style={{ height: TOTAL_HEIGHT }}>
+                {/* Hour labels — 56px fixo alinhado com o CSS Grid do header */}
+                <div className="shrink-0 border-r border-slate-100 relative select-none" style={{ width: 56 }}>
                   {HOURS.map(hour => (
                     <div
                       key={hour}
@@ -309,7 +309,7 @@ function AgendaContent() {
                   return (
                     <div
                       key={day}
-                      className={`relative border-r border-slate-100 last:border-r-0 ${today ? "bg-teal-50/20" : ""}`}
+                      className={`flex-1 relative border-r border-slate-100 last:border-r-0 ${today ? "bg-teal-50/20" : ""}`}
                     >
                       {/* Horizontal hour lines */}
                       {HOURS.map(hour => (
@@ -356,7 +356,7 @@ function AgendaContent() {
                             style={{
                               position: "absolute",
                               left: 0,
-                              width: "100%",
+                              right: 0,
                               top: topPx + 1,
                               height: Math.min(heightPx - 2, TOTAL_HEIGHT - topPx - 2),
                               backgroundColor: cfg.bg,
