@@ -672,7 +672,7 @@ function StepDate({
               fromDate={today}
               toDate={maxDate}
               showOutsideDays={false}
-              className="[--cell-size:1.75rem]"
+              className="[--cell-size:2.25rem]"
             />
           </div>
         </div>
