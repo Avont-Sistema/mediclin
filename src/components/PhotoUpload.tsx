@@ -54,11 +54,16 @@ export function PhotoUpload({
       const form = new FormData();
       form.append("file", file);
       const res = await fetch("/api/upload-foto", { method: "POST", body: form });
+      // Guard: if response isn't JSON (e.g. unexpected HTML error page), surface a clean message
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        throw new Error(`Erro no servidor (${res.status}). Tente novamente.`);
+      }
       const json = await res.json() as { url?: string; error?: string };
-      if (!res.ok || !json.url) throw new Error(json.error ?? "Erro no upload");
+      if (!res.ok || !json.url) throw new Error(json.error ?? `Erro ${res.status} no upload`);
       onUploaded(json.url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro no upload");
+      setError(err instanceof Error ? err.message : "Erro no upload. Tente novamente.");
       setPreview(currentUrl); // roll back preview
     } finally {
       setUploading(false);
