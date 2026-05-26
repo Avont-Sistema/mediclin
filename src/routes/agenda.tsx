@@ -39,10 +39,12 @@ export const Route = createFileRoute("/agenda")({
 
 /** px height for one hour slot in the time grid */
 const HOUR_HEIGHT = 64;
-const START_HOUR = 7;
-const END_HOUR = 20;
+const START_HOUR = 8;   // matches reference (first visible row = 08:00)
+const END_HOUR = 19;    // last label = 18:00
 const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
-const TOTAL_HEIGHT = HOURS.length * HOUR_HEIGHT; // 13 * 64 = 832px
+const TOTAL_HEIGHT = HOURS.length * HOUR_HEIGHT; // 11 * 64 = 704px
+/** CSS grid template shared by header row + time-grid body */
+const COL_TEMPLATE = "56px repeat(7, 1fr)";
 const DAY_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 
 // ─── Status config ────────────────────────────────────────────────────────────
@@ -247,9 +249,9 @@ function AgendaContent() {
             <CalendarToolbar {...toolbarProps} />
 
             {/* Day header row */}
-            <div className="flex border-b border-slate-200">
+            <div className="border-b border-slate-200" style={{ display: "grid", gridTemplateColumns: COL_TEMPLATE }}>
               {/* HORA label */}
-              <div className="w-16 shrink-0 h-[52px] border-r border-slate-100 flex items-end pb-2 px-2">
+              <div className="h-[52px] border-r border-slate-100 flex items-end pb-2 px-2">
                 <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">HORA</span>
               </div>
               {/* Day columns */}
@@ -261,7 +263,7 @@ function AgendaContent() {
                 return (
                   <div
                     key={day}
-                    className={`flex-1 h-[52px] border-r border-slate-100 last:border-r-0 flex flex-col items-center justify-center gap-0.5 ${folga ? "bg-rose-50/40" : ""}`}
+                    className={`h-[52px] border-r border-slate-100 last:border-r-0 flex flex-col items-center justify-center gap-0.5 ${folga ? "bg-rose-50/40" : ""}`}
                   >
                     <span className={`text-[11px] font-semibold uppercase tracking-wide ${today ? "text-teal-600" : "text-slate-400"}`}>
                       {DAY_SHORT[date.getDay()]}
@@ -279,15 +281,15 @@ function AgendaContent() {
             </div>
 
             {/* Time grid */}
-            <div className="flex overflow-x-auto">
-              <div className="flex min-w-[600px] w-full" style={{ height: TOTAL_HEIGHT }}>
+            <div className="overflow-x-auto">
+              <div className="min-w-[600px]" style={{ display: "grid", gridTemplateColumns: COL_TEMPLATE, height: TOTAL_HEIGHT }}>
                 {/* Hour labels */}
-                <div className="w-16 shrink-0 border-r border-slate-100 relative select-none">
+                <div className="border-r border-slate-100 relative select-none">
                   {HOURS.map(hour => (
                     <div
                       key={hour}
-                      className="absolute right-2 text-[11px] text-slate-400 tabular-nums"
-                      style={{ top: (hour - START_HOUR) * HOUR_HEIGHT + 4 }}
+                      className="absolute right-2 text-[11px] text-slate-400 tabular-nums leading-none"
+                      style={{ top: Math.max(2, (hour - START_HOUR) * HOUR_HEIGHT - 7) }}
                     >
                       {String(hour).padStart(2, "0")}:00
                     </div>
@@ -305,7 +307,7 @@ function AgendaContent() {
                   return (
                     <div
                       key={day}
-                      className={`flex-1 relative border-r border-slate-100 last:border-r-0 ${today ? "bg-teal-50/20" : ""}`}
+                      className={`relative border-r border-slate-100 last:border-r-0 ${today ? "bg-teal-50/20" : ""}`}
                     >
                       {/* Horizontal hour lines */}
                       {HOURS.map(hour => (
@@ -348,7 +350,7 @@ function AgendaContent() {
                           <button
                             key={appt.id}
                             onClick={() => setSelectedAppt(isSel ? null : appt)}
-                            className="absolute left-0.5 right-0.5 rounded overflow-hidden text-left transition-all focus:outline-none hover:brightness-95 hover:shadow-md"
+                            className="absolute inset-x-0 mx-px rounded overflow-hidden text-left transition-all focus:outline-none hover:brightness-95 hover:shadow-md"
                             style={{
                               top: topPx + 1,
                               height: Math.min(heightPx - 2, TOTAL_HEIGHT - topPx - 2),
