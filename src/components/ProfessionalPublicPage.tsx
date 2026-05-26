@@ -658,10 +658,11 @@ function StepDate({
         Voltar aos serviços
       </button>
 
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-        {/* isolate creates a new stacking context so z-10 on focused day
-            buttons never bleeds outside the calendar and over the button below */}
-        <div className="isolate">
+      {/* Calendar and button are separate stacking layers so the calendar's
+          positioned day cells (position:relative on every .day) can never
+          bleed over the button even on 6-week months */}
+      <div className="space-y-3">
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
           <CalendarPicker
             mode="single"
             selected={selected}
@@ -675,7 +676,7 @@ function StepDate({
         <button
           disabled={!selected}
           onClick={() => selected && onNext(selected)}
-          className="relative mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition disabled:opacity-40"
+          className="relative z-10 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition disabled:opacity-40"
           style={{ background: selected ? brand : "#94a3b8" }}
         >
           Continuar <ChevronRight className="h-4 w-4" />
