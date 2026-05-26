@@ -352,8 +352,11 @@ function AgendaContent() {
                           <button
                             key={appt.id}
                             onClick={() => setSelectedAppt(isSel ? null : appt)}
-                            className="absolute inset-x-0 rounded overflow-hidden text-left transition-all focus:outline-none hover:brightness-95 hover:shadow-md"
+                            className="rounded overflow-hidden text-left transition-all focus:outline-none hover:brightness-95 hover:shadow-md"
                             style={{
+                              position: "absolute",
+                              left: 0,
+                              width: "100%",
                               top: topPx + 1,
                               height: Math.min(heightPx - 2, TOTAL_HEIGHT - topPx - 2),
                               backgroundColor: cfg.bg,
