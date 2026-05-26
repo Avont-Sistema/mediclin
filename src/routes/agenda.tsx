@@ -44,7 +44,7 @@ const END_HOUR = 19;    // last label = 18:00
 const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
 const TOTAL_HEIGHT = HOURS.length * HOUR_HEIGHT; // 11 * 64 = 704px
 /** CSS grid template shared by header row + time-grid body */
-const COL_TEMPLATE = "56px repeat(7, 1fr)";
+const COL_TEMPLATE = "56px repeat(7, minmax(0, 1fr))";
 const DAY_SHORT = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 
 // ─── Status config ────────────────────────────────────────────────────────────
@@ -309,7 +309,8 @@ function AgendaContent() {
                   return (
                     <div
                       key={day}
-                      className={`flex-1 relative border-r border-slate-100 last:border-r-0 ${today ? "bg-teal-50/20" : ""}`}
+                      className={`relative border-r border-slate-100 last:border-r-0 ${today ? "bg-teal-50/20" : ""}`}
+                      style={{ flex: "1 1 0", minWidth: 0 }}
                     >
                       {/* Horizontal hour lines */}
                       {HOURS.map(hour => (
@@ -339,7 +340,7 @@ function AgendaContent() {
                         </div>
                       )}
 
-                      {/* Appointment blocks */}
+                      {/* Appointment blocks — wrapper div absoluto + button w-full */}
                       {appts.map(appt => {
                         const start = new Date(appt.inicio);
                         const startMins = start.getHours() * 60 + start.getMinutes();
@@ -348,41 +349,49 @@ function AgendaContent() {
                         if (topPx < 0 || topPx >= TOTAL_HEIGHT) return null;
                         const cfg = STATUS_CFG[appt.status as DBStatus] ?? STATUS_CFG.confirmado;
                         const isSel = selectedAppt?.id === appt.id;
+                        const actualHeight = Math.min(heightPx - 2, TOTAL_HEIGHT - topPx - 2);
                         return (
-                          <button
+                          <div
                             key={appt.id}
-                            onClick={() => setSelectedAppt(isSel ? null : appt)}
-                            className="rounded overflow-hidden text-left transition-all focus:outline-none hover:brightness-95 hover:shadow-md"
                             style={{
                               position: "absolute",
+                              top: topPx + 1,
                               left: 0,
                               right: 0,
-                              top: topPx + 1,
-                              height: Math.min(heightPx - 2, TOTAL_HEIGHT - topPx - 2),
-                              backgroundColor: cfg.bg,
-                              borderLeft: `3px solid ${cfg.border}`,
-                              outline: isSel ? `2px solid ${cfg.border}` : "none",
-                              outlineOffset: 1,
+                              width: "auto",
+                              height: actualHeight,
                               zIndex: isSel ? 5 : 2,
+                              padding: "0 1px",
                             }}
                           >
-                            <div className="px-1.5 py-0.5 h-full overflow-hidden">
-                              <p
-                                className="text-[11px] font-semibold leading-tight truncate"
-                                style={{
-                                  color: cfg.text,
-                                  textDecoration: appt.status === "cancelado" ? "line-through" : "none",
-                                }}
-                              >
-                                {appt.patient.nome.split(" ")[0]} · {appt.service.nome}
-                              </p>
-                              {heightPx > 44 && (
-                                <p className="text-[10px] leading-tight opacity-70" style={{ color: cfg.text }}>
-                                  {toHHMM(start)}
+                            <button
+                              onClick={() => setSelectedAppt(isSel ? null : appt)}
+                              className="block w-full h-full rounded overflow-hidden text-left transition-all focus:outline-none hover:brightness-95 hover:shadow-md"
+                              style={{
+                                backgroundColor: cfg.bg,
+                                borderLeft: `3px solid ${cfg.border}`,
+                                outline: isSel ? `2px solid ${cfg.border}` : "none",
+                                outlineOffset: 1,
+                              }}
+                            >
+                              <div className="px-1.5 py-0.5 h-full overflow-hidden">
+                                <p
+                                  className="text-[11px] font-semibold leading-tight truncate"
+                                  style={{
+                                    color: cfg.text,
+                                    textDecoration: appt.status === "cancelado" ? "line-through" : "none",
+                                  }}
+                                >
+                                  {appt.patient.nome.split(" ")[0]} · {appt.service.nome}
                                 </p>
-                              )}
-                            </div>
-                          </button>
+                                {heightPx > 44 && (
+                                  <p className="text-[10px] leading-tight opacity-70" style={{ color: cfg.text }}>
+                                    {toHHMM(start)}
+                                  </p>
+                                )}
+                              </div>
+                            </button>
+                          </div>
                         );
                       })}
                     </div>
