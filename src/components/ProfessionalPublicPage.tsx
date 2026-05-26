@@ -658,20 +658,23 @@ function StepDate({
         Voltar aos serviços
       </button>
 
-      {/* Calendar and button are separate stacking layers so the calendar's
-          positioned day cells (position:relative on every .day) can never
-          bleed over the button even on 6-week months */}
       <div className="space-y-3">
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <CalendarPicker
-            mode="single"
-            selected={selected}
-            onSelect={setSelected}
-            disabled={isDisabled}
-            fromDate={today}
-            toDate={maxDate}
-            className="w-full"
-          />
+        {/* overflow-hidden prevents any cell from leaking outside the card boundary */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          {/* flex justify-center + no w-full → cells use natural --cell-size (1.75rem)
+              instead of stretching to fill the container, keeping height predictable */}
+          <div className="flex justify-center py-4 px-2">
+            <CalendarPicker
+              mode="single"
+              selected={selected}
+              onSelect={setSelected}
+              disabled={isDisabled}
+              fromDate={today}
+              toDate={maxDate}
+              showOutsideDays={false}
+              className="[--cell-size:1.75rem]"
+            />
+          </div>
         </div>
         <button
           disabled={!selected}
