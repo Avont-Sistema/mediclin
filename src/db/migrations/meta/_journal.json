@@ -8,6 +8,55 @@
       "when": 1779331356961,
       "tag": "0000_smooth_clint_barton",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1779331356962,
+      "tag": "0001_mp_marketplace",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779331356963,
+      "tag": "0002_lembretes",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1779331356964,
+      "tag": "0003_customizacao_publica",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1779331356965,
+      "tag": "0003_pagina_publica_cards",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1779331356966,
+      "tag": "0004_clinic_members",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1779331356967,
+      "tag": "0005_add_uf",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1779331356968,
+      "tag": "0006_add_cor_destaque",
+      "breakpoints": true
     }
   ]
 }
