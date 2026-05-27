@@ -35,6 +35,29 @@ function formatCurrency(v: string | number) {
   return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+/** Aplica máscara brasileira: +55 (XX) XXXXX-XXXX ou +55 (XX) XXXX-XXXX */
+function maskPhone(raw: string): string {
+  // Extrai apenas dígitos
+  let d = raw.replace(/\D/g, "");
+  // Remove código do país se o usuário já digitou (ex: "55119...")
+  if (d.startsWith("55") && d.length > 11) d = d.slice(2);
+  // Limita a 11 dígitos (DDD 2 + número 9)
+  d = d.slice(0, 11);
+  if (d.length === 0) return "";
+  if (d.length <= 2) return `+55 (${d}`;
+  if (d.length <= 6) return `+55 (${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `+55 (${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `+55 (${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
+/** Telefone válido = DDD (2) + número (8 ou 9 dígitos) = 10 ou 11 dígitos */
+function isValidPhone(v: string): boolean {
+  const digits = v.replace(/\D/g, "");
+  // Remove código do país para contar apenas DDD + número
+  const local = digits.startsWith("55") && digits.length >= 12 ? digits.slice(2) : digits;
+  return local.length >= 10 && local.length <= 11;
+}
+
 export function BookingWizard({
   professionalId,
   service,
@@ -48,6 +71,7 @@ export function BookingWizard({
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
+  const [phoneTouched, setPhoneTouched] = useState(false);
 
   // ── Date range for booking window (60 days ahead) ──────────────────────────
   const today = new Date();
@@ -264,10 +288,16 @@ export function BookingWizard({
               <Input
                 id="telefone"
                 value={telefone}
-                onChange={(e) => setTelefone(e.target.value)}
-                placeholder="+55 11 99999-9999"
-                className="mt-1"
+                onChange={(e) => setTelefone(maskPhone(e.target.value))}
+                onBlur={() => setPhoneTouched(true)}
+                placeholder="+55 (11) 99999-9999"
+                className={`mt-1 ${phoneTouched && !isValidPhone(telefone) && telefone ? "border-rose-400 focus-visible:ring-rose-400" : ""}`}
               />
+              {phoneTouched && telefone && !isValidPhone(telefone) && (
+                <p className="mt-1 text-xs text-rose-500">
+                  Insira um telefone válido com DDD — ex: +55 (11) 99999-9999
+                </p>
+              )}
             </div>
           </div>
 
@@ -299,7 +329,7 @@ export function BookingWizard({
 
           <Button
             className="mt-4 w-full bg-teal-600 hover:bg-teal-700"
-            disabled={!nome || !email || !telefone || isPending}
+            disabled={!nome || !email || !isValidPhone(telefone) || isPending}
             onClick={() => booking.mutate()}
           >
             {isPending ? (
