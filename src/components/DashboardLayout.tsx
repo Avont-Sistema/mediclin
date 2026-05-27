@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   Globe,
+  LifeBuoy,
 } from "lucide-react";
 import { fetchCurrentProfessional } from "../lib/auth";
 
@@ -29,6 +30,7 @@ const NAV_ITEMS: NavItem[] = [
   { kind: "link", icon: Globe, label: "Página Pública", href: "/pagina-publica" },
   { kind: "stub", icon: Wallet, label: "Financeiro", badge: "Em breve" },
   { kind: "link", icon: Settings, label: "Configurações", href: "/settings" },
+  { kind: "link", icon: LifeBuoy, label: "Suporte", href: "/suporte" },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
