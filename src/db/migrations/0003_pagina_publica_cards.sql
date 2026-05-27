@@ -14,11 +14,17 @@ EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;
 
+--> statement-breakpoint
 -- Novos campos no profissional para a página pública redesenhada
 ALTER TABLE "professionals" ADD COLUMN IF NOT EXISTS "headline" varchar(160);
+
+--> statement-breakpoint
 ALTER TABLE "professionals" ADD COLUMN IF NOT EXISTS "headline_destaque" varchar(60);
+
+--> statement-breakpoint
 ALTER TABLE "professionals" ADD COLUMN IF NOT EXISTS "cor_primaria" varchar(20) DEFAULT 'teal';
 
+--> statement-breakpoint
 -- Tabela de cards customizáveis
 CREATE TABLE IF NOT EXISTS "professional_cards" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -33,5 +39,6 @@ CREATE TABLE IF NOT EXISTS "professional_cards" (
   "atualizado_em" timestamp DEFAULT now() NOT NULL
 );
 
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "cards_professional_idx"
   ON "professional_cards" ("professional_id", "ordem");

@@ -15,6 +15,7 @@ const MIGRATIONS = [
   "./migrations/0001_mp_marketplace.sql",
   "./migrations/0002_lembretes.sql",
   "./migrations/0003_customizacao_publica.sql",
+  "./migrations/0003_pagina_publica_cards.sql",
   "./migrations/0004_clinic_members.sql",
   "./migrations/0005_add_uf.sql",
   "./migrations/0006_add_cor_destaque.sql",
