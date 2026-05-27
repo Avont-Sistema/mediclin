@@ -25,7 +25,7 @@ jobs:
       - name: Chama Deploy Hook
         run: |
           response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST \
-            "https://api.vercel.com/v1/integrations/deploy/prj_Wo2Oroi6QJzJo0lvUmgL2NVTCLto/HP9dxUj4Ij")
+            "https://api.vercel.com/v1/integrations/deploy/prj_Wo2Oroi6QJzJo0lvUmgL2NVTCLto/kOfiy1GZVs")
           status=$(echo "$response" | grep -oP '(?<=HTTP_STATUS:)\d+')
           body=$(echo "$response" | sed '/HTTP_STATUS:/d')
           echo "Status: $status"
