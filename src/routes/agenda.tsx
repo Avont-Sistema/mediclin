@@ -18,6 +18,7 @@ import {
   Search,
   Bell,
   X,
+  SlidersHorizontal,
 } from "lucide-react";
 import { z } from "zod";
 import { DashboardLayout } from "../components/DashboardLayout";
@@ -26,6 +27,7 @@ import type { AgendaAppointment } from "../lib/agenda";
 import { listFolgas, removeFolga, type FolgaBlock } from "../lib/folga";
 import { ModoFolgaModal } from "../components/ModoFolgaModal";
 import { NovoAgendamentoModal } from "../components/NovoAgendamentoModal";
+import { DisponibilidadeModal } from "../components/DisponibilidadeModal";
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
@@ -113,6 +115,7 @@ function AgendaContent() {
   const [selectedAppt, setSelectedAppt] = useState<AgendaAppointment | null>(null);
   const [showFolga, setShowFolga] = useState(false);
   const [showNewAppt, setShowNewAppt] = useState(false);
+  const [showDisponibilidade, setShowDisponibilidade] = useState(false);
   const [view, setView] = useState<ViewMode>("semana");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -215,6 +218,13 @@ function AgendaContent() {
           </div>
 
           <div className="ml-auto flex items-center gap-1.5">
+            <button
+              onClick={() => setShowDisponibilidade(true)}
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 h-9 text-xs font-semibold rounded-xl border border-teal-200 bg-teal-50 hover:bg-teal-100 text-teal-700 transition"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Disponibilidade
+            </button>
             <button
               onClick={() => setShowFolga(true)}
               className="hidden sm:inline-flex items-center gap-1.5 px-3 h-9 text-xs font-semibold rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 transition"
@@ -432,6 +442,7 @@ function AgendaContent() {
 
       <ModoFolgaModal open={showFolga} onClose={() => setShowFolga(false)} />
       <NovoAgendamentoModal open={showNewAppt} onClose={() => setShowNewAppt(false)} />
+      <DisponibilidadeModal open={showDisponibilidade} onClose={() => setShowDisponibilidade(false)} />
     </DashboardLayout>
   );
 }
@@ -475,7 +486,7 @@ function CalendarToolbar({
       <div className="ml-auto flex items-center gap-3">
         {/* View switcher */}
         <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs font-medium">
-          {(["Dia", "Semana", "Mês", "Lista"] as const).map(label => {
+          {(["Semana", "Lista"] as const).map(label => {
             const active =
               (label === "Semana" && view === "semana") ||
               (label === "Lista"  && view === "lista");
