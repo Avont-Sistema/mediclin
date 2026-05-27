@@ -73,13 +73,14 @@ export const createMPPreference = createServerFn({ method: "POST" })
 // ─── Gerar link OAuth para o médico conectar conta MP ────────────────────────
 
 export const createMPOAuthLink = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ professionalId: z.string() }))
+  .inputValidator(z.object({ professionalId: z.string(), redirectPath: z.string().optional() }))
   .handler(async ({ data }) => {
     const appId = process.env.MERCADOPAGO_APP_ID;
     if (!appId) throw new Error("MERCADOPAGO_APP_ID não configurado");
 
     const origin = new URL(getWebRequest().url).origin;
-    const redirectUri = encodeURIComponent(`${origin}/dashboard`);
+    const path = data.redirectPath ?? "/dashboard";
+    const redirectUri = encodeURIComponent(`${origin}${path}`);
 
     const url = `https://auth.mercadopago.com.br/authorization?client_id=${appId}&response_type=code&platform_id=mp&state=${data.professionalId}&redirect_uri=${redirectUri}`;
 
@@ -89,13 +90,16 @@ export const createMPOAuthLink = createServerFn({ method: "POST" })
 // ─── Trocar código OAuth pelo access_token do médico ─────────────────────────
 
 export const activateMPAccount = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ code: z.string(), professionalId: z.string() }))
+  .inputValidator(
+    z.object({ code: z.string(), professionalId: z.string(), redirectPath: z.string().optional() }),
+  )
   .handler(async ({ data }) => {
     const clientId = process.env.MERCADOPAGO_APP_ID;
     const clientSecret = process.env.MERCADOPAGO_APP_SECRET;
     if (!clientId || !clientSecret) throw new Error("Credenciais MP não configuradas");
 
     const origin = new URL(getWebRequest().url).origin;
+    const path = data.redirectPath ?? "/dashboard";
 
     const response = await fetch("https://api.mercadopago.com/oauth/token", {
       method: "POST",
@@ -105,7 +109,7 @@ export const activateMPAccount = createServerFn({ method: "POST" })
         client_secret: clientSecret,
         grant_type: "authorization_code",
         code: data.code,
-        redirect_uri: `${origin}/dashboard`,
+        redirect_uri: `${origin}${path}`,
       }),
     });
 

@@ -17,6 +17,7 @@ import { Route as PatientsRouteImport } from './routes/patients'
 import { Route as PaginaPublicaRouteImport } from './routes/pagina-publica'
 import { Route as OnboardingPreviewRouteImport } from './routes/onboarding-preview'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as FinanceiroRouteImport } from './routes/financeiro'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AgendaRouteImport } from './routes/agenda'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -63,6 +64,11 @@ const OnboardingRoute = OnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FinanceiroRoute = FinanceiroRouteImport.update({
+  id: '/financeiro',
+  path: '/financeiro',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/agenda': typeof AgendaRoute
   '/dashboard': typeof DashboardRoute
+  '/financeiro': typeof FinanceiroRoute
   '/onboarding': typeof OnboardingRoute
   '/onboarding-preview': typeof OnboardingPreviewRoute
   '/pagina-publica': typeof PaginaPublicaRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/agenda': typeof AgendaRoute
   '/dashboard': typeof DashboardRoute
+  '/financeiro': typeof FinanceiroRoute
   '/onboarding': typeof OnboardingRoute
   '/onboarding-preview': typeof OnboardingPreviewRoute
   '/pagina-publica': typeof PaginaPublicaRoute
@@ -126,6 +134,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/agenda': typeof AgendaRoute
   '/dashboard': typeof DashboardRoute
+  '/financeiro': typeof FinanceiroRoute
   '/onboarding': typeof OnboardingRoute
   '/onboarding-preview': typeof OnboardingPreviewRoute
   '/pagina-publica': typeof PaginaPublicaRoute
@@ -143,6 +152,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/agenda'
     | '/dashboard'
+    | '/financeiro'
     | '/onboarding'
     | '/onboarding-preview'
     | '/pagina-publica'
@@ -158,6 +168,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/agenda'
     | '/dashboard'
+    | '/financeiro'
     | '/onboarding'
     | '/onboarding-preview'
     | '/pagina-publica'
@@ -173,6 +184,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/agenda'
     | '/dashboard'
+    | '/financeiro'
     | '/onboarding'
     | '/onboarding-preview'
     | '/pagina-publica'
@@ -189,6 +201,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AgendaRoute: typeof AgendaRoute
   DashboardRoute: typeof DashboardRoute
+  FinanceiroRoute: typeof FinanceiroRoute
   OnboardingRoute: typeof OnboardingRoute
   OnboardingPreviewRoute: typeof OnboardingPreviewRoute
   PaginaPublicaRoute: typeof PaginaPublicaRoute
@@ -264,6 +277,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/financeiro': {
+      id: '/financeiro'
+      path: '/financeiro'
+      fullPath: '/financeiro'
+      preLoaderRoute: typeof FinanceiroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/agenda': {
       id: '/agenda'
       path: '/agenda'
@@ -301,6 +321,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AgendaRoute: AgendaRoute,
   DashboardRoute: DashboardRoute,
+  FinanceiroRoute: FinanceiroRoute,
   OnboardingRoute: OnboardingRoute,
   OnboardingPreviewRoute: OnboardingPreviewRoute,
   PaginaPublicaRoute: PaginaPublicaRoute,
