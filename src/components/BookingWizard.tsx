@@ -184,12 +184,6 @@ export function BookingWizard({
             fromDate={today}
             toDate={maxDate}
             locale={ptBR}
-            formatters={{
-              formatCaption: (month) =>
-                month.toLocaleString("pt-BR", { month: "long", year: "numeric" }),
-              formatWeekdayName: (weekday) =>
-                weekday.toLocaleString("pt-BR", { weekday: "short" }).replace(".", ""),
-            }}
             className="rounded-xl border border-slate-200 bg-white p-3 w-full"
           />
           <Button
