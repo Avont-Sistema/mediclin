@@ -164,7 +164,6 @@ function ProfileTab({ data, onSaved }: { data: SettingsData; onSaved: () => void
     fotoUrl: p.fotoUrl ?? "",
     telefoneWhatsapp: p.telefoneWhatsapp ?? "",
     slug: p.slug,
-    plano: p.plano as "free" | "pro" | "clinic",
   });
   const [saved, setSaved] = useState(false);
 
@@ -277,34 +276,6 @@ function ProfileTab({ data, onSaved }: { data: SettingsData; onSaved: () => void
           textarea: true,
           placeholder: "Breve apresentação exibida no seu perfil público...",
         })}
-
-        {/* Plano */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">Plano MediClin</label>
-          <div className="grid grid-cols-3 gap-2">
-            {(
-              [
-                { value: "free", label: "Gratuito", desc: "1 profissional, serviços ilimitados" },
-                { value: "pro", label: "Pro", desc: "Tudo do gratuito + pagamentos online" },
-                { value: "clinic", label: "Clínica", desc: "Múltiplos profissionais na equipe" },
-              ] as const
-            ).map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, plano: opt.value }))}
-                className={`rounded-xl border p-3 text-left transition ${
-                  form.plano === opt.value
-                    ? "border-teal-400 bg-teal-50 ring-2 ring-teal-100"
-                    : "border-slate-200 hover:border-slate-300"
-                }`}
-              >
-                <p className="text-sm font-semibold text-slate-900">{opt.label}</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">{opt.desc}</p>
-              </button>
-            ))}
-          </div>
-        </div>
 
         <div className="flex items-center justify-between pt-2 border-t border-slate-100">
           <a
