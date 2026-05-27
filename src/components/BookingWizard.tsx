@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { ptBR } from "date-fns/locale";
 import { Calendar } from "./ui/calendar";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -182,6 +183,7 @@ export function BookingWizard({
             disabled={isDisabledDay}
             fromDate={today}
             toDate={maxDate}
+            locale={ptBR}
             className="rounded-xl border border-slate-200 bg-white p-3 w-full"
           />
           <Button

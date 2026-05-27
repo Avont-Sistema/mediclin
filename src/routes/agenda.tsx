@@ -67,12 +67,14 @@ type ViewMode = "semana" | "lista";
 
 function todayMonday() { return getMonday(new Date()); }
 
-function toHHMM(d: Date) {
-  return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false });
+function toHHMM(d: Date | string): string {
+  const date = d instanceof Date ? d : new Date(String(d));
+  return `${String(date.getUTCHours()).padStart(2, "0")}:${String(date.getUTCMinutes()).padStart(2, "0")}`;
 }
 
 function isToday(dateStr: string) {
-  return dateStr === new Date().toISOString().split("T")[0];
+  const now = new Date();
+  return dateStr === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
 function weekRangeLabel(weekStart: string) {
@@ -353,7 +355,7 @@ function AgendaContent() {
                       {/* Appointment blocks — wrapper div absoluto + button w-full */}
                       {appts.map(appt => {
                         const start = new Date(appt.inicio);
-                        const startMins = start.getHours() * 60 + start.getMinutes();
+                        const startMins = start.getUTCHours() * 60 + start.getUTCMinutes();
                         const topPx   = (startMins - START_HOUR * 60) * (HOUR_HEIGHT / 60);
                         const heightPx = Math.max(appt.service.duracaoMinutos * (HOUR_HEIGHT / 60), 26);
                         if (topPx < 0 || topPx >= TOTAL_HEIGHT) return null;
