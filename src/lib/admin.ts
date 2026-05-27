@@ -73,9 +73,8 @@ export const fetchAdminOverview = createServerFn({ method: "GET" }).handler(
         ativo: p.ativo,
         servicesCount: p.services.length,
         appointmentsTotal: p.appointments.length,
-        appointmentsHoje: p.appointments.filter(
-          (a) => a.inicio >= hoje && a.inicio < amanha,
-        ).length,
+        appointmentsHoje: p.appointments.filter((a) => a.inicio >= hoje && a.inicio < amanha)
+          .length,
       })),
       totals: {
         professionals: profs.length,
@@ -153,13 +152,55 @@ export const runSeed = createServerFn({ method: "POST" }).handler(async () => {
     .returning();
 
   await db.insert(services).values([
-    { professionalId: profRicardo.id, nome: "Consulta Cardiológica", descricao: "Avaliação completa com ECG.", preco: "450.00", duracaoMinutos: 60 },
-    { professionalId: profRicardo.id, nome: "Eletrocardiograma", descricao: "Laudo em até 24h.", preco: "160.00", duracaoMinutos: 30 },
-    { professionalId: profRicardo.id, nome: "Ecocardiograma", descricao: "Ultrassonografia do coração.", preco: "520.00", duracaoMinutos: 45 },
-    { professionalId: profAna.id, nome: "Limpeza e Profilaxia", descricao: "Limpeza profissional com remoção de tártaro.", preco: "200.00", duracaoMinutos: 60 },
-    { professionalId: profAna.id, nome: "Clareamento Dental", descricao: "Resultado visível na 1ª sessão.", preco: "1200.00", duracaoMinutos: 90 },
-    { professionalId: profJoao.id, nome: "Avaliação Nutrológica", descricao: "Consulta completa com bioimpedância.", preco: "500.00", duracaoMinutos: 60 },
-    { professionalId: profJoao.id, nome: "Retorno", descricao: "Ajuste do plano alimentar.", preco: "280.00", duracaoMinutos: 30 },
+    {
+      professionalId: profRicardo.id,
+      nome: "Consulta Cardiológica",
+      descricao: "Avaliação completa com ECG.",
+      preco: "450.00",
+      duracaoMinutos: 60,
+    },
+    {
+      professionalId: profRicardo.id,
+      nome: "Eletrocardiograma",
+      descricao: "Laudo em até 24h.",
+      preco: "160.00",
+      duracaoMinutos: 30,
+    },
+    {
+      professionalId: profRicardo.id,
+      nome: "Ecocardiograma",
+      descricao: "Ultrassonografia do coração.",
+      preco: "520.00",
+      duracaoMinutos: 45,
+    },
+    {
+      professionalId: profAna.id,
+      nome: "Limpeza e Profilaxia",
+      descricao: "Limpeza profissional com remoção de tártaro.",
+      preco: "200.00",
+      duracaoMinutos: 60,
+    },
+    {
+      professionalId: profAna.id,
+      nome: "Clareamento Dental",
+      descricao: "Resultado visível na 1ª sessão.",
+      preco: "1200.00",
+      duracaoMinutos: 90,
+    },
+    {
+      professionalId: profJoao.id,
+      nome: "Avaliação Nutrológica",
+      descricao: "Consulta completa com bioimpedância.",
+      preco: "500.00",
+      duracaoMinutos: 60,
+    },
+    {
+      professionalId: profJoao.id,
+      nome: "Retorno",
+      descricao: "Ajuste do plano alimentar.",
+      preco: "280.00",
+      duracaoMinutos: 30,
+    },
   ]);
 
   await db.insert(availabilityRules).values([

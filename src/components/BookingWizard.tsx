@@ -91,10 +91,7 @@ export function BookingWizard({
     queryFn: () => fetchBlockedDates({ data: { professionalId, fromDate, toDate } }),
   });
 
-  const blockedSet = useMemo(
-    () => new Set(blockedDates.map((b) => b.dateStr)),
-    [blockedDates],
-  );
+  const blockedSet = useMemo(() => new Set(blockedDates.map((b) => b.dateStr)), [blockedDates]);
 
   const motivoMap = useMemo(() => {
     const m = new Map<string, string | null>();

@@ -38,7 +38,12 @@ import { fetchCurrentProfessional } from "../lib/auth";
 import { checkOnboardingStatus } from "../lib/onboarding";
 import { createMPOAuthLink, activateMPAccount } from "../lib/mercadopago";
 import { createMPSubscriptionCheckout, getMPSubscriptionPortalUrl } from "../lib/mp-subscription";
-import { fetchDashboardData, type DashboardData, type SubscriptionInfo, type UpcomingAppt } from "../lib/dashboard";
+import {
+  fetchDashboardData,
+  type DashboardData,
+  type SubscriptionInfo,
+  type UpcomingAppt,
+} from "../lib/dashboard";
 import { DashboardLayout } from "../components/DashboardLayout";
 import { NovoAgendamentoModal } from "../components/NovoAgendamentoModal";
 import { updateAppointmentStatus } from "../lib/agenda";
@@ -140,24 +145,64 @@ type ActionDef = { label: string; action: DbAction; icon: LucideIcon; cls: strin
 
 const APPT_ACTIONS: Record<Appt["status"], ActionDef[]> = {
   aguardando: [
-    { label: "Confirmar", action: "confirmado", icon: CheckCircle2, cls: "text-blue-600 hover:bg-blue-50" },
+    {
+      label: "Confirmar",
+      action: "confirmado",
+      icon: CheckCircle2,
+      cls: "text-blue-600 hover:bg-blue-50",
+    },
     { label: "No-show", action: "no_show", icon: UserX, cls: "text-amber-600 hover:bg-amber-50" },
-    { label: "Cancelar", action: "cancelado", icon: XCircle, cls: "text-rose-600 hover:bg-rose-50" },
+    {
+      label: "Cancelar",
+      action: "cancelado",
+      icon: XCircle,
+      cls: "text-rose-600 hover:bg-rose-50",
+    },
   ],
   confirmado: [
-    { label: "Concluir", action: "concluido", icon: CheckCircle2, cls: "text-emerald-600 hover:bg-emerald-50" },
+    {
+      label: "Concluir",
+      action: "concluido",
+      icon: CheckCircle2,
+      cls: "text-emerald-600 hover:bg-emerald-50",
+    },
     { label: "No-show", action: "no_show", icon: UserX, cls: "text-amber-600 hover:bg-amber-50" },
-    { label: "Cancelar", action: "cancelado", icon: XCircle, cls: "text-rose-600 hover:bg-rose-50" },
+    {
+      label: "Cancelar",
+      action: "cancelado",
+      icon: XCircle,
+      cls: "text-rose-600 hover:bg-rose-50",
+    },
   ],
   "em-andamento": [
-    { label: "Concluir", action: "concluido", icon: CheckCircle2, cls: "text-emerald-600 hover:bg-emerald-50" },
-    { label: "Cancelar", action: "cancelado", icon: XCircle, cls: "text-rose-600 hover:bg-rose-50" },
+    {
+      label: "Concluir",
+      action: "concluido",
+      icon: CheckCircle2,
+      cls: "text-emerald-600 hover:bg-emerald-50",
+    },
+    {
+      label: "Cancelar",
+      action: "cancelado",
+      icon: XCircle,
+      cls: "text-rose-600 hover:bg-rose-50",
+    },
   ],
   concluido: [
-    { label: "Reabrir", action: "confirmado", icon: RotateCcw, cls: "text-slate-600 hover:bg-slate-50" },
+    {
+      label: "Reabrir",
+      action: "confirmado",
+      icon: RotateCcw,
+      cls: "text-slate-600 hover:bg-slate-50",
+    },
   ],
   cancelado: [
-    { label: "Reabrir", action: "confirmado", icon: RotateCcw, cls: "text-slate-600 hover:bg-slate-50" },
+    {
+      label: "Reabrir",
+      action: "confirmado",
+      icon: RotateCcw,
+      cls: "text-slate-600 hover:bg-slate-50",
+    },
   ],
 };
 
@@ -230,9 +275,7 @@ function DashboardContent() {
     () =>
       appointments.find(
         (a) =>
-          a.status === "confirmado" ||
-          a.status === "aguardando" ||
-          a.status === "em-andamento",
+          a.status === "confirmado" || a.status === "aguardando" || a.status === "em-andamento",
       ) ?? null,
     [appointments],
   );
@@ -262,7 +305,10 @@ function DashboardContent() {
 
   // Hoje — dia da semana e data para o chip da lista
   const todayDow = new Date().toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
-  const todayDayMonth = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  const todayDayMonth = new Date().toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+  });
 
   // Day summary derived from real appointments
   const concluidos = appointments.filter((a) => a.status === "concluido").length;
@@ -272,9 +318,7 @@ function DashboardContent() {
   return (
     <DashboardLayout>
       {/* Close dropdown on outside click */}
-      {openMenuId && (
-        <div className="fixed inset-0 z-20" onClick={() => setOpenMenuId(null)} />
-      )}
+      {openMenuId && <div className="fixed inset-0 z-20" onClick={() => setOpenMenuId(null)} />}
 
       {/* Main content (DashboardLayout provides sidebar) */}
       <div className="flex-1 min-w-0">
@@ -342,7 +386,9 @@ function DashboardContent() {
                                 {a.avatar}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-slate-900 truncate">{a.patient}</p>
+                                <p className="text-sm font-medium text-slate-900 truncate">
+                                  {a.patient}
+                                </p>
                                 <p className="text-xs text-slate-500">
                                   {a.date} · {a.time} · {a.reason}
                                 </p>
@@ -353,7 +399,10 @@ function DashboardContent() {
                       )}
                       <div className="px-4 py-2 border-t border-slate-100">
                         <button
-                          onClick={() => { setShowNotifs(false); void navigate({ to: "/agenda" }); }}
+                          onClick={() => {
+                            setShowNotifs(false);
+                            void navigate({ to: "/agenda" });
+                          }}
                           className="w-full text-xs text-center text-teal-600 hover:text-teal-800 font-medium py-1 transition"
                         >
                           Ver agenda completa →
@@ -470,7 +519,9 @@ function DashboardContent() {
                                 {a.avatar}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-slate-900 truncate">{a.patient}</p>
+                                <p className="text-sm font-medium text-slate-900 truncate">
+                                  {a.patient}
+                                </p>
                                 <p className="text-xs text-slate-500 truncate">{a.reason}</p>
                               </div>
                               <span
@@ -534,7 +585,9 @@ function DashboardContent() {
                           </div>
                           {/* Dados do paciente */}
                           <div className="flex-1 min-w-0">
-                            <p className="text-base font-semibold truncate">{proximaConsulta.patient}</p>
+                            <p className="text-base font-semibold truncate">
+                              {proximaConsulta.patient}
+                            </p>
                             <div className="flex items-center gap-1.5 text-sm text-slate-400 mt-0.5">
                               {proximaConsulta.type === "Teleconsulta" ? (
                                 <Video className="h-3.5 w-3.5" />
@@ -625,8 +678,12 @@ function DashboardContent() {
                             >
                               {/* Data em destaque */}
                               <div className="shrink-0 bg-slate-900 text-white rounded-lg px-2.5 py-2 text-center min-w-[56px]">
-                                <div className="text-[9px] text-slate-400 uppercase tracking-wide font-semibold">{todayDow}</div>
-                                <div className="text-sm font-bold leading-tight mt-0.5">{todayDayMonth}</div>
+                                <div className="text-[9px] text-slate-400 uppercase tracking-wide font-semibold">
+                                  {todayDow}
+                                </div>
+                                <div className="text-sm font-bold leading-tight mt-0.5">
+                                  {todayDayMonth}
+                                </div>
                                 <div className="text-[10px] text-slate-400 mt-1">{a.time}</div>
                               </div>
 

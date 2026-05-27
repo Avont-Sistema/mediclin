@@ -32,14 +32,12 @@ function Calendar({
       )}
       captionLayout={captionLayout}
       formatters={{
-        formatCaption: (month) =>
-          month.toLocaleString("pt-BR", { month: "long", year: "numeric" }),
+        formatCaption: (month) => month.toLocaleString("pt-BR", { month: "long", year: "numeric" }),
         formatWeekdayName: (weekday) =>
           weekday.toLocaleString("pt-BR", { weekday: "short" }).replace(".", ""),
         formatMonthDropdown: (date) =>
           date.toLocaleString("pt-BR", { month: "short" }).replace(".", ""),
-        formatYearDropdown: (date) =>
-          date.toLocaleString("pt-BR", { year: "numeric" }),
+        formatYearDropdown: (date) => date.toLocaleString("pt-BR", { year: "numeric" }),
         formatDay: (day) => day.getDate().toString(),
         ...formatters,
       }}

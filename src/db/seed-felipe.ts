@@ -148,27 +148,27 @@ async function main() {
   });
   if (existingServices.length === 0) {
     await db.insert(schema.services).values([
-    {
-      professionalId: prof.id,
-      nome: "Consulta Cardiológica",
-      descricao: "Avaliação completa com eletrocardiograma incluído.",
-      preco: "450.00",
-      duracaoMinutos: 60,
-    },
-    {
-      professionalId: prof.id,
-      nome: "Ecocardiograma",
-      descricao: "Ultrassonografia do coração com laudo no mesmo dia.",
-      preco: "520.00",
-      duracaoMinutos: 45,
-    },
-    {
-      professionalId: prof.id,
-      nome: "Teleconsulta",
-      descricao: "Atendimento online por videoconferência.",
-      preco: "250.00",
-      duracaoMinutos: 30,
-    },
+      {
+        professionalId: prof.id,
+        nome: "Consulta Cardiológica",
+        descricao: "Avaliação completa com eletrocardiograma incluído.",
+        preco: "450.00",
+        duracaoMinutos: 60,
+      },
+      {
+        professionalId: prof.id,
+        nome: "Ecocardiograma",
+        descricao: "Ultrassonografia do coração com laudo no mesmo dia.",
+        preco: "520.00",
+        duracaoMinutos: 45,
+      },
+      {
+        professionalId: prof.id,
+        nome: "Teleconsulta",
+        descricao: "Atendimento online por videoconferência.",
+        preco: "250.00",
+        duracaoMinutos: 30,
+      },
     ]);
   } else {
     console.log(`   → ${existingServices.length} serviços já existem, pulando.`);

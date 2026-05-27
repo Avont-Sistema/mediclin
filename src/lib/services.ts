@@ -67,10 +67,7 @@ export const updateService = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const profId = await getAuthProfId();
     const existing = await db.query.services.findFirst({
-      where: and(
-        eq(services.id, data.id),
-        eq(services.professionalId, profId),
-      ),
+      where: and(eq(services.id, data.id), eq(services.professionalId, profId)),
     });
     if (!existing) throw new Error("Serviço não encontrado");
     await db
@@ -93,10 +90,7 @@ export const deleteService = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const profId = await getAuthProfId();
     const existing = await db.query.services.findFirst({
-      where: and(
-        eq(services.id, data.id),
-        eq(services.professionalId, profId),
-      ),
+      where: and(eq(services.id, data.id), eq(services.professionalId, profId)),
     });
     if (!existing) throw new Error("Serviço não encontrado");
     await db.delete(services).where(eq(services.id, data.id));

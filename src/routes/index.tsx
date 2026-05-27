@@ -238,9 +238,7 @@ function HeroVisual() {
                   <p className="text-xs text-muted-foreground">{a.s}</p>
                 </div>
               </div>
-              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${a.c}`}>
-                {a.st}
-              </span>
+              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${a.c}`}>{a.st}</span>
             </div>
           ))}
         </div>
@@ -251,9 +249,7 @@ function HeroVisual() {
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Bell className="h-3.5 w-3.5 text-brand" /> Lembrete enviado
         </div>
-        <p className="mt-2 text-sm">
-          "Olá Marina! Sua consulta é amanhã às 9h. Posso confirmar?"
-        </p>
+        <p className="mt-2 text-sm">"Olá Marina! Sua consulta é amanhã às 9h. Posso confirmar?"</p>
         <div className="mt-3 flex gap-2">
           <span className="rounded-full bg-brand px-2.5 py-1 text-[11px] font-medium text-brand-foreground">
             Sim
@@ -407,9 +403,7 @@ function HowItWorks() {
     <section id="como-funciona" className="bg-muted/30 py-24">
       <div className="mx-auto max-w-7xl px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-medium uppercase tracking-widest text-brand">
-            Como funciona
-          </p>
+          <p className="text-sm font-medium uppercase tracking-widest text-brand">Como funciona</p>
           <h2 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">
             Comece a usar hoje. Resultados na primeira semana.
           </h2>

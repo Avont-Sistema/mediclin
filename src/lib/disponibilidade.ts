@@ -32,8 +32,8 @@ async function getAuthProfId(): Promise<string> {
 
 // ─── getAvailabilityRules ─────────────────────────────────────────────────────
 
-export const getAvailabilityRules = createServerFn({ method: "GET" })
-  .handler(async (): Promise<AvailabilityRule[]> => {
+export const getAvailabilityRules = createServerFn({ method: "GET" }).handler(
+  async (): Promise<AvailabilityRule[]> => {
     const profId = await getAuthProfId();
     const rules = await db.query.availabilityRules.findMany({
       where: eq(availabilityRules.professionalId, profId),
@@ -45,7 +45,8 @@ export const getAvailabilityRules = createServerFn({ method: "GET" })
       horaFim: r.horaFim,
       ativo: r.ativo,
     }));
-  });
+  },
+);
 
 // ─── saveAvailabilityRules ────────────────────────────────────────────────────
 // Replaces ALL rules for the professional (delete + insert).
@@ -55,15 +56,7 @@ export const saveAvailabilityRules = createServerFn({ method: "POST" })
     z.object({
       rules: z.array(
         z.object({
-          diaSemana: z.enum([
-            "domingo",
-            "segunda",
-            "terca",
-            "quarta",
-            "quinta",
-            "sexta",
-            "sabado",
-          ]),
+          diaSemana: z.enum(["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"]),
           horaInicio: z.string().regex(/^\d{2}:\d{2}$/),
           horaFim: z.string().regex(/^\d{2}:\d{2}$/),
         }),
@@ -74,9 +67,7 @@ export const saveAvailabilityRules = createServerFn({ method: "POST" })
     const profId = await getAuthProfId();
 
     // 1. Remove all existing rules for this professional
-    await db
-      .delete(availabilityRules)
-      .where(eq(availabilityRules.professionalId, profId));
+    await db.delete(availabilityRules).where(eq(availabilityRules.professionalId, profId));
 
     // 2. Insert the new set (may be empty if doctor removed all days)
     if (data.rules.length > 0) {

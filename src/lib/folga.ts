@@ -108,28 +108,26 @@ export const fetchBlockedDates = createServerFn({ method: "GET" })
       toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     }),
   )
-  .handler(
-    async ({ data }): Promise<{ dateStr: string; motivo: string | null }[]> => {
-      const [fy, fm, fd] = data.fromDate.split("-").map(Number);
-      const [ty, tm, td] = data.toDate.split("-").map(Number);
-      const from = new Date(fy, fm - 1, fd, 0, 0, 0);
-      const to = new Date(ty, tm - 1, td, 23, 59, 59);
+  .handler(async ({ data }): Promise<{ dateStr: string; motivo: string | null }[]> => {
+    const [fy, fm, fd] = data.fromDate.split("-").map(Number);
+    const [ty, tm, td] = data.toDate.split("-").map(Number);
+    const from = new Date(fy, fm - 1, fd, 0, 0, 0);
+    const to = new Date(ty, tm - 1, td, 23, 59, 59);
 
-      const blocks = await db.query.availabilityBlocks.findMany({
-        where: and(
-          eq(availabilityBlocks.professionalId, data.professionalId),
-          lte(availabilityBlocks.inicio, to),
-          gte(availabilityBlocks.fim, from),
-        ),
-        orderBy: (t, { asc }) => [asc(t.inicio)],
-      });
+    const blocks = await db.query.availabilityBlocks.findMany({
+      where: and(
+        eq(availabilityBlocks.professionalId, data.professionalId),
+        lte(availabilityBlocks.inicio, to),
+        gte(availabilityBlocks.fim, from),
+      ),
+      orderBy: (t, { asc }) => [asc(t.inicio)],
+    });
 
-      return blocks.map((b) => ({
-        dateStr: dateToStr(b.inicio),
-        motivo: b.motivo ?? null,
-      }));
-    },
-  );
+    return blocks.map((b) => ({
+      dateStr: dateToStr(b.inicio),
+      motivo: b.motivo ?? null,
+    }));
+  });
 
 // ─── removeFolga ──────────────────────────────────────────────────────────────
 
@@ -145,8 +143,6 @@ export const removeFolga = createServerFn({ method: "POST" })
       ),
     });
     if (!block) throw new Error("Folga não encontrada");
-    await db
-      .delete(availabilityBlocks)
-      .where(eq(availabilityBlocks.id, data.blockId));
+    await db.delete(availabilityBlocks).where(eq(availabilityBlocks.id, data.blockId));
     return { ok: true };
   });

@@ -18,11 +18,7 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 export const planoEnum = pgEnum("plano", ["free", "pro", "clinic"]);
 
-export const modalidadeEnum = pgEnum("modalidade_atendimento", [
-  "presencial",
-  "online",
-  "ambos",
-]);
+export const modalidadeEnum = pgEnum("modalidade_atendimento", ["presencial", "online", "ambos"]);
 
 export const appointmentStatusEnum = pgEnum("appointment_status", [
   "aguardando_pagamento",
@@ -50,14 +46,14 @@ export const diasSemanaEnum = pgEnum("dia_semana", [
 ]);
 
 export const cardTypeEnum = pgEnum("card_type", [
-  "certificacao",      // CRM, registro profissional
-  "qualificacao",      // "Especialização: Odontopediatria"
-  "servico_extra",     // "Laserterapia", "Ortopedia Funcional"
-  "whatsapp",          // valor = número, gera link wa.me automaticamente
-  "instagram",         // valor = @handle ou URL completa
-  "localizacao",       // valor = URL do Google Maps
-  "telefone",          // valor = telefone fixo
-  "email",             // valor = email
+  "certificacao", // CRM, registro profissional
+  "qualificacao", // "Especialização: Odontopediatria"
+  "servico_extra", // "Laserterapia", "Ortopedia Funcional"
+  "whatsapp", // valor = número, gera link wa.me automaticamente
+  "instagram", // valor = @handle ou URL completa
+  "localizacao", // valor = URL do Google Maps
+  "telefone", // valor = telefone fixo
+  "email", // valor = email
 ]);
 
 // ─── users ────────────────────────────────────────────────────────────────────

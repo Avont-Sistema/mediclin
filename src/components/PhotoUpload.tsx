@@ -59,7 +59,7 @@ export function PhotoUpload({
       if (!contentType.includes("application/json")) {
         throw new Error(`Erro no servidor (${res.status}). Tente novamente.`);
       }
-      const json = await res.json() as { url?: string; error?: string };
+      const json = (await res.json()) as { url?: string; error?: string };
       if (!res.ok || !json.url) throw new Error(json.error ?? `Erro ${res.status} no upload`);
       onUploaded(json.url);
     } catch (err) {
@@ -93,7 +93,11 @@ export function PhotoUpload({
             <img src={preview} alt={name} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center">
-              <span className={size === "lg" ? "text-3xl font-bold text-white" : "text-lg font-bold text-white"}>
+              <span
+                className={
+                  size === "lg" ? "text-3xl font-bold text-white" : "text-lg font-bold text-white"
+                }
+              >
                 {initials}
               </span>
             </div>

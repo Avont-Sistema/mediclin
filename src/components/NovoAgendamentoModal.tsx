@@ -111,10 +111,7 @@ export function NovoAgendamentoModal({ open, onClose }: Props) {
   return (
     <>
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
       {/* Panel */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
@@ -249,8 +246,7 @@ export function NovoAgendamentoModal({ open, onClose }: Props) {
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1.5">
                       <Mail className="inline h-3.5 w-3.5 mr-1 -mt-0.5" />
-                      E-mail{" "}
-                      <span className="font-normal text-slate-400">(opcional)</span>
+                      E-mail <span className="font-normal text-slate-400">(opcional)</span>
                     </label>
                     <input
                       type="email"

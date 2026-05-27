@@ -192,13 +192,18 @@ function OnboardingPage() {
     const clean = slugify(value);
     setSlug(clean);
     if (slugDebounceRef.current) clearTimeout(slugDebounceRef.current);
-    if (clean.length < 3) { setSlugStatus("idle"); return; }
+    if (clean.length < 3) {
+      setSlugStatus("idle");
+      return;
+    }
     setSlugStatus("checking");
     slugDebounceRef.current = setTimeout(async () => {
       try {
         const { available } = await checkSlugAvailability({ data: { slug: clean } });
         setSlugStatus(available ? "available" : "taken");
-      } catch { setSlugStatus("idle"); }
+      } catch {
+        setSlugStatus("idle");
+      }
     }, 500);
   }
 
@@ -263,7 +268,6 @@ function OnboardingPage() {
 
       {/* Card */}
       <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-sm p-8">
-
         {/* ── Step 1: Pain mirror ── */}
         {step === 1 && (
           <div className="space-y-6">
@@ -292,7 +296,9 @@ function OnboardingPage() {
                       {opt.icon}
                     </span>
                     <div>
-                      <p className={`text-sm font-bold ${selected ? "text-rose-700" : "text-slate-800"}`}>
+                      <p
+                        className={`text-sm font-bold ${selected ? "text-rose-700" : "text-slate-800"}`}
+                      >
                         {opt.label}
                       </p>
                       <p className="text-xs text-slate-500 mt-0.5 leading-snug">{opt.desc}</p>
@@ -311,8 +317,7 @@ function OnboardingPage() {
             {pain && agendaAtual && (
               <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-5 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <p className="text-sm font-semibold text-rose-800 flex items-center gap-2">
-                  <span className="text-base">{pain.emoji}</span>
-                  O que o{" "}
+                  <span className="text-base">{pain.emoji}</span>O que o{" "}
                   <span className="font-bold">
                     {AGENDA_OPTIONS.find((o) => o.value === agendaAtual)?.label}
                   </span>{" "}
@@ -348,7 +353,9 @@ function OnboardingPage() {
               className="inline-flex items-center justify-center gap-2 w-full rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {agendaAtual ? (
-                <>Quero resolver isso <ArrowRight className="size-4" /></>
+                <>
+                  Quero resolver isso <ArrowRight className="size-4" />
+                </>
               ) : (
                 "Selecione uma opção"
               )}
@@ -406,8 +413,38 @@ function OnboardingPage() {
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition-all focus:border-teal-500 focus:bg-white focus:ring-2 focus:ring-teal-500/20"
               >
                 <option value="">Selecione o estado...</option>
-                {["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"].map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                {[
+                  "AC",
+                  "AL",
+                  "AP",
+                  "AM",
+                  "BA",
+                  "CE",
+                  "DF",
+                  "ES",
+                  "GO",
+                  "MA",
+                  "MT",
+                  "MS",
+                  "MG",
+                  "PA",
+                  "PB",
+                  "PR",
+                  "PE",
+                  "PI",
+                  "RJ",
+                  "RN",
+                  "RS",
+                  "RO",
+                  "RR",
+                  "SC",
+                  "SP",
+                  "SE",
+                  "TO",
+                ].map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
                 ))}
               </select>
             </Field>
@@ -452,7 +489,9 @@ function OnboardingPage() {
                   required
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2">
-                  {slugStatus === "checking" && <Loader2 className="size-4 text-slate-400 animate-spin" />}
+                  {slugStatus === "checking" && (
+                    <Loader2 className="size-4 text-slate-400 animate-spin" />
+                  )}
                   {slugStatus === "available" && <Check className="size-4 text-emerald-600" />}
                   {slugStatus === "taken" && <AlertCircle className="size-4 text-rose-500" />}
                 </span>
@@ -460,7 +499,9 @@ function OnboardingPage() {
             </Field>
 
             <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Seu link público</p>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                Seu link público
+              </p>
               <p className="text-sm font-mono text-slate-700 break-all">{publicUrl}</p>
             </div>
 
@@ -483,22 +524,30 @@ function OnboardingPage() {
             )}
 
             <div className="flex gap-3">
-              <button type="button" onClick={() => setStep(2)} disabled={submitting}
-                className="flex-1 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 disabled:opacity-50">
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                disabled={submitting}
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 disabled:opacity-50"
+              >
                 Voltar
               </button>
-              <button type="submit" disabled={slugStatus !== "available" || submitting}
-                className="flex-[2] inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed">
+              <button
+                type="submit"
+                disabled={slugStatus !== "available" || submitting}
+                className="flex-[2] inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 {submitting ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
-                  <><Stethoscope className="size-4" /> Criar meu perfil</>
+                  <>
+                    <Stethoscope className="size-4" /> Criar meu perfil
+                  </>
                 )}
               </button>
             </div>
           </form>
         )}
-
       </div>
 
       <p className="mt-6 text-xs text-slate-400 text-center">
@@ -529,4 +578,3 @@ function Field({
     </div>
   );
 }
-

@@ -100,7 +100,9 @@ function AdminContent() {
               <div className="size-2 rounded-sm rotate-45 bg-white" />
             </div>
             <span className="text-sm font-bold tracking-tight">MediClin</span>
-            <span className="text-xs text-slate-500 font-mono border border-slate-700 rounded px-1.5 py-0.5">admin</span>
+            <span className="text-xs text-slate-500 font-mono border border-slate-700 rounded px-1.5 py-0.5">
+              admin
+            </span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -258,14 +260,26 @@ function AdminContent() {
 
 function FeatureBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
-    <span className={`inline-flex items-center gap-1 text-xs rounded px-1.5 py-0.5 font-mono ${ok ? "bg-emerald-950 text-emerald-400 border border-emerald-900" : "bg-slate-800 text-slate-500 border border-slate-700"}`}>
+    <span
+      className={`inline-flex items-center gap-1 text-xs rounded px-1.5 py-0.5 font-mono ${ok ? "bg-emerald-950 text-emerald-400 border border-emerald-900" : "bg-slate-800 text-slate-500 border border-slate-700"}`}
+    >
       <span className={`h-1.5 w-1.5 rounded-full ${ok ? "bg-emerald-400" : "bg-slate-600"}`} />
       {label}
     </span>
   );
 }
 
-function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
+function StatCard({
+  icon,
+  label,
+  value,
+  color,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  color: string;
+}) {
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
       <div className={`flex items-center gap-2 mb-2 ${color}`}>
@@ -293,7 +307,9 @@ function ProfessionalCard({
   return (
     <div
       className={`rounded-xl border bg-slate-900 p-4 transition cursor-pointer ${
-        isSelected ? "border-teal-500/50 ring-1 ring-teal-500/20" : "border-slate-800 hover:border-slate-700"
+        isSelected
+          ? "border-teal-500/50 ring-1 ring-teal-500/20"
+          : "border-slate-800 hover:border-slate-700"
       }`}
       onClick={onPreview}
     >
@@ -302,7 +318,9 @@ function ProfessionalCard({
           <div className="flex items-center gap-2">
             <p className="text-sm font-semibold text-slate-100">{prof.nomeCompleto}</p>
             {!prof.ativo && (
-              <span className="text-xs bg-slate-800 text-slate-500 rounded px-1.5 py-0.5">inativo</span>
+              <span className="text-xs bg-slate-800 text-slate-500 rounded px-1.5 py-0.5">
+                inativo
+              </span>
             )}
           </div>
           <p className="text-xs text-slate-500 mt-0.5">{prof.especialidade}</p>
@@ -329,7 +347,10 @@ function ProfessionalCard({
 
       <div className="flex items-center gap-2">
         <button
-          onClick={(e) => { e.stopPropagation(); onPreview(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPreview();
+          }}
           className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-teal-900/50 border border-teal-800/50 py-1.5 text-xs font-medium text-teal-400 hover:bg-teal-900 transition"
         >
           <Eye className="h-3 w-3" />
@@ -358,7 +379,9 @@ function EmptyPreview() {
           <Eye className="h-5 w-5 text-slate-500" />
         </div>
         <p className="text-sm text-slate-500">Selecione um médico para visualizar</p>
-        <p className="text-xs text-slate-600 mt-1">Click em um card para ver a página do paciente</p>
+        <p className="text-xs text-slate-600 mt-1">
+          Click em um card para ver a página do paciente
+        </p>
       </div>
     </div>
   );
@@ -439,7 +462,9 @@ function SplitPreview({ slug, origin }: { slug: string; origin: string }) {
 
 function FeatureCard({ ok, title, desc }: { ok: boolean; title: string; desc: string }) {
   return (
-    <div className={`rounded-lg border p-3 ${ok ? "border-emerald-900/50 bg-emerald-950/30" : "border-slate-800 bg-slate-900/50"}`}>
+    <div
+      className={`rounded-lg border p-3 ${ok ? "border-emerald-900/50 bg-emerald-950/30" : "border-slate-800 bg-slate-900/50"}`}
+    >
       <div className="flex items-center gap-2 mb-1.5">
         {ok ? (
           <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />

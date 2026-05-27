@@ -139,11 +139,12 @@ function SettingsContent() {
         </div>
 
         {tab === "perfil" && <ProfileTab data={data} onSaved={() => router.invalidate()} />}
-        {tab === "equipe" && (
-          isClinic
-            ? <TeamTab data={data} onSaved={() => router.invalidate()} />
-            : <ClinicUpgradePrompt onUpgrade={() => setTab("perfil")} />
-        )}
+        {tab === "equipe" &&
+          (isClinic ? (
+            <TeamTab data={data} onSaved={() => router.invalidate()} />
+          ) : (
+            <ClinicUpgradePrompt onUpgrade={() => setTab("perfil")} />
+          ))}
         {tab === "suporte" && <SupportTab slug={data.professional.slug} />}
       </div>
     </DashboardLayout>
@@ -219,8 +220,38 @@ function ProfileTab({ data, onSaved }: { data: SettingsData; onSaved: () => void
               className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none transition bg-white"
             >
               <option value="">Selecione...</option>
-              {["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"].map((s) => (
-                <option key={s} value={s}>{s}</option>
+              {[
+                "AC",
+                "AL",
+                "AP",
+                "AM",
+                "BA",
+                "CE",
+                "DF",
+                "ES",
+                "GO",
+                "MA",
+                "MT",
+                "MS",
+                "MG",
+                "PA",
+                "PB",
+                "PR",
+                "PE",
+                "PI",
+                "RJ",
+                "RN",
+                "RS",
+                "RO",
+                "RR",
+                "SC",
+                "SP",
+                "SE",
+                "TO",
+              ].map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
               ))}
             </select>
           </div>
@@ -410,13 +441,15 @@ function ServicesTab({
                     <span>·</span>
                     <span>{svc.duracaoMinutos} min</span>
                     <span>·</span>
-                    <span className={`font-medium ${
-                      svc.modalidade === "online"
-                        ? "text-sky-600"
-                        : svc.modalidade === "ambos"
-                          ? "text-violet-600"
-                          : "text-emerald-600"
-                    }`}>
+                    <span
+                      className={`font-medium ${
+                        svc.modalidade === "online"
+                          ? "text-sky-600"
+                          : svc.modalidade === "ambos"
+                            ? "text-violet-600"
+                            : "text-emerald-600"
+                      }`}
+                    >
                       {svc.modalidade === "online"
                         ? "Telemedicina"
                         : svc.modalidade === "ambos"
@@ -544,9 +577,21 @@ function ServiceFormWidget({
           <div className="grid grid-cols-3 gap-2">
             {(
               [
-                { value: "presencial", label: "🏥 Presencial", cls: "border-emerald-200 bg-emerald-50 text-emerald-700" },
-                { value: "online", label: "💻 Telemedicina", cls: "border-sky-200 bg-sky-50 text-sky-700" },
-                { value: "ambos", label: "🔀 Ambos", cls: "border-violet-200 bg-violet-50 text-violet-700" },
+                {
+                  value: "presencial",
+                  label: "🏥 Presencial",
+                  cls: "border-emerald-200 bg-emerald-50 text-emerald-700",
+                },
+                {
+                  value: "online",
+                  label: "💻 Telemedicina",
+                  cls: "border-sky-200 bg-sky-50 text-sky-700",
+                },
+                {
+                  value: "ambos",
+                  label: "🔀 Ambos",
+                  cls: "border-violet-200 bg-violet-50 text-violet-700",
+                },
               ] as const
             ).map((opt) => (
               <button
@@ -620,7 +665,9 @@ const emptyMember = (parentBrand = "#0d9488"): MemberForm => ({
 
 function TeamTab({ data, onSaved }: { data: SettingsData; onSaved: () => void }) {
   const [showAddForm, setShowAddForm] = useState(false);
-  const [addForm, setAddForm] = useState<MemberForm>(emptyMember(data.professional.corMarca ?? "#0d9488"));
+  const [addForm, setAddForm] = useState<MemberForm>(
+    emptyMember(data.professional.corMarca ?? "#0d9488"),
+  );
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [editForms, setEditForms] = useState<Record<string, MemberForm>>({});
@@ -682,7 +729,8 @@ function TeamTab({ data, onSaved }: { data: SettingsData; onSaved: () => void })
           <h3 className="text-sm font-semibold text-slate-800">Equipe da clínica</h3>
         </div>
         <p className="text-xs text-slate-500">
-          Cada profissional adicionado aparece na página da clínica. Os pacientes escolhem o profissional e os serviços, tudo em um único link.
+          Cada profissional adicionado aparece na página da clínica. Os pacientes escolhem o
+          profissional e os serviços, tudo em um único link.
         </p>
       </div>
 
@@ -691,7 +739,9 @@ function TeamTab({ data, onSaved }: { data: SettingsData; onSaved: () => void })
         <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center">
           <Users className="h-8 w-8 text-slate-300 mx-auto mb-3" />
           <p className="text-sm font-medium text-slate-600">Nenhum profissional na equipe</p>
-          <p className="text-xs text-slate-400 mt-1">Clique em "Adicionar profissional" para começar</p>
+          <p className="text-xs text-slate-400 mt-1">
+            Clique em "Adicionar profissional" para começar
+          </p>
         </div>
       )}
 
@@ -727,13 +777,19 @@ function TeamTab({ data, onSaved }: { data: SettingsData; onSaved: () => void })
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
                   style={{ background: member.corMarca ?? data.professional.corMarca ?? "#0d9488" }}
                 >
-                  {member.nomeCompleto.split(" ").slice(0, 2).map((n) => n[0]).join("")}
+                  {member.nomeCompleto
+                    .split(" ")
+                    .slice(0, 2)
+                    .map((n) => n[0])
+                    .join("")}
                 </div>
               )}
 
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-slate-900">{member.nomeCompleto}</p>
-                <p className="text-xs text-slate-500">{member.especialidade} · {member.registro}</p>
+                <p className="text-xs text-slate-500">
+                  {member.especialidade} · {member.registro}
+                </p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-[10px] text-slate-400">/{member.slug}</span>
                   <a
@@ -765,7 +821,11 @@ function TeamTab({ data, onSaved }: { data: SettingsData; onSaved: () => void })
                   className="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 transition text-slate-500"
                   title={isExpanded ? "Recolher" : "Gerenciar serviços"}
                 >
-                  {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  {isExpanded ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
                 </button>
                 <button
                   onClick={() => {
@@ -879,9 +939,10 @@ function MemberFormWidget({
                 ...form,
                 nomeCompleto: name,
                 // Auto-fill slug if it hasn't been manually changed
-                slug: form.slug === autoSlug(form.nomeCompleto) || form.slug === ""
-                  ? autoSlug(name)
-                  : form.slug,
+                slug:
+                  form.slug === autoSlug(form.nomeCompleto) || form.slug === ""
+                    ? autoSlug(name)
+                    : form.slug,
               });
             }}
             placeholder="Dra. Ana Cardoso"
@@ -898,7 +959,9 @@ function MemberFormWidget({
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Registro (CRM/CRO) *</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1">
+            Registro (CRM/CRO) *
+          </label>
           <input
             value={form.registro}
             onChange={(e) => onChange({ ...form, registro: e.target.value })}
@@ -915,7 +978,9 @@ function MemberFormWidget({
             <span className="text-xs text-slate-400 shrink-0">mediclin.vercel.app/</span>
             <input
               value={form.slug}
-              onChange={(e) => onChange({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })}
+              onChange={(e) =>
+                onChange({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })
+              }
               placeholder="dra-ana-cardoso"
               className="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none font-mono"
             />
@@ -978,7 +1043,9 @@ function MemberFormWidget({
         </button>
         <button
           onClick={onSave}
-          disabled={isPending || !form.nomeCompleto || !form.especialidade || !form.registro || !form.slug}
+          disabled={
+            isPending || !form.nomeCompleto || !form.especialidade || !form.registro || !form.slug
+          }
           className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-semibold rounded-lg bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white transition"
         >
           <Save className="h-3.5 w-3.5" />
@@ -1065,7 +1132,6 @@ function SupportTab({ slug }: { slug: string }) {
 
   return (
     <div className="space-y-6">
-
       {/* ── Seu link público ── */}
       <div className="rounded-2xl border border-teal-200 bg-teal-50/60 p-5">
         <div className="flex items-center gap-2 mb-1">
@@ -1112,7 +1178,9 @@ function SupportTab({ slug }: { slug: string }) {
               <li key={i} className="flex gap-4">
                 {/* Connector column */}
                 <div className="flex flex-col items-center">
-                  <div className={`h-9 w-9 shrink-0 rounded-xl grid place-items-center ${step.color}`}>
+                  <div
+                    className={`h-9 w-9 shrink-0 rounded-xl grid place-items-center ${step.color}`}
+                  >
                     <Icon className="h-4 w-4" />
                   </div>
                   {!isLast && <div className="w-px flex-1 bg-slate-100 my-1" />}
@@ -1215,7 +1283,6 @@ function SupportTab({ slug }: { slug: string }) {
           </a>
         </p>
       </div>
-
     </div>
   );
 }
@@ -1230,7 +1297,8 @@ function ClinicUpgradePrompt({ onUpgrade }: { onUpgrade: () => void }) {
       </div>
       <h3 className="text-base font-bold text-slate-900">Plano Clínica</h3>
       <p className="mt-2 text-sm text-slate-600 max-w-sm mx-auto">
-        Adicione toda a sua equipe de profissionais. Cada um ganha sua própria página pública, serviços e agenda.
+        Adicione toda a sua equipe de profissionais. Cada um ganha sua própria página pública,
+        serviços e agenda.
       </p>
       <ul className="mt-4 space-y-1.5 text-xs text-slate-600 text-left max-w-xs mx-auto">
         {[
@@ -1252,9 +1320,7 @@ function ClinicUpgradePrompt({ onUpgrade }: { onUpgrade: () => void }) {
       >
         Ativar plano Clínica →
       </button>
-      <p className="mt-2 text-xs text-slate-400">
-        Acesse a aba Perfil e selecione "Clínica"
-      </p>
+      <p className="mt-2 text-xs text-slate-400">Acesse a aba Perfil e selecione "Clínica"</p>
     </div>
   );
 }

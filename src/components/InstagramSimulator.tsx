@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { Check, GraduationCap, MessageCircle, MapPin, Award, Instagram, Grid3x3 } from "lucide-react";
+import {
+  Check,
+  GraduationCap,
+  MessageCircle,
+  MapPin,
+  Award,
+  Instagram,
+  Grid3x3,
+} from "lucide-react";
 import { buildPublicUrl } from "../lib/subdomain";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -30,13 +38,14 @@ const GRID_COLORS = [
 export function InstagramSimulator({ nome, especialidade, slug, uf }: Props) {
   const [showBooking, setShowBooking] = useState(false);
 
-  const initials = nome
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase() || "?";
+  const initials =
+    nome
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase() || "?";
 
   const igUsername = slug || "seu-perfil";
   const publicUrl = buildPublicUrl(slug);
@@ -50,19 +59,17 @@ export function InstagramSimulator({ nome, especialidade, slug, uf }: Props) {
   // Info cards matching actual public page
   const infoCards = [
     { icon: GraduationCap, title: "Especialização:", value: especialidade || "—" },
-    { icon: Award,         title: "Registro:",       value: `CRM${uf ? ` · ${uf}` : ""}` },
-    { icon: MessageCircle, title: "Fale comigo",      value: "Enviar mensagem" },
-    { icon: MapPin,        title: "Consultório",      value: "Localização" },
-    { icon: Award,         title: "Médico certificado", value: "CRM 4567..." },
-    { icon: Instagram,     title: "Siga no Insta...", value: `@${igUsername}` },
+    { icon: Award, title: "Registro:", value: `CRM${uf ? ` · ${uf}` : ""}` },
+    { icon: MessageCircle, title: "Fale comigo", value: "Enviar mensagem" },
+    { icon: MapPin, title: "Consultório", value: "Localização" },
+    { icon: Award, title: "Médico certificado", value: "CRM 4567..." },
+    { icon: Instagram, title: "Siga no Insta...", value: `@${igUsername}` },
   ];
 
   return (
     <div className="flex flex-col items-center gap-3">
-
       {/* ── Phone frame ── */}
       <div className="relative w-[230px] rounded-[2.2rem] border-[5px] border-slate-800 bg-white shadow-2xl shadow-slate-400/30 overflow-hidden select-none">
-
         {/* Notch */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-slate-800 rounded-b-2xl z-10" />
 
@@ -72,7 +79,11 @@ export function InstagramSimulator({ nome, especialidade, slug, uf }: Props) {
           <div className="flex items-center gap-1">
             <div className="flex gap-0.5 items-end h-3">
               {[2, 3, 4, 3].map((h, i) => (
-                <div key={i} className="w-0.5 bg-slate-900 rounded-sm" style={{ height: `${h * 3}px` }} />
+                <div
+                  key={i}
+                  className="w-0.5 bg-slate-900 rounded-sm"
+                  style={{ height: `${h * 3}px` }}
+                />
               ))}
             </div>
             <svg viewBox="0 0 24 24" className="w-3 h-3 fill-slate-900">
@@ -90,13 +101,18 @@ export function InstagramSimulator({ nome, especialidade, slug, uf }: Props) {
           <div className="bg-white">
             {/* Top bar */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100">
-              <span className="text-[11px] font-black text-slate-900 tracking-tight">{igUsername}</span>
+              <span className="text-[11px] font-black text-slate-900 tracking-tight">
+                {igUsername}
+              </span>
               <div className="flex items-center gap-2 text-slate-800">
                 <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-2">
-                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
                 <svg viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current stroke-2">
-                  <circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" />
+                  <circle cx="12" cy="12" r="1" />
+                  <circle cx="19" cy="12" r="1" />
+                  <circle cx="5" cy="12" r="1" />
                 </svg>
               </div>
             </div>
@@ -112,7 +128,11 @@ export function InstagramSimulator({ nome, especialidade, slug, uf }: Props) {
                   </div>
                 </div>
                 <div className="flex gap-2 flex-1 justify-around text-center">
-                  {[["12", "posts"], ["1.4k", "seguid."], ["312", "seguindo"]].map(([n, l]) => (
+                  {[
+                    ["12", "posts"],
+                    ["1.4k", "seguid."],
+                    ["312", "seguindo"],
+                  ].map(([n, l]) => (
                     <div key={l}>
                       <p className="text-[11px] font-black text-slate-900">{n}</p>
                       <p className="text-[9px] text-slate-500">{l}</p>
@@ -123,8 +143,13 @@ export function InstagramSimulator({ nome, especialidade, slug, uf }: Props) {
 
               {/* Bio */}
               <div className="mb-2 space-y-0.5">
-                <p className="text-[11px] font-black text-slate-900 leading-tight">{nome || "Seu Nome"}</p>
-                <p className="text-[10px] text-slate-600">🩺 {especialidade}{uf ? ` · ${uf}` : ""}</p>
+                <p className="text-[11px] font-black text-slate-900 leading-tight">
+                  {nome || "Seu Nome"}
+                </p>
+                <p className="text-[10px] text-slate-600">
+                  🩺 {especialidade}
+                  {uf ? ` · ${uf}` : ""}
+                </p>
                 <p className="text-[10px] text-slate-600">Agende sua consulta online 👇</p>
               </div>
 
@@ -140,10 +165,19 @@ export function InstagramSimulator({ nome, especialidade, slug, uf }: Props) {
 
               {/* Action buttons */}
               <div className="flex gap-1.5">
-                <button className="flex-1 bg-slate-100 rounded-lg py-1 text-[10px] font-bold text-slate-800">Seguir</button>
-                <button className="flex-1 bg-slate-100 rounded-lg py-1 text-[10px] font-bold text-slate-800">Mensagem</button>
+                <button className="flex-1 bg-slate-100 rounded-lg py-1 text-[10px] font-bold text-slate-800">
+                  Seguir
+                </button>
+                <button className="flex-1 bg-slate-100 rounded-lg py-1 text-[10px] font-bold text-slate-800">
+                  Mensagem
+                </button>
                 <button className="bg-slate-100 rounded-lg px-2 py-1">
-                  <svg viewBox="0 0 24 24" className="w-3 h-3 stroke-current fill-none stroke-2 text-slate-800"><path d="M6 9l6 6 6-6" /></svg>
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="w-3 h-3 stroke-current fill-none stroke-2 text-slate-800"
+                  >
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -162,14 +196,15 @@ export function InstagramSimulator({ nome, especialidade, slug, uf }: Props) {
               ))}
             </div>
           </div>
-
         ) : (
-
           /* ── Booking page view — espelho da página pública real ── */
           <div className="bg-white overflow-y-auto" style={{ maxHeight: 480 }}>
             {/* Browser bar */}
             <div className="bg-white border-b border-slate-100 px-3 py-1.5 flex items-center gap-1.5 sticky top-0 z-10">
-              <button onClick={() => setShowBooking(false)} className="text-[9px] text-blue-600 font-semibold shrink-0">
+              <button
+                onClick={() => setShowBooking(false)}
+                className="text-[9px] text-blue-600 font-semibold shrink-0"
+              >
                 ‹ Instagram
               </button>
               <div className="flex-1 bg-slate-100 rounded-full px-2 py-0.5 overflow-hidden">
@@ -184,30 +219,39 @@ export function InstagramSimulator({ nome, especialidade, slug, uf }: Props) {
                 {initials}
               </div>
               {/* Name */}
-              <p className="text-[13px] font-black text-slate-900 leading-tight">{nome || "Seu Nome"}</p>
+              <p className="text-[13px] font-black text-slate-900 leading-tight">
+                {nome || "Seu Nome"}
+              </p>
               {/* Specialty */}
               <p className="text-[10px] text-teal-600 font-semibold mt-0.5">{especialidade}</p>
               {/* Headline */}
               <p className="text-[11px] font-bold text-slate-800 mt-2 leading-snug">
-                {headlineStart}{" "}
-                <span className="text-teal-600">{headlineEnd}</span>
+                {headlineStart} <span className="text-teal-600">{headlineEnd}</span>
               </p>
               {/* Bio */}
               <p className="text-[9px] text-slate-500 mt-1.5 leading-relaxed line-clamp-2">
-                Especialista em {especialidade.toLowerCase()} com foco em prevenção e qualidade de vida.
+                Especialista em {especialidade.toLowerCase()} com foco em prevenção e qualidade de
+                vida.
               </p>
             </div>
 
             {/* Info cards grid */}
             <div className="px-3 grid grid-cols-2 gap-1.5 mb-3">
               {infoCards.map((card, i) => (
-                <div key={i} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-2">
+                <div
+                  key={i}
+                  className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-2"
+                >
                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-teal-50">
                     <card.icon className="h-3 w-3 text-teal-600" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[8px] text-slate-400 truncate leading-none mb-0.5">{card.title}</p>
-                    <p className="text-[9px] font-bold text-slate-800 truncate leading-none">{card.value}</p>
+                    <p className="text-[8px] text-slate-400 truncate leading-none mb-0.5">
+                      {card.title}
+                    </p>
+                    <p className="text-[9px] font-bold text-slate-800 truncate leading-none">
+                      {card.value}
+                    </p>
                   </div>
                 </div>
               ))}

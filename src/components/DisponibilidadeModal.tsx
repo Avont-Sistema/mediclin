@@ -5,23 +5,16 @@ import { getAvailabilityRules, saveAvailabilityRules } from "../lib/disponibilid
 
 // ─── Types & config ───────────────────────────────────────────────────────────
 
-type DiaSemana =
-  | "domingo"
-  | "segunda"
-  | "terca"
-  | "quarta"
-  | "quinta"
-  | "sexta"
-  | "sabado";
+type DiaSemana = "domingo" | "segunda" | "terca" | "quarta" | "quinta" | "sexta" | "sabado";
 
 const DIAS_CONFIG: { id: DiaSemana; label: string }[] = [
   { id: "segunda", label: "Segunda-feira" },
-  { id: "terca",   label: "Terça-feira"   },
-  { id: "quarta",  label: "Quarta-feira"  },
-  { id: "quinta",  label: "Quinta-feira"  },
-  { id: "sexta",   label: "Sexta-feira"   },
-  { id: "sabado",  label: "Sábado"        },
-  { id: "domingo", label: "Domingo"       },
+  { id: "terca", label: "Terça-feira" },
+  { id: "quarta", label: "Quarta-feira" },
+  { id: "quinta", label: "Quinta-feira" },
+  { id: "sexta", label: "Sexta-feira" },
+  { id: "sabado", label: "Sábado" },
+  { id: "domingo", label: "Domingo" },
 ];
 
 type DayState = { ativo: boolean; horaInicio: string; horaFim: string };
@@ -30,9 +23,7 @@ type WeekState = Record<DiaSemana, DayState>;
 const DEFAULT_DAY: DayState = { ativo: false, horaInicio: "08:00", horaFim: "18:00" };
 
 function makeDefault(): WeekState {
-  return Object.fromEntries(
-    DIAS_CONFIG.map((d) => [d.id, { ...DEFAULT_DAY }]),
-  ) as WeekState;
+  return Object.fromEntries(DIAS_CONFIG.map((d) => [d.id, { ...DEFAULT_DAY }])) as WeekState;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -72,7 +63,7 @@ export function DisponibilidadeModal({ open, onClose }: Props) {
       const rulesToSave = DIAS_CONFIG.filter((d) => state[d.id].ativo).map((d) => ({
         diaSemana: d.id,
         horaInicio: state[d.id].horaInicio,
-        horaFim:    state[d.id].horaFim,
+        horaFim: state[d.id].horaFim,
       }));
       return saveAvailabilityRules({ data: { rules: rulesToSave } });
     },
@@ -101,13 +92,11 @@ export function DisponibilidadeModal({ open, onClose }: Props) {
 
   // Quick-fill: apply a single time range to all enabled days
   const applyAll = (horaInicio: string, horaFim: string) =>
-    setState((prev) =>
-      Object.fromEntries(
-        DIAS_CONFIG.map((d) => [
-          d.id,
-          { ...prev[d.id], horaInicio, horaFim },
-        ]),
-      ) as WeekState,
+    setState(
+      (prev) =>
+        Object.fromEntries(
+          DIAS_CONFIG.map((d) => [d.id, { ...prev[d.id], horaInicio, horaFim }]),
+        ) as WeekState,
     );
 
   const selectWeekdays = () =>
@@ -141,9 +130,7 @@ export function DisponibilidadeModal({ open, onClose }: Props) {
                 <Clock className="h-5 w-5 text-teal-600" />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-slate-900">
-                  Disponibilidade Semanal
-                </h2>
+                <h2 className="text-base font-semibold text-slate-900">Disponibilidade Semanal</h2>
                 <p className="text-xs text-slate-400">
                   Defina os dias e horários em que você atende
                 </p>
@@ -160,7 +147,6 @@ export function DisponibilidadeModal({ open, onClose }: Props) {
           {/* ── Body ─────────────────────────────────────────────────────── */}
           <div className="overflow-y-auto flex-1">
             <div className="px-6 pt-4 pb-3">
-
               {/* Quick actions */}
               <div className="flex items-center gap-2 mb-4 flex-wrap">
                 <button
@@ -196,9 +182,7 @@ export function DisponibilidadeModal({ open, onClose }: Props) {
                       <div
                         key={dia.id}
                         className={`rounded-xl border px-4 py-3 transition-all ${
-                          ds.ativo
-                            ? "border-teal-200 bg-teal-50/40"
-                            : "border-slate-200 bg-white"
+                          ds.ativo ? "border-teal-200 bg-teal-50/40" : "border-slate-200 bg-white"
                         }`}
                       >
                         {/* Day row */}
@@ -257,9 +241,7 @@ export function DisponibilidadeModal({ open, onClose }: Props) {
           {/* ── Footer ───────────────────────────────────────────────────── */}
           <div className="px-6 py-4 border-t border-slate-100 shrink-0">
             {saveMutation.error && (
-              <p className="text-xs text-rose-500 mb-2">
-                Erro ao salvar. Tente novamente.
-              </p>
+              <p className="text-xs text-rose-500 mb-2">Erro ao salvar. Tente novamente.</p>
             )}
             <div className="flex items-center gap-3">
               <span className="text-xs text-slate-400 flex-1">

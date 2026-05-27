@@ -34,7 +34,10 @@ export async function handleUploadFoto(req: Request): Promise<Response> {
   }
 
   if (!ALLOWED_TYPES.includes(file.type)) {
-    return Response.json({ error: "Tipo de arquivo não suportado. Use JPEG, PNG ou WebP." }, { status: 400 });
+    return Response.json(
+      { error: "Tipo de arquivo não suportado. Use JPEG, PNG ou WebP." },
+      { status: 400 },
+    );
   }
 
   if (file.size > MAX_SIZE_BYTES) {

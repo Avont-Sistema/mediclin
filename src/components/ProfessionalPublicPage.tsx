@@ -73,21 +73,96 @@ type Phase =
 // ─── Static Tailwind color map ─────────────────────────────────────────────────
 
 const COLOR_MAP = {
-  teal:    { text: "text-teal-600",    bgGradient: "from-teal-500 to-teal-700",    bgSoft: "bg-teal-50",    badge: "bg-teal-600"    },
-  emerald: { text: "text-emerald-600", bgGradient: "from-emerald-500 to-emerald-700", bgSoft: "bg-emerald-50", badge: "bg-emerald-600" },
-  cyan:    { text: "text-cyan-600",    bgGradient: "from-cyan-500 to-cyan-700",    bgSoft: "bg-cyan-50",    badge: "bg-cyan-600"    },
-  sky:     { text: "text-sky-600",     bgGradient: "from-sky-500 to-sky-700",     bgSoft: "bg-sky-50",     badge: "bg-sky-600"     },
-  blue:    { text: "text-blue-600",    bgGradient: "from-blue-500 to-blue-700",   bgSoft: "bg-blue-50",    badge: "bg-blue-600"    },
-  indigo:  { text: "text-indigo-600",  bgGradient: "from-indigo-500 to-indigo-700", bgSoft: "bg-indigo-50", badge: "bg-indigo-600"  },
-  violet:  { text: "text-violet-600",  bgGradient: "from-violet-500 to-violet-700", bgSoft: "bg-violet-50", badge: "bg-violet-600"  },
-  purple:  { text: "text-purple-600",  bgGradient: "from-purple-500 to-purple-700", bgSoft: "bg-purple-50", badge: "bg-purple-600"  },
-  fuchsia: { text: "text-fuchsia-600", bgGradient: "from-fuchsia-500 to-fuchsia-700", bgSoft: "bg-fuchsia-50", badge: "bg-fuchsia-600" },
-  pink:    { text: "text-pink-600",    bgGradient: "from-pink-500 to-pink-700",   bgSoft: "bg-pink-50",    badge: "bg-pink-600"    },
-  rose:    { text: "text-rose-600",    bgGradient: "from-rose-500 to-rose-700",   bgSoft: "bg-rose-50",    badge: "bg-rose-600"    },
-  orange:  { text: "text-orange-600",  bgGradient: "from-orange-500 to-orange-700", bgSoft: "bg-orange-50", badge: "bg-orange-600"  },
-  amber:   { text: "text-amber-600",   bgGradient: "from-amber-500 to-amber-700", bgSoft: "bg-amber-50",   badge: "bg-amber-600"   },
-  yellow:  { text: "text-yellow-600",  bgGradient: "from-yellow-500 to-yellow-700", bgSoft: "bg-yellow-50", badge: "bg-yellow-600"  },
-  lime:    { text: "text-lime-600",    bgGradient: "from-lime-500 to-lime-700",   bgSoft: "bg-lime-50",    badge: "bg-lime-600"    },
+  teal: {
+    text: "text-teal-600",
+    bgGradient: "from-teal-500 to-teal-700",
+    bgSoft: "bg-teal-50",
+    badge: "bg-teal-600",
+  },
+  emerald: {
+    text: "text-emerald-600",
+    bgGradient: "from-emerald-500 to-emerald-700",
+    bgSoft: "bg-emerald-50",
+    badge: "bg-emerald-600",
+  },
+  cyan: {
+    text: "text-cyan-600",
+    bgGradient: "from-cyan-500 to-cyan-700",
+    bgSoft: "bg-cyan-50",
+    badge: "bg-cyan-600",
+  },
+  sky: {
+    text: "text-sky-600",
+    bgGradient: "from-sky-500 to-sky-700",
+    bgSoft: "bg-sky-50",
+    badge: "bg-sky-600",
+  },
+  blue: {
+    text: "text-blue-600",
+    bgGradient: "from-blue-500 to-blue-700",
+    bgSoft: "bg-blue-50",
+    badge: "bg-blue-600",
+  },
+  indigo: {
+    text: "text-indigo-600",
+    bgGradient: "from-indigo-500 to-indigo-700",
+    bgSoft: "bg-indigo-50",
+    badge: "bg-indigo-600",
+  },
+  violet: {
+    text: "text-violet-600",
+    bgGradient: "from-violet-500 to-violet-700",
+    bgSoft: "bg-violet-50",
+    badge: "bg-violet-600",
+  },
+  purple: {
+    text: "text-purple-600",
+    bgGradient: "from-purple-500 to-purple-700",
+    bgSoft: "bg-purple-50",
+    badge: "bg-purple-600",
+  },
+  fuchsia: {
+    text: "text-fuchsia-600",
+    bgGradient: "from-fuchsia-500 to-fuchsia-700",
+    bgSoft: "bg-fuchsia-50",
+    badge: "bg-fuchsia-600",
+  },
+  pink: {
+    text: "text-pink-600",
+    bgGradient: "from-pink-500 to-pink-700",
+    bgSoft: "bg-pink-50",
+    badge: "bg-pink-600",
+  },
+  rose: {
+    text: "text-rose-600",
+    bgGradient: "from-rose-500 to-rose-700",
+    bgSoft: "bg-rose-50",
+    badge: "bg-rose-600",
+  },
+  orange: {
+    text: "text-orange-600",
+    bgGradient: "from-orange-500 to-orange-700",
+    bgSoft: "bg-orange-50",
+    badge: "bg-orange-600",
+  },
+  amber: {
+    text: "text-amber-600",
+    bgGradient: "from-amber-500 to-amber-700",
+    bgSoft: "bg-amber-50",
+    badge: "bg-amber-600",
+  },
+  yellow: {
+    text: "text-yellow-600",
+    bgGradient: "from-yellow-500 to-yellow-700",
+    bgSoft: "bg-yellow-50",
+    badge: "bg-yellow-600",
+  },
+  lime: {
+    text: "text-lime-600",
+    bgGradient: "from-lime-500 to-lime-700",
+    bgSoft: "bg-lime-50",
+    badge: "bg-lime-600",
+  },
 } as const;
 
 type ColorKey = keyof typeof COLOR_MAP;
@@ -159,12 +234,10 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
   const [telefone, setTelefone] = useState("");
   const [bookingSuccess, setBookingSuccess] = useState(false);
 
-  const isClinic =
-    professional.plano === "clinic" && (professional.members?.length ?? 0) > 0;
+  const isClinic = professional.plano === "clinic" && (professional.members?.length ?? 0) > 0;
 
   const mpMutation = useMutation({
-    mutationFn: (appointmentId: string) =>
-      createMPPreference({ data: { appointmentId } }),
+    mutationFn: (appointmentId: string) => createMPPreference({ data: { appointmentId } }),
     onSuccess: ({ url }) => {
       window.location.href = url;
     },
@@ -231,7 +304,6 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
-
       {/* ── Profile Header ─────────────────────────────────────────────── */}
       <div className="mx-auto max-w-md px-4 pt-6">
         {/* Booking success banner */}
@@ -309,7 +381,6 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
 
       {/* ── Booking Section (cascata inline) ───────────────────────────── */}
       <section id="booking" className="mx-auto max-w-4xl px-4 lg:px-8">
-
         {/* Success screen (full width) */}
         {phase.tag === "confirmado" && (
           <SuccessScreen
@@ -417,9 +488,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
                 isConfirming={isConfirming}
                 onConfirm={handleConfirm}
                 error={
-                  bookingMutation.error instanceof Error
-                    ? bookingMutation.error.message
-                    : undefined
+                  bookingMutation.error instanceof Error ? bookingMutation.error.message : undefined
                 }
               />
             </div>
@@ -448,7 +517,9 @@ function CardItem({ card, colors }: { card: ProfessionalCard; colors: ColorPalet
 
   const content = (
     <div className="flex items-start gap-2.5">
-      <div className={`grid size-9 place-items-center rounded-xl ${config.iconBg} ${config.iconColor} shrink-0`}>
+      <div
+        className={`grid size-9 place-items-center rounded-xl ${config.iconBg} ${config.iconColor} shrink-0`}
+      >
         <config.Icon className="size-4" />
       </div>
       <div className="flex-1 min-w-0">
@@ -483,7 +554,12 @@ function getCardConfig(card: ProfessionalCard, colors: ColorPalette) {
     case "certificacao":
       return { Icon: Award, iconBg: colors.bgSoft, iconColor: colors.text, href: undefined };
     case "qualificacao":
-      return { Icon: GraduationCap, iconBg: colors.bgSoft, iconColor: colors.text, href: undefined };
+      return {
+        Icon: GraduationCap,
+        iconBg: colors.bgSoft,
+        iconColor: colors.text,
+        href: undefined,
+      };
     case "servico_extra":
       return { Icon: Sparkles, iconBg: colors.bgSoft, iconColor: colors.text, href: undefined };
     case "whatsapp":
@@ -505,7 +581,12 @@ function getCardConfig(card: ProfessionalCard, colors: ColorPalette) {
           : undefined,
       };
     case "localizacao":
-      return { Icon: MapPin, iconBg: "bg-rose-50", iconColor: "text-rose-500", href: card.valor ?? undefined };
+      return {
+        Icon: MapPin,
+        iconBg: "bg-rose-50",
+        iconColor: "text-rose-500",
+        href: card.valor ?? undefined,
+      };
     case "telefone":
       return {
         Icon: Phone,
@@ -521,7 +602,12 @@ function getCardConfig(card: ProfessionalCard, colors: ColorPalette) {
         href: card.valor ? `mailto:${card.valor}` : undefined,
       };
     default:
-      return { Icon: Sparkles, iconBg: "bg-slate-50", iconColor: "text-slate-400", href: undefined };
+      return {
+        Icon: Sparkles,
+        iconBg: "bg-slate-50",
+        iconColor: "text-slate-400",
+        href: undefined,
+      };
   }
 }
 
@@ -818,14 +904,8 @@ function SummaryPanel({
     phase.tag === "data" || phase.tag === "hora" || phase.tag === "confirmado"
       ? phase.service
       : null;
-  const date =
-    phase.tag === "hora" || phase.tag === "confirmado" ? phase.date : null;
-  const slot =
-    phase.tag === "hora"
-      ? selectedSlot
-      : phase.tag === "confirmado"
-        ? phase.slot
-        : null;
+  const date = phase.tag === "hora" || phase.tag === "confirmado" ? phase.date : null;
+  const slot = phase.tag === "hora" ? selectedSlot : phase.tag === "confirmado" ? phase.slot : null;
 
   const profName = member?.nomeCompleto ?? professional.nomeCompleto;
 
@@ -860,10 +940,7 @@ function SummaryPanel({
       </div>
 
       {/* Total */}
-      <div
-        className="mx-5 my-4 rounded-xl px-4 py-3"
-        style={{ backgroundColor: `${brand}18` }}
-      >
+      <div className="mx-5 my-4 rounded-xl px-4 py-3" style={{ backgroundColor: `${brand}18` }}>
         <div className="flex items-center justify-between">
           <span
             className="text-[10px] font-bold uppercase tracking-widest"
@@ -905,8 +982,7 @@ function SummaryPanel({
         </div>
         <div>
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-            E-MAIL{" "}
-            <span className="normal-case font-normal text-slate-300">(opcional)</span>
+            E-MAIL <span className="normal-case font-normal text-slate-300">(opcional)</span>
           </p>
           <input
             value={email}
@@ -1019,7 +1095,9 @@ function SuccessScreen({
             {phase.slot} · {phase.service.duracaoMinutos} min
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-600">
-            <span className="h-3.5 w-3.5 shrink-0 text-slate-400 flex items-center justify-center font-bold text-[10px]">R$</span>
+            <span className="h-3.5 w-3.5 shrink-0 text-slate-400 flex items-center justify-center font-bold text-[10px]">
+              R$
+            </span>
             {fmt(phase.service.preco)}
           </div>
         </div>
@@ -1030,7 +1108,8 @@ function SuccessScreen({
           📲 Confirme via WhatsApp e receba o lembrete
         </p>
         <p className="text-[11px] text-emerald-700 mb-3 leading-snug">
-          Envie os detalhes do agendamento para o consultório e guarde o comprovante na sua conversa.
+          Envie os detalhes do agendamento para o consultório e guarde o comprovante na sua
+          conversa.
         </p>
         <a
           href={whatsappUrl}
@@ -1198,12 +1277,18 @@ function ClinicMemberServicesSection({
             className="h-14 w-14 rounded-xl flex items-center justify-center text-white font-black text-lg shrink-0 shadow-sm"
             style={{ background: memberBrand }}
           >
-            {member.nomeCompleto.split(" ").slice(0, 2).map((n) => n[0]).join("")}
+            {member.nomeCompleto
+              .split(" ")
+              .slice(0, 2)
+              .map((n) => n[0])
+              .join("")}
           </div>
         )}
         <div>
           <p className="font-bold text-slate-900">{member.nomeCompleto}</p>
-          <p className="text-xs mt-0.5" style={{ color: memberBrand }}>{member.especialidade}</p>
+          <p className="text-xs mt-0.5" style={{ color: memberBrand }}>
+            {member.especialidade}
+          </p>
           {member.bio && (
             <p className="text-xs text-slate-500 mt-1 leading-snug line-clamp-2">{member.bio}</p>
           )}

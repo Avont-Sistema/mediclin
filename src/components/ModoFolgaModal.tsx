@@ -14,8 +14,18 @@ import { listFolgas, addFolga, removeFolga, type FolgaBlock } from "../lib/folga
 // ─── Calendar helpers ─────────────────────────────────────────────────────────
 
 const MONTHS_PT = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
 ];
 
 const DOW_PT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -116,12 +126,16 @@ export function ModoFolgaModal({ open, onClose }: Props) {
   const firstDow = new Date(calYear, calMonth, 1).getDay(); // 0 = Sunday
 
   const prevMonth = () => {
-    if (calMonth === 0) { setCalMonth(11); setCalYear((y) => y - 1); }
-    else setCalMonth((m) => m - 1);
+    if (calMonth === 0) {
+      setCalMonth(11);
+      setCalYear((y) => y - 1);
+    } else setCalMonth((m) => m - 1);
   };
   const nextMonth = () => {
-    if (calMonth === 11) { setCalMonth(0); setCalYear((y) => y + 1); }
-    else setCalMonth((m) => m + 1);
+    if (calMonth === 11) {
+      setCalMonth(0);
+      setCalYear((y) => y + 1);
+    } else setCalMonth((m) => m + 1);
   };
 
   const toggleDay = (dateStr: string) => {
@@ -228,8 +242,7 @@ export function ModoFolgaModal({ open, onClose }: Props) {
                   } else if (isPast) {
                     cls += "text-slate-300 cursor-default";
                   } else if (isToday) {
-                    cls +=
-                      "ring-2 ring-teal-500 text-teal-700 cursor-pointer hover:bg-teal-50";
+                    cls += "ring-2 ring-teal-500 text-teal-700 cursor-pointer hover:bg-teal-50";
                   } else {
                     cls += "text-slate-700 cursor-pointer hover:bg-slate-100";
                   }
@@ -279,7 +292,8 @@ export function ModoFolgaModal({ open, onClose }: Props) {
                   <span className="h-5 w-5 rounded-full bg-amber-400 text-white text-xs grid place-items-center font-bold shrink-0">
                     {selectedDays.size}
                   </span>
-                  dia{selectedDays.size !== 1 ? "s" : ""} selecionado{selectedDays.size !== 1 ? "s" : ""}
+                  dia{selectedDays.size !== 1 ? "s" : ""} selecionado
+                  {selectedDays.size !== 1 ? "s" : ""}
                 </div>
                 <p className="text-xs text-amber-700 leading-relaxed">
                   {selectedSorted.map((d) => formatShort(d)).join(" · ")}
@@ -346,9 +360,7 @@ export function ModoFolgaModal({ open, onClose }: Props) {
                           {formatLong(f.inicio)}
                         </p>
                         {f.motivo ? (
-                          <p className="text-xs text-slate-500 mt-0.5 truncate">
-                            "{f.motivo}"
-                          </p>
+                          <p className="text-xs text-slate-500 mt-0.5 truncate">"{f.motivo}"</p>
                         ) : (
                           <p className="text-xs text-slate-400 mt-0.5">Sem mensagem</p>
                         )}

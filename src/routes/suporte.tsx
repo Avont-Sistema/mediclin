@@ -156,7 +156,6 @@ function SuporteContent() {
       </header>
 
       <div className="p-6 max-w-3xl space-y-6">
-
         {/* ── Seu link público ── */}
         {slug && (
           <div className="rounded-2xl border border-teal-200 bg-teal-50/60 p-5">
@@ -208,10 +207,11 @@ function SuporteContent() {
                   className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50 transition"
                 >
                   <span className="text-sm font-medium text-slate-800">{item.q}</span>
-                  {openFaq === i
-                    ? <ChevronUp className="h-4 w-4 text-slate-400 shrink-0" />
-                    : <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
-                  }
+                  {openFaq === i ? (
+                    <ChevronUp className="h-4 w-4 text-slate-400 shrink-0" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
+                  )}
                 </button>
                 {openFaq === i && (
                   <div className="px-4 pb-3 pt-2 text-xs text-slate-600 leading-relaxed border-t border-slate-100 bg-slate-50/60">
@@ -274,7 +274,6 @@ function SuporteContent() {
             </a>
           </p>
         </div>
-
       </div>
     </DashboardLayout>
   );
@@ -324,7 +323,6 @@ function PhoneTutorial() {
       </div>
 
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-7">
-
         {/* ── Phone mockup ──────────────────────────────────────────────── */}
         <div className="shrink-0 mx-auto sm:mx-0">
           <div className="relative w-[220px]">
@@ -339,10 +337,10 @@ function PhoneTutorial() {
                   className="absolute inset-0 overflow-y-auto bg-slate-50 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pt-6 transition-opacity duration-200"
                   style={{ opacity: visible ? 1 : 0 }}
                 >
-                  {phase.id === "perfil"      && <PerfilPhoneScreen />}
-                  {phase.id === "servicos"    && <ServicosPhoneScreen />}
-                  {phase.id === "agenda"      && <AgendaPhoneScreen />}
-                  {phase.id === "link"        && <LinkPhoneScreen />}
+                  {phase.id === "perfil" && <PerfilPhoneScreen />}
+                  {phase.id === "servicos" && <ServicosPhoneScreen />}
+                  {phase.id === "agenda" && <AgendaPhoneScreen />}
+                  {phase.id === "link" && <LinkPhoneScreen />}
                   {phase.id === "agendamento" && <AgendamentoPhoneScreen />}
                 </div>
               </div>
@@ -357,9 +355,10 @@ function PhoneTutorial() {
 
         {/* ── Step info ─────────────────────────────────────────────────── */}
         <div className="flex-1 min-w-0 flex flex-col">
-
           {/* Phase badge */}
-          <div className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold mb-3 w-fit ${phase.badge}`}>
+          <div
+            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold mb-3 w-fit ${phase.badge}`}
+          >
             {phase.num} / {TUTORIAL_PHASES.length}
           </div>
 
@@ -388,12 +387,13 @@ function PhoneTutorial() {
               {TUTORIAL_PHASES.map((p, i) => (
                 <button
                   key={p.id}
-                  onClick={() => { setPlaying(false); setIdx(i); }}
+                  onClick={() => {
+                    setPlaying(false);
+                    setIdx(i);
+                  }}
                   aria-label={p.title}
                   className={`h-2 rounded-full transition-all duration-300 ${
-                    i === idx
-                      ? `w-6 ${p.dot}`
-                      : "w-2 bg-slate-200 hover:bg-slate-300"
+                    i === idx ? `w-6 ${p.dot}` : "w-2 bg-slate-200 hover:bg-slate-300"
                   }`}
                 />
               ))}
@@ -414,14 +414,10 @@ function PhoneTutorial() {
               aria-label={playing ? "Pausar" : "Reproduzir"}
               className="size-8 rounded-full bg-teal-600 hover:bg-teal-700 flex items-center justify-center text-white transition shrink-0"
             >
-              {playing
-                ? <Pause className="h-3.5 w-3.5" />
-                : <Play className="h-3.5 w-3.5" />
-              }
+              {playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
             </button>
           </div>
         </div>
-
       </div>
     </div>
   );
@@ -493,7 +489,7 @@ function ServicosPhoneScreen() {
 
       {[
         { nome: "Consulta Inicial", preco: "R$ 300", min: "60 min" },
-        { nome: "Retorno",          preco: "R$ 150", min: "30 min" },
+        { nome: "Retorno", preco: "R$ 150", min: "30 min" },
         { nome: "Avaliação Online", preco: "R$ 200", min: "45 min" },
       ].map((s, i) => (
         <div
@@ -502,7 +498,9 @@ function ServicosPhoneScreen() {
         >
           <div className="flex-1 min-w-0">
             <p className="text-[9px] font-bold text-slate-900 truncate">{s.nome}</p>
-            <p className="text-[8px] text-slate-400 mt-0.5">{s.preco} · {s.min}</p>
+            <p className="text-[8px] text-slate-400 mt-0.5">
+              {s.preco} · {s.min}
+            </p>
           </div>
           {/* Toggle ON */}
           <div className="relative inline-flex h-3.5 w-6 items-center rounded-full bg-teal-500 shrink-0">
@@ -519,7 +517,7 @@ function ServicosPhoneScreen() {
 }
 
 function AgendaPhoneScreen() {
-  const days   = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+  const days = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
   const active = [true, true, true, true, true, false, false];
 
   return (
@@ -655,8 +653,8 @@ function AgendamentoPhoneScreen() {
       </p>
       {[
         { time: "14:00", service: "Consulta Inicial", patient: "Maria Rodrigues" },
-        { time: "15:30", service: "Retorno",          patient: "Carlos Souza"    },
-        { time: "16:00", service: "Avaliação Online", patient: "Ana Pereira"     },
+        { time: "15:30", service: "Retorno", patient: "Carlos Souza" },
+        { time: "16:00", service: "Avaliação Online", patient: "Ana Pereira" },
       ].map((a, i) => (
         <div
           key={i}

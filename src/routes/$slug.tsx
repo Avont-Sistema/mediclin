@@ -15,9 +15,7 @@ export const Route = createFileRoute("/$slug")({
           ? `${loaderData.nomeCompleto} — Agendar consulta`
           : "MediClin — Agendar consulta",
       },
-      ...(loaderData?.bio
-        ? [{ name: "description", content: loaderData.bio }]
-        : []),
+      ...(loaderData?.bio ? [{ name: "description", content: loaderData.bio }] : []),
     ],
   }),
   notFoundComponent: ProfessionalNotFound,

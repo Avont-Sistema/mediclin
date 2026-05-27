@@ -211,9 +211,7 @@ function AppointmentNoteCard({ appt, index, defaultOpen = false }: NoteCardProps
             placeholder="Ex: Paciente relatou dor de cabeça frequente. Solicitado exame de sangue. Prescrito Paracetamol 500mg..."
             className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 focus:bg-white outline-none resize-none transition"
           />
-          <p className="text-[10px] text-slate-400">
-            Salvo automaticamente enquanto você digita.
-          </p>
+          <p className="text-[10px] text-slate-400">Salvo automaticamente enquanto você digita.</p>
         </div>
       )}
     </div>
@@ -249,10 +247,7 @@ export function PatientDrawer({ patientId, onClose }: PatientDrawerProps) {
   return (
     <>
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
       {/* Drawer panel */}
       <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-lg bg-white shadow-2xl flex flex-col">
@@ -272,9 +267,7 @@ export function PatientDrawer({ patientId, onClose }: PatientDrawerProps) {
               {isLoading ? (
                 <div className="h-4 w-32 bg-slate-100 rounded animate-pulse mb-2" />
               ) : (
-                <h2 className="text-base font-semibold text-slate-900 truncate">
-                  {patient?.nome}
-                </h2>
+                <h2 className="text-base font-semibold text-slate-900 truncate">{patient?.nome}</h2>
               )}
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
                 {patient?.telefone && (

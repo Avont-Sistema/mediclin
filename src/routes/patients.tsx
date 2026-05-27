@@ -160,10 +160,7 @@ function PatientsContent() {
 
       {/* ── Detail drawer ───────────────────────────────────────────── */}
       {selectedPatient && (
-        <PatientDrawer
-          patientId={selectedPatient.id}
-          onClose={() => setSelectedPatient(null)}
-        />
+        <PatientDrawer patientId={selectedPatient.id} onClose={() => setSelectedPatient(null)} />
       )}
     </DashboardLayout>
   );
@@ -171,13 +168,7 @@ function PatientsContent() {
 
 // ─── PatientRow ───────────────────────────────────────────────────────────────
 
-function PatientRow({
-  patient,
-  onOpen,
-}: {
-  patient: PatientSummary;
-  onOpen: () => void;
-}) {
+function PatientRow({ patient, onOpen }: { patient: PatientSummary; onOpen: () => void }) {
   return (
     <div
       className="rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition group cursor-pointer"

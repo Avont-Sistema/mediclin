@@ -146,10 +146,7 @@ export const updateAppointmentNotes = createServerFn({ method: "POST" })
 
     // Ownership check
     const appt = await db.query.appointments.findFirst({
-      where: and(
-        eq(appointments.id, data.appointmentId),
-        eq(appointments.professionalId, profId),
-      ),
+      where: and(eq(appointments.id, data.appointmentId), eq(appointments.professionalId, profId)),
     });
     if (!appt) throw new Error("Agendamento não encontrado");
 

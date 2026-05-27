@@ -129,9 +129,7 @@ export const updateProfile = createServerFn({ method: "POST" })
 
 // ─── Page customization ───────────────────────────────────────────────────────
 
-const hexColor = z
-  .string()
-  .regex(/^#[0-9a-fA-F]{6}$/, "Cor inválida (use formato #RRGGBB)");
+const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Cor inválida (use formato #RRGGBB)");
 
 export const updatePageCustomization = createServerFn({ method: "POST" })
   .inputValidator(

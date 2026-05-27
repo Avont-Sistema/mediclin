@@ -50,8 +50,14 @@ export const listCards = createServerFn({ method: "GET" }).handler(async () => {
 
 const cardSchema = z.object({
   tipo: z.enum([
-    "certificacao", "qualificacao", "servico_extra",
-    "whatsapp", "instagram", "localizacao", "telefone", "email",
+    "certificacao",
+    "qualificacao",
+    "servico_extra",
+    "whatsapp",
+    "instagram",
+    "localizacao",
+    "telefone",
+    "email",
   ]),
   titulo: z.string().min(1).max(80),
   subtitulo: z.string().max(120).optional(),
@@ -83,10 +89,7 @@ export const updateCard = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const profId = await getAuthProfId();
     const existing = await db.query.professionalCards.findFirst({
-      where: and(
-        eq(professionalCards.id, data.id),
-        eq(professionalCards.professionalId, profId),
-      ),
+      where: and(eq(professionalCards.id, data.id), eq(professionalCards.professionalId, profId)),
     });
     if (!existing) throw new Error("Card não encontrado");
 
@@ -110,10 +113,7 @@ export const deleteCard = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const profId = await getAuthProfId();
     const existing = await db.query.professionalCards.findFirst({
-      where: and(
-        eq(professionalCards.id, data.id),
-        eq(professionalCards.professionalId, profId),
-      ),
+      where: and(eq(professionalCards.id, data.id), eq(professionalCards.professionalId, profId)),
     });
     if (!existing) throw new Error("Card não encontrado");
     await db.delete(professionalCards).where(eq(professionalCards.id, data.id));
@@ -129,21 +129,28 @@ export const reorderCards = createServerFn({ method: "POST" })
         db
           .update(professionalCards)
           .set({ ordem: index, atualizadoEm: new Date() })
-          .where(
-            and(
-              eq(professionalCards.id, id),
-              eq(professionalCards.professionalId, profId),
-            ),
-          ),
+          .where(and(eq(professionalCards.id, id), eq(professionalCards.professionalId, profId))),
       ),
     );
     return { ok: true };
   });
 
 const COLOR_VALUES = [
-  "teal", "emerald", "cyan", "sky", "blue", "indigo",
-  "violet", "purple", "fuchsia", "pink", "rose",
-  "orange", "amber", "yellow", "lime",
+  "teal",
+  "emerald",
+  "cyan",
+  "sky",
+  "blue",
+  "indigo",
+  "violet",
+  "purple",
+  "fuchsia",
+  "pink",
+  "rose",
+  "orange",
+  "amber",
+  "yellow",
+  "lime",
 ] as const;
 
 export const updatePageIdentity = createServerFn({ method: "POST" })

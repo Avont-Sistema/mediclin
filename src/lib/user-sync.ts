@@ -48,7 +48,9 @@ export async function getOrCreateUser(clerkId: string): Promise<User> {
   try {
     clerkUser = await clerk().users.getUser(clerkId);
   } catch (err) {
-    throw new Error(`Usuário Clerk não encontrado: ${clerkId} — ${err instanceof Error ? err.message : ""}`);
+    throw new Error(
+      `Usuário Clerk não encontrado: ${clerkId} — ${err instanceof Error ? err.message : ""}`,
+    );
   }
 
   const email =
