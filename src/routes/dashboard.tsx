@@ -49,9 +49,13 @@ import { NovoAgendamentoModal } from "../components/NovoAgendamentoModal";
 import { updateAppointmentStatus } from "../lib/agenda";
 
 export const Route = createFileRoute("/dashboard")({
-  head: () => ({
+  head: ({ loaderData }) => ({
     meta: [
-      { title: "Dashboard Médico — CuidandoVC" },
+      {
+        title: loaderData?.professional?.nomeCompleto
+          ? `Dashboard CuidandoVC — ${loaderData.professional.nomeCompleto}`
+          : "Dashboard CuidandoVC",
+      },
       {
         name: "description",
         content:

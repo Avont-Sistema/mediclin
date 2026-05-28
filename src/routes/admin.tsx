@@ -96,9 +96,7 @@ function AdminContent() {
       <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="mx-auto flex h-12 max-w-[1600px] items-center justify-between px-6">
           <div className="flex items-center gap-2.5">
-            <div className="grid size-6 place-items-center rounded-md bg-gradient-to-br from-teal-500 to-emerald-600">
-              <div className="size-2 rounded-sm rotate-45 bg-white" />
-            </div>
+            <img src="/logo-icon.png" alt="CuidandoVC" className="size-6 rounded-md object-contain" />
             <span className="text-sm font-bold tracking-tight">CuidandoVC</span>
             <span className="text-xs text-slate-500 font-mono border border-slate-700 rounded px-1.5 py-0.5">
               admin

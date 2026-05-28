@@ -10,7 +10,6 @@ import {
   Star,
   Check,
   Stethoscope,
-  Heart,
   Video,
   MessageCircle,
   Zap,
@@ -78,9 +77,7 @@ function Nav() {
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <Link to="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-brand-foreground">
-            <Heart className="h-4 w-4" fill="currentColor" />
-          </div>
+          <img src="/logo-icon.png" alt="CuidandoVC" className="h-8 w-8 rounded-lg object-contain" />
           <span className="text-lg font-semibold tracking-tight">CuidandoVC</span>
         </Link>
 
@@ -643,9 +640,7 @@ function Footer() {
     <footer className="border-t border-border py-12">
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-6 md:flex-row">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-brand text-brand-foreground">
-            <Heart className="h-3.5 w-3.5" fill="currentColor" />
-          </div>
+          <img src="/logo-icon.png" alt="CuidandoVC" className="h-7 w-7 rounded-md object-contain" />
           <span className="text-sm font-semibold">CuidandoVC</span>
           <span className="text-xs text-muted-foreground">© 2026</span>
         </div>

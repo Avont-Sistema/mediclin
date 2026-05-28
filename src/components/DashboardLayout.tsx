@@ -8,7 +8,6 @@ import {
   UserRound,
   Settings,
   LogOut,
-  Stethoscope,
   Wallet,
   Menu,
   X,
@@ -111,9 +110,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* ── Mobile top bar ─────────────────────────────────────────────────────── */}
       <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between border-b border-slate-200 bg-white px-4 h-14">
         <Link to="/" className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-teal-500 to-indigo-600 grid place-items-center text-white">
-            <Stethoscope className="h-4 w-4" />
-          </div>
+          <img src="/logo-icon.png" alt="CuidandoVC" className="h-8 w-8 rounded-lg object-contain" />
           <span className="text-sm font-semibold tracking-tight">CuidandoVC</span>
         </Link>
 
@@ -140,9 +137,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* Drawer header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
               <Link to="/" className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-teal-500 to-indigo-600 grid place-items-center text-white">
-                  <Stethoscope className="h-5 w-5" />
-                </div>
+                <img src="/logo-icon.png" alt="CuidandoVC" className="h-9 w-9 rounded-xl object-contain" />
                 <div>
                   <div className="text-sm font-semibold tracking-tight">CuidandoVC</div>
                   <div className="text-[11px] text-slate-500">Painel do médico</div>
@@ -189,9 +184,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white min-h-screen sticky top-0">
           <div className="px-6 py-5 border-b border-slate-100">
             <Link to="/" className="flex items-center gap-2">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-teal-500 to-indigo-600 grid place-items-center text-white">
-                <Stethoscope className="h-5 w-5" />
-              </div>
+              <img src="/logo-icon.png" alt="CuidandoVC" className="h-9 w-9 rounded-xl object-contain" />
               <div>
                 <div className="text-sm font-semibold tracking-tight">CuidandoVC</div>
                 <div className="text-[11px] text-slate-500">Painel do médico</div>

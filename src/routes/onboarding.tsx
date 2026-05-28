@@ -229,9 +229,7 @@ function OnboardingPage() {
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4 py-12">
       {/* Logo */}
       <div className="flex items-center gap-2.5 mb-8">
-        <div className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 shadow-lg shadow-teal-500/30">
-          <div className="size-3.5 rounded-sm rotate-45 bg-white" />
-        </div>
+        <img src="/logo-icon.png" alt="CuidandoVC" className="size-9 rounded-xl object-contain" />
         <span className="text-xl font-bold tracking-tight text-slate-800">CuidandoVC</span>
       </div>
 
