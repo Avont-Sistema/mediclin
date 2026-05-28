@@ -25,13 +25,13 @@ export const Route = createFileRoute("/")({
   loader: () => fetchPublicProfile(),
   head: () => ({
     meta: [
-      { title: "MediClin — Agendamento online para médicos e clínicas" },
+      { title: "CuidandoVC — Agendamento online para médicos e clínicas" },
       {
         name: "description",
         content:
           "Plataforma de agendamento que reduz faltas em até 67%, automatiza confirmações e permite que seus pacientes paguem na hora. Zero fricção.",
       },
-      { property: "og:title", content: "MediClin — Agendamento que cuida" },
+      { property: "og:title", content: "CuidandoVC — Agendamento que cuida" },
       {
         property: "og:description",
         content:
@@ -81,7 +81,7 @@ function Nav() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-brand-foreground">
             <Heart className="h-4 w-4" fill="currentColor" />
           </div>
-          <span className="text-lg font-semibold tracking-tight">MediClin</span>
+          <span className="text-lg font-semibold tracking-tight">CuidandoVC</span>
         </Link>
 
         <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
@@ -148,7 +148,7 @@ function Hero() {
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg text-muted-foreground md:text-xl">
-            MediClin é a plataforma de agendamento que cuida do trabalho chato — confirmações,
+            CuidandoVC é a plataforma de agendamento que cuida do trabalho chato — confirmações,
             lembretes e pagamentos — para você cuidar do que importa: seus pacientes.
           </p>
 
@@ -278,7 +278,7 @@ function LogosStrip() {
     <section className="border-y border-border/60 bg-muted/30 py-10">
       <div className="mx-auto max-w-7xl px-6">
         <p className="text-center text-xs uppercase tracking-widest text-muted-foreground">
-          Mais de 2.400 clínicas já confiam no MediClin
+          Mais de 2.400 clínicas já confiam no CuidandoVC
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-4 opacity-60">
           {logos.map((l) => (
@@ -342,7 +342,7 @@ function Features() {
     {
       icon: Video,
       t: "Telemedicina integrada",
-      d: "Gere links de videochamada para consultas online. Tudo dentro do MediClin.",
+      d: "Gere links de videochamada para consultas online. Tudo dentro do CuidandoVC.",
     },
     {
       icon: ShieldCheck,
@@ -496,7 +496,7 @@ function ForWhom() {
 function Testimonials() {
   const items = [
     {
-      q: "Reduzi minhas faltas de 22% para 6% em dois meses. O MediClin se pagou na primeira semana.",
+      q: "Reduzi minhas faltas de 22% para 6% em dois meses. O CuidandoVC se pagou na primeira semana.",
       n: "Dra. Beatriz Carvalho",
       r: "Cardiologista · Clínica Vita",
     },
@@ -552,7 +552,7 @@ function FAQ() {
   const faqs = [
     {
       q: "Preciso instalar alguma coisa?",
-      a: "Não. MediClin funciona direto no navegador, no computador ou no celular. Acesse de qualquer lugar.",
+      a: "Não. CuidandoVC funciona direto no navegador, no computador ou no celular. Acesse de qualquer lugar.",
     },
     {
       q: "Como funciona o período grátis?",
@@ -564,7 +564,7 @@ function FAQ() {
     },
     {
       q: "Como recebo os pagamentos?",
-      a: "Conectando sua conta Mercado Pago. O dinheiro vai direto para você via PIX, cartão ou boleto. MediClin retém apenas a taxa de plataforma (≈ 5%) automaticamente.",
+      a: "Conectando sua conta Mercado Pago. O dinheiro vai direto para você via PIX, cartão ou boleto. CuidandoVC retém apenas a taxa de plataforma (≈ 5%) automaticamente.",
     },
     {
       q: "Funciona para clínicas com vários médicos?",
@@ -646,7 +646,7 @@ function Footer() {
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-brand text-brand-foreground">
             <Heart className="h-3.5 w-3.5" fill="currentColor" />
           </div>
-          <span className="text-sm font-semibold">MediClin</span>
+          <span className="text-sm font-semibold">CuidandoVC</span>
           <span className="text-xs text-muted-foreground">© 2026</span>
         </div>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">

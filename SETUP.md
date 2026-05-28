@@ -1,6 +1,6 @@
-# 🚀 MediClin — Guia de Setup
+# 🚀 CuidandoVC — Guia de Setup
 
-Siga os passos abaixo para colocar o MediClin em produção no Vercel.
+Siga os passos abaixo para colocar o CuidandoVC em produção no Vercel.
 
 ---
 
@@ -188,6 +188,6 @@ Isso cria as tabelas no Neon (users, professionals, services, appointments, etc.
 
 ---
 
-**✅ Pronto! MediClin está em produção!**
+**✅ Pronto! CuidandoVC está em produção!**
 
 Acesse: **https://mediclin.vercel.app**

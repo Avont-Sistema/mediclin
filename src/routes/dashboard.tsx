@@ -51,7 +51,7 @@ import { updateAppointmentStatus } from "../lib/agenda";
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
-      { title: "Dashboard Médico — MediClin" },
+      { title: "Dashboard Médico — CuidandoVC" },
       {
         name: "description",
         content:
@@ -810,7 +810,7 @@ function DashboardContent() {
                         Sala virtual pronta
                       </h3>
                       <p className="text-sm text-slate-400 mt-1">
-                        Atenda seus pacientes de qualquer lugar, sem sair do MediClin.
+                        Atenda seus pacientes de qualquer lugar, sem sair do CuidandoVC.
                       </p>
 
                       <div className="mt-4 space-y-2.5">
@@ -1039,7 +1039,7 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
         <p className="text-sm text-slate-700 flex-1">
           <strong>Assinatura ativada!</strong> Seja bem-vindo ao plano{" "}
           <span className="capitalize font-semibold">{plano}</span>. Obrigado por assinar o
-          MediClin.
+          CuidandoVC.
         </p>
         <button
           onClick={() => setSuccessBanner(false)}
@@ -1090,7 +1090,7 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
           <p className="text-sm font-semibold text-slate-900">Pagamento pendente</p>
           <p className="text-xs text-slate-500 mt-0.5">
             Houve um problema com seu pagamento. Atualize seus dados para continuar usando o
-            MediClin.
+            CuidandoVC.
           </p>
         </div>
         {hasMPAccount && (
@@ -1117,7 +1117,7 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-slate-900">Assinatura cancelada</p>
           <p className="text-xs text-slate-500 mt-0.5">
-            Reative seu plano para continuar recebendo agendamentos pelo MediClin.
+            Reative seu plano para continuar recebendo agendamentos pelo CuidandoVC.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0 flex-wrap">
@@ -1153,7 +1153,7 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
             : "Período de teste encerrado"}
         </p>
         <p className="text-xs text-slate-500 mt-0.5">
-          Assine um plano para continuar usando todos os recursos do MediClin.
+          Assine um plano para continuar usando todos os recursos do CuidandoVC.
         </p>
       </div>
       <div className="flex items-center gap-2 shrink-0 flex-wrap">

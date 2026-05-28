@@ -27,7 +27,7 @@ import { buildPublicUrl } from "../lib/subdomain";
 import { fetchCurrentProfessional } from "../lib/auth";
 
 export const Route = createFileRoute("/suporte")({
-  head: () => ({ meta: [{ title: "Suporte — MediClin" }] }),
+  head: () => ({ meta: [{ title: "Suporte — CuidandoVC" }] }),
   loader: () => fetchCurrentProfessional(),
   component: SuportePage,
 });
@@ -106,7 +106,7 @@ const FAQ = [
     a: "Sim. Na Agenda, clique no botão 'Modo Folga' para bloquear dias específicos com uma mensagem personalizada para os pacientes.",
   },
   {
-    q: "O MediClin funciona no celular?",
+    q: "O CuidandoVC funciona no celular?",
     a: "Sim. Tanto o painel do médico quanto a página pública do paciente são totalmente responsivos e otimizados para mobile.",
   },
 ];
@@ -234,7 +234,7 @@ function SuporteContent() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <a
-              href="https://wa.me/5511999999999?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20MediClin"
+              href="https://wa.me/5511999999999?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20CuidandoVC"
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 px-4 py-3.5 transition group"
@@ -263,7 +263,7 @@ function SuporteContent() {
             </a>
           </div>
           <p className="mt-5 text-center text-[11px] text-slate-400">
-            MediClin · versão 1.0 · Desenvolvido por{" "}
+            CuidandoVC · versão 1.0 · Desenvolvido por{" "}
             <a
               href="https://avontsistemas.com.br"
               target="_blank"
@@ -319,7 +319,7 @@ function PhoneTutorial() {
       {/* Section header */}
       <div className="flex items-center gap-2 mb-5">
         <BookOpen className="h-4 w-4 text-slate-600" />
-        <h3 className="text-sm font-semibold text-slate-800">Como usar o MediClin</h3>
+        <h3 className="text-sm font-semibold text-slate-800">Como usar o CuidandoVC</h3>
       </div>
 
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-7">

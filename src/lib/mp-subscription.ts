@@ -41,7 +41,7 @@ export const createMPSubscriptionCheckout = createServerFn({ method: "POST" })
       body: {
         preapproval_plan_id: planId,
         payer_email: userRecord!.email,
-        reason: data.plan === "pro" ? "MediClin Pro" : "MediClin Clinic",
+        reason: data.plan === "pro" ? "CuidandoVC Pro" : "CuidandoVC Clinic",
         back_url: `${origin}/dashboard?subscription=success`,
         external_reference: JSON.stringify({ professionalId: professional.id, plan: data.plan }),
       },

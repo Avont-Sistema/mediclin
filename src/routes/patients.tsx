@@ -19,7 +19,7 @@ import type { PatientSummary } from "../lib/patients";
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 export const Route = createFileRoute("/patients")({
-  head: () => ({ meta: [{ title: "Pacientes — MediClin" }] }),
+  head: () => ({ meta: [{ title: "Pacientes — CuidandoVC" }] }),
   component: PatientsPage,
 });
 

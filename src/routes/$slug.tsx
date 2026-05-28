@@ -13,7 +13,7 @@ export const Route = createFileRoute("/$slug")({
       {
         title: loaderData
           ? `${loaderData.nomeCompleto} — Agendar consulta`
-          : "MediClin — Agendar consulta",
+          : "CuidandoVC — Agendar consulta",
       },
       ...(loaderData?.bio ? [{ name: "description", content: loaderData.bio }] : []),
     ],

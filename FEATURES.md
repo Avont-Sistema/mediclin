@@ -1,8 +1,8 @@
-# 🏥 MediClin — Funcionalidades Completas
+# 🏥 CuidandoVC — Funcionalidades Completas
 
 ## 📊 Resumo Executivo
 
-**MediClin** é um SaaS multi-tenant para médicos, dentistas e profissionais de saúde. Cada profissional recebe um link público (ex: `dr-ricardo.mediclin.app`) para compartilhar na bio do Instagram. Pacientes agendam e pagam sem sair do app.
+**CuidandoVC** é um SaaS multi-tenant para médicos, dentistas e profissionais de saúde. Cada profissional recebe um link público (ex: `dr-ricardo.mediclin.app`) para compartilhar na bio do Instagram. Pacientes agendam e pagam sem sair do app.
 
 ---
 
@@ -277,4 +277,4 @@ payments (ID, appointmentId, professionalId, mpPaymentId, valorBruto, taxaPlataf
 
 ---
 
-**🎉 MediClin é um produto completo, escalável e pronto para uso!**
+**🎉 CuidandoVC é um produto completo, escalável e pronto para uso!**

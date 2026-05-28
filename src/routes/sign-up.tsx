@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/sign-up")({
   head: () => ({
-    meta: [{ title: "Criar conta — MediClin" }],
+    meta: [{ title: "Criar conta — CuidandoVC" }],
   }),
   component: SignUpPage,
 });

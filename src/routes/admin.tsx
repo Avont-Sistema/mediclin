@@ -26,7 +26,7 @@ import type { AdminOverview } from "../lib/admin";
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 export const Route = createFileRoute("/admin")({
-  head: () => ({ meta: [{ title: "Admin — MediClin" }] }),
+  head: () => ({ meta: [{ title: "Admin — CuidandoVC" }] }),
   component: AdminPage,
 });
 
@@ -99,7 +99,7 @@ function AdminContent() {
             <div className="grid size-6 place-items-center rounded-md bg-gradient-to-br from-teal-500 to-emerald-600">
               <div className="size-2 rounded-sm rotate-45 bg-white" />
             </div>
-            <span className="text-sm font-bold tracking-tight">MediClin</span>
+            <span className="text-sm font-bold tracking-tight">CuidandoVC</span>
             <span className="text-xs text-slate-500 font-mono border border-slate-700 rounded px-1.5 py-0.5">
               admin
             </span>

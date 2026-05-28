@@ -1,4 +1,4 @@
-# ✅ TODO — Configuração Final do MediClin
+# ✅ TODO — Configuração Final do CuidandoVC
 
 ## 🎯 Ações Imediatas (Próximas 24h)
 
@@ -313,7 +313,7 @@ Se algo não funcionar:
 
 ---
 
-**✅ Quando todos os itens acima estiverem feitos, o MediClin estará 100% funcional em produção!**
+**✅ Quando todos os itens acima estiverem feitos, o CuidandoVC estará 100% funcional em produção!**
 
 Para dúvidas, consulte:
 - 📖 [SETUP.md](./SETUP.md) — Guia passo a passo

@@ -16,7 +16,7 @@ import { createProfessional, checkSlugAvailability, slugify } from "../lib/onboa
 import { buildPublicUrl } from "../lib/subdomain";
 
 export const Route = createFileRoute("/onboarding")({
-  head: () => ({ meta: [{ title: "MediClin — Configure seu perfil" }] }),
+  head: () => ({ meta: [{ title: "CuidandoVC — Configure seu perfil" }] }),
   component: OnboardingPage,
 });
 
@@ -82,7 +82,7 @@ const PAIN_MAP: Record<AgendaAtual, PainData> = {
         desc: "cada consulta é um risco financeiro até o paciente chegar",
       },
     ],
-    gain: "Com MediClin, agendamento e pagamento acontecem enquanto você dorme. Zero mensagens.",
+    gain: "Com CuidandoVC, agendamento e pagamento acontecem enquanto você dorme. Zero mensagens.",
   },
   telefone: {
     emoji: "📞",
@@ -100,7 +100,7 @@ const PAIN_MAP: Record<AgendaAtual, PainData> = {
         desc: "você depende da memória ou de anotações para saber o que foi combinado",
       },
     ],
-    gain: "Com MediClin, seu consultório aceita agendamentos 24h por dia — mesmo quando você está em consulta.",
+    gain: "Com CuidandoVC, seu consultório aceita agendamentos 24h por dia — mesmo quando você está em consulta.",
   },
   secretaria: {
     emoji: "👩‍💼",
@@ -118,7 +118,7 @@ const PAIN_MAP: Record<AgendaAtual, PainData> = {
         desc: "paciente só consegue agendar quando a secretária está disponível",
       },
     ],
-    gain: "Com MediClin, sua equipe foca no atendimento presencial — o agendamento e cobrança se cuidam sozinhos.",
+    gain: "Com CuidandoVC, sua equipe foca no atendimento presencial — o agendamento e cobrança se cuidam sozinhos.",
   },
   papel: {
     emoji: "📋",
@@ -136,7 +136,7 @@ const PAIN_MAP: Record<AgendaAtual, PainData> = {
         desc: "paciente que te encontra no Instagram não consegue agendar na hora — e vai para o concorrente",
       },
     ],
-    gain: "Com MediClin, sua agenda fica na nuvem: acessível de qualquer lugar, com pagamento integrado.",
+    gain: "Com CuidandoVC, sua agenda fica na nuvem: acessível de qualquer lugar, com pagamento integrado.",
   },
 };
 
@@ -232,7 +232,7 @@ function OnboardingPage() {
         <div className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 shadow-lg shadow-teal-500/30">
           <div className="size-3.5 rounded-sm rotate-45 bg-white" />
         </div>
-        <span className="text-xl font-bold tracking-tight text-slate-800">MediClin</span>
+        <span className="text-xl font-bold tracking-tight text-slate-800">CuidandoVC</span>
       </div>
 
       {/* Progress bar */}

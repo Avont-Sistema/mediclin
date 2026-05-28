@@ -32,7 +32,7 @@ import { DisponibilidadeModal } from "../components/DisponibilidadeModal";
 // ─── Route ────────────────────────────────────────────────────────────────────
 
 export const Route = createFileRoute("/agenda")({
-  head: () => ({ meta: [{ title: "Agenda — MediClin" }] }),
+  head: () => ({ meta: [{ title: "Agenda — CuidandoVC" }] }),
   validateSearch: z.object({ week: z.string().optional() }),
   component: AgendaPage,
 });

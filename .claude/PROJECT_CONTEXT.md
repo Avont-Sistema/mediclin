@@ -6,7 +6,7 @@
 
 ## ⚠️ ARQUITETURA — LEIA ANTES DE QUALQUER COISA
 
-### MediClin é UM ecossistema com 3 níveis
+### CuidandoVC é UM ecossistema com 3 níveis
 
 ```
 [1] DASHBOARD DO MÉDICO  →  [DB]  →  [2] PÁGINA PÚBLICA DO MÉDICO
@@ -20,7 +20,7 @@
 - Calendly Admin → Página de agendamento
 - Linktree Admin → Linktree público
 
-**O MediClin funciona EXATAMENTE assim.**
+**O CuidandoVC funciona EXATAMENTE assim.**
 
 ---
 
@@ -50,7 +50,7 @@ O médico gerencia:
 **Função:** Link na bio do Instagram/WhatsApp do médico
 
 **NÃO É:**
-- ❌ A home do MediClin
+- ❌ A home do CuidandoVC
 - ❌ Uma landing page genérica
 - ❌ Uma página separada do sistema
 - ❌ Dados hardcoded
@@ -97,7 +97,7 @@ Doctor Dashboard → Database → Public Doctor Page → Patient Booking → Pay
 
 ## Nível 3 — Admin Master (FUTURO, baixa prioridade)
 
-Painel interno do dono do MediClin (eu).
+Painel interno do dono do CuidandoVC (eu).
 - Gerenciar médicos, planos, assinaturas, métricas, suporte
 - **Não misturar com o dashboard do médico**
 - **Não implementar agora**

@@ -46,7 +46,7 @@ export async function sendWhatsAppReminder(data: WhatsAppReminderData): Promise<
   });
 
   const body =
-    `🔔 *Lembrete MediClin*\n\n` +
+    `🔔 *Lembrete CuidandoVC*\n\n` +
     `Olá, ${data.patientName}! Sua consulta começa em *2 horas*.\n\n` +
     `👨‍⚕️ *${data.professionalName}*\n` +
     `📋 ${data.serviceName}\n` +

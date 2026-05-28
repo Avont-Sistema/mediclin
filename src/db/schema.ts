@@ -132,7 +132,7 @@ export const professionals = pgTable(
     mpAccessToken: text("mp_access_token"),
     mpAccountAtivo: boolean("mp_account_ativo").default(false).notNull(),
 
-    // Plano de assinatura com o MediClin
+    // Plano de assinatura com o CuidandoVC
     plano: planoEnum("plano").default("free").notNull(),
 
     ativo: boolean("ativo").default(true).notNull(),
@@ -288,7 +288,7 @@ export const appointments = pgTable(
 );
 
 // ─── subscriptions ────────────────────────────────────────────────────────────
-// Assinatura do doutor com o MediClin (receita SaaS)
+// Assinatura do doutor com o CuidandoVC (receita SaaS)
 
 export const subscriptions = pgTable("subscriptions", {
   id: uuid("id").primaryKey().defaultRandom(),

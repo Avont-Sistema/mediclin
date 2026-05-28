@@ -1,4 +1,4 @@
-# 🏥 MediClin
+# 🏥 CuidandoVC
 
 **SaaS multi-tenant** para médicos, dentistas e profissionais de saúde.
 
@@ -162,7 +162,7 @@ Cada médico é um tenant isolado por `professional_id`. **Toda query ao banco d
 - **Receita 1:** Assinatura mensal do médico (Free / Pro / Clinic)
 - **Receita 2:** Taxa de plataforma (~5%) em cada pagamento via Stripe Connect
 
-O split acontece automaticamente via `application_fee_amount` — o dinheiro nunca passa pela conta do MediClin.
+O split acontece automaticamente via `application_fee_amount` — o dinheiro nunca passa pela conta do CuidandoVC.
 
 ---
 

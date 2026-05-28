@@ -6,7 +6,7 @@ function getResend(): Resend {
   return new Resend(key);
 }
 
-const FROM = "MediClin <notificacoes@mediclin.com.br>";
+const FROM = "CuidandoVC <notificacoes@mediclin.com.br>";
 
 // ─── Templates ───────────────────────────────────────────────────────────────
 
@@ -32,7 +32,7 @@ function baseHtml(content: string): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MediClin</title>
+  <title>CuidandoVC</title>
 </head>
 <body style="margin:0;padding:0;background:#f8fafc;font-family:'Segoe UI',Arial,sans-serif;">
   <div style="max-width:560px;margin:32px auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
@@ -42,7 +42,7 @@ function baseHtml(content: string): string {
         <div style="width:32px;height:32px;background:rgba(255,255,255,0.2);border-radius:8px;display:flex;align-items:center;justify-content:center;">
           <div style="width:14px;height:14px;background:#fff;transform:rotate(45deg);border-radius:2px;"></div>
         </div>
-        <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.5px;">MediClin</span>
+        <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.5px;">CuidandoVC</span>
       </div>
     </div>
     <!-- Content -->
@@ -52,7 +52,7 @@ function baseHtml(content: string): string {
     <!-- Footer -->
     <div style="background:#f1f5f9;padding:16px 32px;text-align:center;">
       <p style="margin:0;font-size:12px;color:#94a3b8;">
-        Você está recebendo este e-mail porque agendou uma consulta via MediClin.
+        Você está recebendo este e-mail porque agendou uma consulta via CuidandoVC.
       </p>
     </div>
   </div>
@@ -232,7 +232,7 @@ export async function sendNewBookingNotification(
   const footer = `
     <div style="background:#f1f5f9;padding:16px 32px;text-align:center;">
       <p style="margin:0;font-size:12px;color:#94a3b8;">
-        Você recebe este e-mail porque é um profissional cadastrado no MediClin.
+        Você recebe este e-mail porque é um profissional cadastrado no CuidandoVC.
       </p>
     </div>
   `;
@@ -243,7 +243,7 @@ export async function sendNewBookingNotification(
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MediClin</title>
+  <title>CuidandoVC</title>
 </head>
 <body style="margin:0;padding:0;background:#f8fafc;font-family:'Segoe UI',Arial,sans-serif;">
   <div style="max-width:560px;margin:32px auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
@@ -252,7 +252,7 @@ export async function sendNewBookingNotification(
         <div style="width:32px;height:32px;background:rgba(255,255,255,0.2);border-radius:8px;display:flex;align-items:center;justify-content:center;">
           <div style="width:14px;height:14px;background:#fff;transform:rotate(45deg);border-radius:2px;"></div>
         </div>
-        <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.5px;">MediClin</span>
+        <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.5px;">CuidandoVC</span>
       </div>
     </div>
     <div style="padding:32px;">${content}</div>

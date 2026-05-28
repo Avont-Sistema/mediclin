@@ -2,7 +2,7 @@ Retome a sessão anterior com contexto mínimo. Argumento opcional: nome de uma 
 
 ## Instruções
 
-Você está iniciando (ou retomando) uma sessão no projeto MediClin. Execute os passos abaixo **na ordem exata**, sem analisar arquivos desnecessários. O objetivo é estar pronto para trabalhar em menos de 10 segundos de leitura.
+Você está iniciando (ou retomando) uma sessão no projeto CuidandoVC. Execute os passos abaixo **na ordem exata**, sem analisar arquivos desnecessários. O objetivo é estar pronto para trabalhar em menos de 10 segundos de leitura.
 
 ### PASSO 1 — Ler contexto (obrigatório, nesta ordem)
 
@@ -36,7 +36,7 @@ Se `$ARGUMENTS` especifica uma tarefa (ex: "implementar MP", "fix webhook"), lei
 Responda com este formato exato (máx 8 linhas):
 
 ```
-▶ Retomando MediClin
+▶ Retomando CuidandoVC
 - Último trabalho: [1 linha do SESSION_RESUME]
 - Branch: [branch]
 - Build: [ok/erro/desconhecido]

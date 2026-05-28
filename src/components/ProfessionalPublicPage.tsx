@@ -501,7 +501,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
         <p className="text-xs text-slate-400">
           Powered by{" "}
           <a href="/" className="font-semibold text-slate-500 hover:text-slate-800">
-            MediClin
+            CuidandoVC
           </a>{" "}
           · Agendamento online seguro
         </p>
@@ -1343,7 +1343,7 @@ function buildWhatsAppUrl(
     `⏱️ *Duração:* ${phase.service.duracaoMinutos} min`,
     `💰 *Valor:* ${fmt(phase.service.preco)}`,
     ``,
-    `Agendado via MediClin 🩺`,
+    `Agendado via CuidandoVC 🩺`,
   ].join("\n");
   const base = phone ? `https://wa.me/${phone}` : `https://wa.me`;
   return `${base}?text=${encodeURIComponent(msg)}`;

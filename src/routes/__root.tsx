@@ -73,13 +73,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "MediClin — Agendamento online de consultas" },
+      { title: "CuidandoVC — Agendamento online de consultas" },
       {
         name: "description",
         content:
           "Agende consultas presenciais ou telemedicina com especialistas. Confirmação imediata, sem filas de espera.",
       },
-      { property: "og:title", content: "MediClin — Agendamento online" },
+      { property: "og:title", content: "CuidandoVC — Agendamento online" },
       {
         property: "og:description",
         content:

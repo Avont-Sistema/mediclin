@@ -40,7 +40,7 @@ import {
 } from "../lib/settings";
 
 export const Route = createFileRoute("/settings")({
-  head: () => ({ meta: [{ title: "Configurações — MediClin" }] }),
+  head: () => ({ meta: [{ title: "Configurações — CuidandoVC" }] }),
   loader: () => fetchSettingsData(),
   component: SettingsPage,
 });
@@ -1038,7 +1038,7 @@ function SupportTab({ slug: _slug }: { slug: string }) {
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <a
-            href="https://wa.me/5511999999999?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20MediClin"
+            href="https://wa.me/5511999999999?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20CuidandoVC"
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 px-4 py-3.5 transition group"
@@ -1067,7 +1067,7 @@ function SupportTab({ slug: _slug }: { slug: string }) {
           </a>
         </div>
         <p className="mt-4 text-center text-[11px] text-slate-400">
-          MediClin · versão 1.0 · Desenvolvido por{" "}
+          CuidandoVC · versão 1.0 · Desenvolvido por{" "}
           <a
             href="https://avontsistemas.com.br"
             target="_blank"

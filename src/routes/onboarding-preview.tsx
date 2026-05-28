@@ -21,7 +21,7 @@ import {
 import { buildPublicUrl } from "../lib/subdomain";
 
 export const Route = createFileRoute("/onboarding-preview")({
-  head: () => ({ meta: [{ title: "Preview — Onboarding MediClin" }] }),
+  head: () => ({ meta: [{ title: "Preview — Onboarding CuidandoVC" }] }),
   component: OnboardingPreviewPage,
 });
 
@@ -84,7 +84,7 @@ const PAIN_MAP: Record<AgendaAtual, PainData> = {
       },
       { stat: "R$ 0 adiantado", desc: "cada consulta é um risco financeiro até o paciente chegar" },
     ],
-    gain: "Com MediClin, agendamento e pagamento acontecem enquanto você dorme. Zero mensagens.",
+    gain: "Com CuidandoVC, agendamento e pagamento acontecem enquanto você dorme. Zero mensagens.",
   },
   telefone: {
     emoji: "📞",
@@ -102,7 +102,7 @@ const PAIN_MAP: Record<AgendaAtual, PainData> = {
         desc: "você depende da memória ou de anotações para saber o que foi combinado",
       },
     ],
-    gain: "Com MediClin, seu consultório aceita agendamentos 24h por dia — mesmo quando você está em consulta.",
+    gain: "Com CuidandoVC, seu consultório aceita agendamentos 24h por dia — mesmo quando você está em consulta.",
   },
   secretaria: {
     emoji: "👩‍💼",
@@ -117,7 +117,7 @@ const PAIN_MAP: Record<AgendaAtual, PainData> = {
         desc: "paciente só consegue agendar quando a secretária está disponível",
       },
     ],
-    gain: "Com MediClin, sua equipe foca no atendimento presencial — o agendamento e cobrança se cuidam sozinhos.",
+    gain: "Com CuidandoVC, sua equipe foca no atendimento presencial — o agendamento e cobrança se cuidam sozinhos.",
   },
   papel: {
     emoji: "📋",
@@ -135,7 +135,7 @@ const PAIN_MAP: Record<AgendaAtual, PainData> = {
         desc: "paciente que te encontra no Instagram não consegue agendar na hora — e vai para o concorrente",
       },
     ],
-    gain: "Com MediClin, sua agenda fica na nuvem: acessível de qualquer lugar, com pagamento integrado.",
+    gain: "Com CuidandoVC, sua agenda fica na nuvem: acessível de qualquer lugar, com pagamento integrado.",
   },
 };
 
@@ -205,7 +205,7 @@ function OnboardingPreviewPage() {
         <div className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 shadow-lg shadow-teal-500/30">
           <div className="size-3.5 rounded-sm rotate-45 bg-white" />
         </div>
-        <span className="text-xl font-bold tracking-tight text-slate-800">MediClin</span>
+        <span className="text-xl font-bold tracking-tight text-slate-800">CuidandoVC</span>
       </div>
 
       {/* Jump buttons */}

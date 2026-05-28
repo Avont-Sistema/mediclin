@@ -114,7 +114,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-teal-500 to-indigo-600 grid place-items-center text-white">
             <Stethoscope className="h-4 w-4" />
           </div>
-          <span className="text-sm font-semibold tracking-tight">MediClin</span>
+          <span className="text-sm font-semibold tracking-tight">CuidandoVC</span>
         </Link>
 
         <button
@@ -144,7 +144,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   <Stethoscope className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="text-sm font-semibold tracking-tight">MediClin</div>
+                  <div className="text-sm font-semibold tracking-tight">CuidandoVC</div>
                   <div className="text-[11px] text-slate-500">Painel do médico</div>
                 </div>
               </Link>
@@ -193,7 +193,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Stethoscope className="h-5 w-5" />
               </div>
               <div>
-                <div className="text-sm font-semibold tracking-tight">MediClin</div>
+                <div className="text-sm font-semibold tracking-tight">CuidandoVC</div>
                 <div className="text-[11px] text-slate-500">Painel do médico</div>
               </div>
             </Link>

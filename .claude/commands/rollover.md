@@ -2,7 +2,7 @@ Execute um rollover completo da sessão atual. Argumento opcional: `--push` para
 
 ## Instruções
 
-Você está encerrando uma sessão de trabalho no projeto MediClin. Execute os passos abaixo **em ordem**, com respostas curtas e sem análise desnecessária.
+Você está encerrando uma sessão de trabalho no projeto CuidandoVC. Execute os passos abaixo **em ordem**, com respostas curtas e sem análise desnecessária.
 
 ### PASSO 1 — Coletar estado atual
 

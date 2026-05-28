@@ -1,4 +1,4 @@
-# MediClin — Pendências para sua decisão
+# CuidandoVC — Pendências para sua decisão
 
 > Documento gerado autonomamente na noite de 22/05/2026.
 > Tudo o que precisava de **decisão sua** ou de **input externo** está listado aqui em ordem de criticidade.

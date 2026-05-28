@@ -54,7 +54,7 @@ export const Route = createFileRoute("/pagina-publica")({
     const prof = await fetchCurrentProfessional();
     if (!prof) throw redirect({ to: "/sign-in" });
   },
-  head: () => ({ meta: [{ title: "MediClin — Página Pública" }] }),
+  head: () => ({ meta: [{ title: "CuidandoVC — Página Pública" }] }),
   component: PaginaPublicaPage,
 });
 

@@ -4,7 +4,7 @@
 
 ## ⚠️ ARQUITETURA FUNDAMENTAL (não questionar)
 
-O MediClin é UM ecossistema — dashboard do médico e página pública são partes do mesmo sistema.
+O CuidandoVC é UM ecossistema — dashboard do médico e página pública são partes do mesmo sistema.
 - Dashboard = backoffice (médico configura tudo)
 - Página pública `/:slug` = frontend do paciente (consome as configs do médico)
 - Toda feature deve considerar os DOIS lados: o que o médico configura E como aparece pro paciente

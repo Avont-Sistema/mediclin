@@ -23,7 +23,7 @@ import { DashboardLayout } from "../components/DashboardLayout";
 export const Route = createFileRoute("/financeiro")({
   head: () => ({
     meta: [
-      { title: "Financeiro — MediClin" },
+      { title: "Financeiro — CuidandoVC" },
       { name: "description", content: "Histórico de pagamentos e integração com Mercado Pago." },
     ],
   }),

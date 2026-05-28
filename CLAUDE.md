@@ -1,8 +1,8 @@
-# CLAUDE.md — Guia do projeto MediClin
+# CLAUDE.md — Guia do projeto CuidandoVC
 
 ## ⚠️ ARQUITETURA DO PRODUTO (regra definitiva)
 
-MediClin é **um ecossistema**, não apps separados:
+CuidandoVC é **um ecossistema**, não apps separados:
 
 ```
 Dashboard do Médico (backoffice)  →  DB  →  Página Pública /:slug (paciente)
@@ -33,7 +33,7 @@ Siga as convenções abaixo sem exceção.
 
 ## Visão do produto
 
-**MediClin** é um SaaS multi-tenant para médicos, dentistas e outros profissionais de saúde.
+**CuidandoVC** é um SaaS multi-tenant para médicos, dentistas e outros profissionais de saúde.
 Inspirado no modelo do Anota.ai, mas voltado para saúde: cada profissional recebe um **link público** (ex: `dr-ricardo.cuidandovc.com.br`) que pode colocar na bio do Instagram. Pacientes acessam esse link, escolhem serviço, horário e **pagam na hora** — sem sair do app.
 
 ---
@@ -42,10 +42,10 @@ Inspirado no modelo do Anota.ai, mas voltado para saúde: cada profissional rece
 
 | Fluxo                      | Descrição                                                                                     |
 | -------------------------- | --------------------------------------------------------------------------------------------- |
-| **Receita 1 — Assinatura** | Doutor paga mensalidade ao MediClin (Free / Pro / Clinic)                                     |
-| **Receita 2 — Split**      | MediClin retém taxa de plataforma (≈ 5%) em cada pagamento paciente→doutor via Stripe Connect |
+| **Receita 1 — Assinatura** | Doutor paga mensalidade ao CuidandoVC (Free / Pro / Clinic)                                     |
+| **Receita 2 — Split**      | CuidandoVC retém taxa de plataforma (≈ 5%) em cada pagamento paciente→doutor via Stripe Connect |
 
-O dinheiro do paciente **nunca passa pela conta do MediClin** — vai direto para a conta Stripe Connect do doutor, descontando a taxa automaticamente (`application_fee_amount`).
+O dinheiro do paciente **nunca passa pela conta do CuidandoVC** — vai direto para a conta Stripe Connect do doutor, descontando a taxa automaticamente (`application_fee_amount`).
 
 ---
 
