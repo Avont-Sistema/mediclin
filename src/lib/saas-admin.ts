@@ -6,6 +6,7 @@ import { getWebRequest } from "vinxi/http";
 import { db } from "../db";
 import {
   plans,
+  planFeatures,
   delinquencyConfig,
   adminUsers,
   leads,
@@ -108,6 +109,90 @@ export const upsertPlan = createServerFn({ method: "POST" })
       await db.insert(plans).values(values);
       await logAudit(actor, "plano.criar", "plans", data.slug);
     }
+    return { ok: true };
+  });
+
+// ═══ FUNCIONALIDADES POR PACOTE ═══════════════════════════════════════════════
+
+export type PlanFeature = {
+  id: string;
+  plano: string;
+  chave: string;
+  label: string;
+  descricao: string | null;
+  incluso: boolean;
+  limite: number | null;
+  ordem: number;
+};
+
+export const fetchPlanFeatures = createServerFn({ method: "GET" }).handler(
+  async (): Promise<PlanFeature[]> => {
+    await requireAdminAccess();
+    const rows = await db.query.planFeatures.findMany({
+      orderBy: (f, { asc }) => [asc(f.plano), asc(f.ordem)],
+    });
+    return rows.map((f) => ({
+      id: f.id,
+      plano: f.plano,
+      chave: f.chave,
+      label: f.label,
+      descricao: f.descricao,
+      incluso: f.incluso,
+      limite: f.limite,
+      ordem: f.ordem,
+    }));
+  },
+);
+
+// Cria ou atualiza uma funcionalidade de um pacote (toggle incluso, limite, label…)
+export const upsertPlanFeature = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      plano: z.string().min(2).max(50),
+      chave: z
+        .string()
+        .min(2)
+        .max(80)
+        .regex(/^[a-z0-9_]+$/, "Use minúsculas, números e _"),
+      label: z.string().min(2).max(120),
+      descricao: z.string().max(400).optional(),
+      incluso: z.boolean(),
+      limite: z.number().int().optional().nullable(),
+      ordem: z.number().int().min(0).optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const actor = await requireAdminAccess();
+    await db
+      .insert(planFeatures)
+      .values({
+        plano: data.plano,
+        chave: data.chave,
+        label: data.label,
+        descricao: data.descricao ?? null,
+        incluso: data.incluso,
+        limite: data.limite ?? null,
+        ordem: data.ordem ?? 0,
+      })
+      .onConflictDoUpdate({
+        target: [planFeatures.plano, planFeatures.chave],
+        set: {
+          label: data.label,
+          descricao: data.descricao ?? null,
+          incluso: data.incluso,
+          limite: data.limite ?? null,
+          ...(data.ordem !== undefined ? { ordem: data.ordem } : {}),
+        },
+      });
+    await logAudit(actor, "pacote.funcionalidade", "plan_features", `${data.plano}.${data.chave}`);
+    return { ok: true };
+  });
+
+export const removePlanFeature = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ id: z.string().uuid() }))
+  .handler(async ({ data }) => {
+    await requireAdminAccess();
+    await db.delete(planFeatures).where(eq(planFeatures.id, data.id));
     return { ok: true };
   });
 

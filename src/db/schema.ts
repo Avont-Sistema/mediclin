@@ -439,6 +439,29 @@ export const plans = pgTable("plans", {
   atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
 });
 
+// ─── plan_features ────────────────────────────────────────────────────────────
+// Matriz de funcionalidades por pacote (editável pelo admin). Permite definir,
+// por plano, quais recursos estão inclusos e com qual limite. Pensado para o
+// admin preencher/ajustar conforme novos pacotes e categorias forem criados.
+
+export const planFeatures = pgTable(
+  "plan_features",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    plano: varchar("plano", { length: 50 }).notNull(), // referencia plans.slug
+    chave: varchar("chave", { length: 80 }).notNull(), // ex: "lembretes_whatsapp"
+    label: varchar("label", { length: 120 }).notNull(), // ex: "Lembretes por WhatsApp"
+    descricao: text("descricao"),
+    incluso: boolean("incluso").notNull().default(false),
+    limite: integer("limite"), // null = não se aplica · -1 = ilimitado
+    ordem: integer("ordem").notNull().default(0),
+  },
+  (t) => [
+    unique("plan_features_unique").on(t.plano, t.chave),
+    index("plan_features_plano_idx").on(t.plano, t.ordem),
+  ],
+);
+
 // ─── delinquency_config ───────────────────────────────────────────────────────
 // Singleton — regras de bloqueio progressivo por inadimplência.
 // ⚠️ ativo=false por padrão: enforcement NÃO roda até o admin ligar explicitamente.
