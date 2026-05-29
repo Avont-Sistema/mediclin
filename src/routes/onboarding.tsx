@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useId, useRef, useEffect } from "react";
-import { SignedIn, SignedOut, SignIn, useUser } from "@clerk/tanstack-start";
+import { SignIn, useUser, useAuth } from "@clerk/tanstack-start";
 import {
   Stethoscope,
   ChevronRight,
@@ -28,22 +28,16 @@ export const Route = createFileRoute("/onboarding")({
   component: OnboardingPage,
 });
 
-// ─── Page wrapper: login Google (deslogado) → wizard (logado) ──────────────────
+// ─── Page wrapper ──────────────────────────────────────────────────────────────
+// O wizard começa pela "Situação" (visível para todos). O login só aparece
+// DEPOIS que o cliente responde a primeira etapa.
 
 function OnboardingPage() {
-  return (
-    <>
-      <SignedOut>
-        <OnboardingAuth />
-      </SignedOut>
-      <SignedIn>
-        <OnboardingWizard />
-      </SignedIn>
-    </>
-  );
+  return <OnboardingWizard />;
 }
 
-function OnboardingAuth() {
+// Tela de login (Google) exibida após a etapa de Situação, junto dos dados a preencher
+function OnboardingAuth({ onVoltar }: { onVoltar: () => void }) {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4 py-12">
       {/* Logo */}
@@ -53,9 +47,13 @@ function OnboardingAuth() {
       </div>
 
       <div className="w-full max-w-md text-center mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Crie sua conta em segundos</h1>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700 ring-1 ring-teal-100">
+          <Check className="size-3.5" /> Situação registrada
+        </span>
+        <h1 className="mt-4 text-2xl font-bold text-slate-900">Falta pouco! Crie sua conta</h1>
         <p className="mt-2 text-sm text-slate-500">
-          Entre com sua conta Google para começar. Sem senhas — rápido e seguro.
+          Entre com sua conta Google para continuar e montar seu perfil. Sem senhas — rápido e
+          seguro.
         </p>
       </div>
 
@@ -73,6 +71,13 @@ function OnboardingAuth() {
         <ShieldCheck className="size-3.5" />
         Autenticação via Google — não armazenamos sua senha
       </p>
+
+      <button
+        onClick={onVoltar}
+        className="mt-4 text-xs font-medium text-slate-500 hover:text-slate-700 transition"
+      >
+        ← Voltar para a etapa anterior
+      </button>
     </div>
   );
 }
@@ -211,22 +216,12 @@ function OnboardingWizard() {
   const navigate = useNavigate();
   const formId = useId();
   const { user } = useUser();
+  const { isLoaded, isSignedIn } = useAuth();
   const googleEmail = user?.primaryEmailAddress?.emailAddress ?? "";
 
   const [step, setStep] = useState<Step>(1);
-
-  // Profissional que já tem perfil não refaz onboarding → vai pro dashboard
-  useEffect(() => {
-    let active = true;
-    checkOnboardingStatus()
-      .then(({ hasProfile }) => {
-        if (active && hasProfile) void navigate({ to: "/dashboard" });
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [navigate]);
+  // Exibe a tela de login (Google) entre a Situação e o Perfil
+  const [showAuth, setShowAuth] = useState(false);
 
   // Step 1
   const [agendaAtual, setAgendaAtual] = useState<AgendaAtual | null>(null);
@@ -251,11 +246,47 @@ function OnboardingWizard() {
 
   const publicUrl = buildPublicUrl(slug);
 
+  // Ao carregar / logar: retoma a situação salva e decide o passo inicial
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    let active = true;
+
+    const saved = typeof window !== "undefined" ? sessionStorage.getItem("onb_situacao") : null;
+    const restored = (["whatsapp", "telefone", "secretaria", "papel"] as const).find(
+      (v) => v === saved,
+    );
+
+    checkOnboardingStatus()
+      .then(({ hasProfile }) => {
+        if (!active) return;
+        if (hasProfile) {
+          void navigate({ to: "/dashboard" });
+          return;
+        }
+        // Logado, sem perfil: se veio do login após a Situação, retoma no Perfil
+        if (restored) {
+          setAgendaAtual((cur) => cur ?? restored);
+          setStep((s) => (s === 1 ? 2 : s));
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [isLoaded, isSignedIn, navigate]);
+
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
   function handleStep1() {
     if (!agendaAtual) return;
-    setStep(2);
+    if (isSignedIn) {
+      setStep(2);
+    } else {
+      // Guarda a resposta e pede o login (Google) antes de seguir para o Perfil
+      if (typeof window !== "undefined") sessionStorage.setItem("onb_situacao", agendaAtual);
+      setShowAuth(true);
+    }
   }
 
   function handleStep2(e: React.FormEvent) {
@@ -293,6 +324,7 @@ function OnboardingWizard() {
       await createProfessional({
         data: { nomeCompleto: nome, especialidade, registro, uf: uf || undefined, slug },
       });
+      if (typeof window !== "undefined") sessionStorage.removeItem("onb_situacao");
       await navigate({ to: "/dashboard" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao criar perfil.");
@@ -301,6 +333,11 @@ function OnboardingWizard() {
   }
 
   const pain = agendaAtual ? PAIN_MAP[agendaAtual] : null;
+
+  // Após responder a Situação (e estando deslogado), pede o login antes do Perfil
+  if (showAuth && !isSignedIn) {
+    return <OnboardingAuth onVoltar={() => setShowAuth(false)} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4 py-12">
