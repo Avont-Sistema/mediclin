@@ -339,8 +339,17 @@ export const payments = pgTable(
   (t) => [index("payments_professional_idx").on(t.professionalId)],
 );
 
+// ─── plan_prices ──────────────────────────────────────────────────────────────
+// Preço mensal de cada plano (editável pelo admin) — base de cálculo do MRR
+
+export const planPrices = pgTable("plan_prices", {
+  plano: planoEnum("plano").primaryKey(),
+  valorMensal: decimal("valor_mensal", { precision: 10, scale: 2 }).notNull().default("0"),
+  atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
 // ─── support_config ───────────────────────────────────────────────────────────
-// Singleton — configurações de contato do suporte MediClin (gerenciado pelo admin)
+// Singleton — configurações de contato do suporte CuidandoVC (gerenciado pelo admin)
 
 export const supportConfig = pgTable("support_config", {
   id: uuid("id").primaryKey().defaultRandom(),

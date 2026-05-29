@@ -30,9 +30,16 @@ import {
   Clock,
   Save,
   ChevronDown,
+  DollarSign,
+  TrendingUp,
+  UserPlus,
+  Wallet,
+  AlertTriangle,
+  CreditCard,
+  UserX,
 } from "lucide-react";
-import { fetchAdminOverview, runSeed } from "../lib/admin";
-import type { AdminOverview } from "../lib/admin";
+import { fetchAdminOverview, runSeed, fetchPlanPrices, updatePlanPrice } from "../lib/admin";
+import type { AdminOverview, AdminMetrics } from "../lib/admin";
 import {
   fetchSupportConfig,
   updateSupportConfig,
@@ -121,7 +128,11 @@ function AdminContent() {
       <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="mx-auto flex h-12 max-w-[1600px] items-center justify-between px-6">
           <div className="flex items-center gap-2.5">
-            <img src="/logo-icon.png" alt="CuidandoVC" className="size-6 rounded-md object-contain" />
+            <img
+              src="/logo-icon.png"
+              alt="CuidandoVC"
+              className="size-6 rounded-md object-contain"
+            />
             <span className="text-sm font-bold tracking-tight">CuidandoVC</span>
             <span className="text-xs text-slate-500 font-mono border border-slate-700 rounded px-1.5 py-0.5">
               admin
@@ -179,125 +190,110 @@ function AdminContent() {
 
       <div className="mx-auto max-w-[1600px] px-6 py-6 space-y-6">
         {adminTab === "suporte" && <AdminSuporteTab />}
-        {adminTab === "overview" && (<>
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-4">
-          <StatCard
-            icon={<Users className="h-4 w-4" />}
-            label="Médicos"
-            value={data.totals.professionals}
-            color="text-violet-400"
-          />
-          <StatCard
-            icon={<Activity className="h-4 w-4" />}
-            label="Pacientes"
-            value={data.totals.patients}
-            color="text-teal-400"
-          />
-          <StatCard
-            icon={<CalendarDays className="h-4 w-4" />}
-            label="Agendamentos"
-            value={data.totals.appointments}
-            color="text-amber-400"
-          />
-        </div>
+        {adminTab === "overview" && (
+          <>
+            {/* Métricas do negócio */}
+            <MetricsDashboard metrics={data.metrics} />
 
-        {/* Main grid */}
-        <div className="grid grid-cols-[340px_1fr] gap-6">
-          {/* Left: Professionals list */}
-          <div className="space-y-3">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-              Médicos cadastrados
-            </h2>
+            {/* Main grid */}
+            <div className="grid grid-cols-[340px_1fr] gap-6">
+              {/* Left: Professionals list */}
+              <div className="space-y-3">
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                  Médicos cadastrados
+                </h2>
 
-            {data.professionals.length === 0 ? (
-              <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-center">
-                <p className="text-sm text-slate-500 mb-3">Nenhum médico cadastrado</p>
-                <button
-                  onClick={() => seed.mutate()}
-                  className="text-xs text-teal-400 hover:text-teal-300"
-                >
-                  Executar seed de teste →
-                </button>
+                {data.professionals.length === 0 ? (
+                  <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-center">
+                    <p className="text-sm text-slate-500 mb-3">Nenhum médico cadastrado</p>
+                    <button
+                      onClick={() => seed.mutate()}
+                      className="text-xs text-teal-400 hover:text-teal-300"
+                    >
+                      Executar seed de teste →
+                    </button>
+                  </div>
+                ) : (
+                  data.professionals.map((prof) => (
+                    <ProfessionalCard
+                      key={prof.id}
+                      prof={prof}
+                      origin={origin}
+                      isSelected={previewSlug === prof.slug}
+                      onPreview={() => {
+                        setPreviewSlug(prof.slug);
+                      }}
+                    />
+                  ))
+                )}
               </div>
-            ) : (
-              data.professionals.map((prof) => (
-                <ProfessionalCard
-                  key={prof.id}
-                  prof={prof}
-                  origin={origin}
-                  isSelected={previewSlug === prof.slug}
-                  onPreview={() => {
-                    setPreviewSlug(prof.slug);
-                  }}
-                />
-              ))
-            )}
-          </div>
 
-          {/* Right: Preview */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                Preview
-              </h2>
-              {previewSlug && (
-                <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 p-0.5">
-                  <button
-                    onClick={() => setPreviewMode("patient")}
-                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition ${previewMode === "patient" ? "bg-slate-700 text-slate-100" : "text-slate-400 hover:text-slate-200"}`}
-                  >
-                    <Globe className="h-3 w-3" /> Paciente
-                  </button>
-                  <button
-                    onClick={() => setPreviewMode("split")}
-                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition ${previewMode === "split" ? "bg-slate-700 text-slate-100" : "text-slate-400 hover:text-slate-200"}`}
-                  >
-                    <Monitor className="h-3 w-3" /> Split
-                  </button>
+              {/* Right: Preview */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                    Preview
+                  </h2>
+                  {previewSlug && (
+                    <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 p-0.5">
+                      <button
+                        onClick={() => setPreviewMode("patient")}
+                        className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition ${previewMode === "patient" ? "bg-slate-700 text-slate-100" : "text-slate-400 hover:text-slate-200"}`}
+                      >
+                        <Globe className="h-3 w-3" /> Paciente
+                      </button>
+                      <button
+                        onClick={() => setPreviewMode("split")}
+                        className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition ${previewMode === "split" ? "bg-slate-700 text-slate-100" : "text-slate-400 hover:text-slate-200"}`}
+                      >
+                        <Monitor className="h-3 w-3" /> Split
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
+
+                {!previewSlug ? (
+                  <EmptyPreview />
+                ) : previewMode === "patient" ? (
+                  <PatientPreview slug={previewSlug} origin={origin} />
+                ) : (
+                  <SplitPreview slug={previewSlug} origin={origin} />
+                )}
+              </div>
             </div>
 
-            {!previewSlug ? (
-              <EmptyPreview />
-            ) : previewMode === "patient" ? (
-              <PatientPreview slug={previewSlug} origin={origin} />
-            ) : (
-              <SplitPreview slug={previewSlug} origin={origin} />
-            )}
-          </div>
-        </div>
-
-        {/* Feature status */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">
-            Status das integrações
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <FeatureCard
-              ok={data.features.mp}
-              title="Mercado Pago"
-              desc={data.features.mp ? "Pagamentos ativos" : "Adicionar MERCADOPAGO_ACCESS_TOKEN"}
-            />
-            <FeatureCard
-              ok={data.features.resend}
-              title="Resend (Email)"
-              desc={data.features.resend ? "Emails ativos" : "Adicionar RESEND_API_KEY"}
-            />
-            <FeatureCard
-              ok={data.features.twilio}
-              title="Twilio (WhatsApp)"
-              desc={data.features.twilio ? "WhatsApp ativo" : "Adicionar TWILIO_ACCOUNT_SID"}
-            />
-            <FeatureCard
-              ok={data.features.cron}
-              title="Cron (Lembretes)"
-              desc={data.features.cron ? "Cron ativo" : "Adicionar CRON_SECRET"}
-            />
-          </div>
-        </div>
-        </>)}
+            {/* Feature status */}
+            <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">
+                Status das integrações
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <FeatureCard
+                  ok={data.features.mp}
+                  title="Mercado Pago"
+                  desc={
+                    data.features.mp ? "Pagamentos ativos" : "Adicionar MERCADOPAGO_ACCESS_TOKEN"
+                  }
+                />
+                <FeatureCard
+                  ok={data.features.resend}
+                  title="Resend (Email)"
+                  desc={data.features.resend ? "Emails ativos" : "Adicionar RESEND_API_KEY"}
+                />
+                <FeatureCard
+                  ok={data.features.twilio}
+                  title="Twilio (WhatsApp)"
+                  desc={data.features.twilio ? "WhatsApp ativo" : "Adicionar TWILIO_ACCOUNT_SID"}
+                />
+                <FeatureCard
+                  ok={data.features.cron}
+                  title="Cron (Lembretes)"
+                  desc={data.features.cron ? "Cron ativo" : "Adicionar CRON_SECRET"}
+                />
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -306,16 +302,16 @@ function AdminContent() {
 // ─── AdminSuporteTab ──────────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<TicketStatus, { label: string; cls: string }> = {
-  aberto:      { label: "Aberto",       cls: "bg-blue-900/40 text-blue-300 ring-blue-700" },
-  em_andamento:{ label: "Em andamento", cls: "bg-amber-900/40 text-amber-300 ring-amber-700" },
-  resolvido:   { label: "Resolvido",    cls: "bg-emerald-900/40 text-emerald-300 ring-emerald-700" },
-  fechado:     { label: "Fechado",      cls: "bg-slate-800 text-slate-400 ring-slate-700" },
+  aberto: { label: "Aberto", cls: "bg-blue-900/40 text-blue-300 ring-blue-700" },
+  em_andamento: { label: "Em andamento", cls: "bg-amber-900/40 text-amber-300 ring-amber-700" },
+  resolvido: { label: "Resolvido", cls: "bg-emerald-900/40 text-emerald-300 ring-emerald-700" },
+  fechado: { label: "Fechado", cls: "bg-slate-800 text-slate-400 ring-slate-700" },
 };
 
 const PRIORIDADE_CFG: Record<string, { dot: string; label: string }> = {
-  baixa:   { dot: "bg-slate-400", label: "Baixa" },
-  normal:  { dot: "bg-blue-400", label: "Normal" },
-  alta:    { dot: "bg-amber-400", label: "Alta" },
+  baixa: { dot: "bg-slate-400", label: "Baixa" },
+  normal: { dot: "bg-blue-400", label: "Normal" },
+  alta: { dot: "bg-amber-400", label: "Alta" },
   urgente: { dot: "bg-rose-500", label: "Urgente" },
 };
 
@@ -425,11 +421,17 @@ function AdminSuporteTab() {
             className="w-full flex items-center justify-center gap-2 rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white transition"
           >
             {cfgSaved ? (
-              <><CheckCircle2 className="h-4 w-4" /> Salvo!</>
+              <>
+                <CheckCircle2 className="h-4 w-4" /> Salvo!
+              </>
             ) : cfgMutation.isPending ? (
-              <><Loader2 className="h-4 w-4 animate-spin" /> Salvando…</>
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Salvando…
+              </>
             ) : (
-              <><Save className="h-4 w-4" /> Salvar configurações</>
+              <>
+                <Save className="h-4 w-4" /> Salvar configurações
+              </>
             )}
           </button>
           <p className="text-[10px] text-slate-500 text-center">
@@ -444,7 +446,8 @@ function AdminSuporteTab() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-            Chamados{unread > 0 && (
+            Chamados
+            {unread > 0 && (
               <span className="ml-2 inline-flex items-center justify-center h-4 w-4 rounded-full bg-rose-500 text-[9px] font-bold text-white">
                 {unread}
               </span>
@@ -475,7 +478,10 @@ function AdminSuporteTab() {
               return (
                 <button
                   key={t.id}
-                  onClick={() => { setActiveTicketId(t.id); setView("chat"); }}
+                  onClick={() => {
+                    setActiveTicketId(t.id);
+                    setView("chat");
+                  }}
                   className={`w-full text-left rounded-xl border p-4 transition group ${
                     !t.lidoAdmin && t.status !== "fechado"
                       ? "border-teal-700/60 bg-teal-900/20 hover:bg-teal-900/30"
@@ -500,7 +506,9 @@ function AdminSuporteTab() {
                         <p className="text-xs text-slate-500 mt-1 truncate">{t.lastMessage}</p>
                       )}
                       <div className="flex items-center gap-2 mt-1.5">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${sCfg.cls}`}>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${sCfg.cls}`}
+                        >
                           {sCfg.label}
                         </span>
                         {t.categoria && (
@@ -605,7 +613,9 @@ function AdminTicketChat({
 
       {sCfg && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${sCfg.cls}`}>
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${sCfg.cls}`}
+          >
             {sCfg.label}
           </span>
           {ticket?.categoria && <span className="text-xs text-slate-500">{ticket.categoria}</span>}
@@ -681,11 +691,11 @@ function AdminMessageBubble({ msg }: { msg: TicketMessage }) {
             : "bg-slate-800 text-slate-200 rounded-bl-sm"
         }`}
       >
-        {!isAdmin && (
-          <p className="text-[10px] font-semibold text-slate-400 mb-1">Médico</p>
-        )}
+        {!isAdmin && <p className="text-[10px] font-semibold text-slate-400 mb-1">Médico</p>}
         <p className="whitespace-pre-wrap break-words leading-relaxed">{msg.conteudo}</p>
-        <p className={`text-[10px] mt-1 ${isAdmin ? "text-teal-200" : "text-slate-500"} text-right`}>
+        <p
+          className={`text-[10px] mt-1 ${isAdmin ? "text-teal-200" : "text-slate-500"} text-right`}
+        >
           {new Date(msg.criadoEm).toLocaleTimeString("pt-BR", {
             hour: "2-digit",
             minute: "2-digit",
@@ -727,6 +737,300 @@ function StatCard({
         <span className="text-xs font-medium text-slate-400">{label}</span>
       </div>
       <p className="text-2xl font-bold">{value}</p>
+    </div>
+  );
+}
+
+// ─── Métricas do negócio ──────────────────────────────────────────────────────
+
+function formatBRL(v: number) {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function MetricCard({
+  icon,
+  label,
+  value,
+  sub,
+  color,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  sub?: string;
+  color: string;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+      <div className={`flex items-center gap-2 mb-2 ${color}`}>
+        {icon}
+        <span className="text-xs font-medium text-slate-400">{label}</span>
+      </div>
+      <p className="text-2xl font-bold leading-none">{value}</p>
+      {sub && <p className="text-[11px] text-slate-500 mt-1.5">{sub}</p>}
+    </div>
+  );
+}
+
+function MetricsDashboard({ metrics: m }: { metrics: AdminMetrics }) {
+  return (
+    <div className="space-y-5">
+      {/* ── Crescimento ── */}
+      <div>
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">
+          Crescimento
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <MetricCard
+            icon={<Users className="h-4 w-4" />}
+            label="Total de médicos"
+            value={m.totalMedicos}
+            color="text-violet-400"
+          />
+          <MetricCard
+            icon={<UserPlus className="h-4 w-4" />}
+            label="Novos no mês"
+            value={m.novosNoMes}
+            color="text-emerald-400"
+          />
+          <MetricCard
+            icon={<Activity className="h-4 w-4" />}
+            label="Total de pacientes"
+            value={m.totalPacientes}
+            color="text-teal-400"
+          />
+          <MetricCard
+            icon={<CalendarDays className="h-4 w-4" />}
+            label="Total de agendamentos"
+            value={m.totalAgendamentos}
+            color="text-amber-400"
+          />
+        </div>
+      </div>
+
+      {/* ── Profissionais por plano ── */}
+      <div>
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">
+          Profissionais por plano
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <PlanCard
+            label="Plano Gratuito"
+            value={m.porPlano.free}
+            badge="FREE"
+            badgeCls="bg-slate-700 text-slate-300"
+            barCls="bg-slate-500"
+            total={m.totalMedicos}
+          />
+          <PlanCard
+            label="Plano PRO"
+            value={m.porPlano.pro}
+            badge="PRO"
+            badgeCls="bg-violet-600/30 text-violet-300 ring-1 ring-violet-600/40"
+            barCls="bg-violet-500"
+            total={m.totalMedicos}
+          />
+          <PlanCard
+            label="Plano Clínica"
+            value={m.porPlano.clinic}
+            badge="CLINIC"
+            badgeCls="bg-amber-600/30 text-amber-300 ring-1 ring-amber-600/40"
+            barCls="bg-amber-500"
+            total={m.totalMedicos}
+          />
+        </div>
+      </div>
+
+      {/* ── Financeiro (assinaturas) ── */}
+      <div>
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">
+          Financeiro — Assinaturas (SaaS)
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <MetricCard
+            icon={<DollarSign className="h-4 w-4" />}
+            label="MRR"
+            value={formatBRL(m.mrr)}
+            sub="Receita recorrente mensal"
+            color="text-emerald-400"
+          />
+          <MetricCard
+            icon={<TrendingUp className="h-4 w-4" />}
+            label="Receita anual est."
+            value={formatBRL(m.receitaAnualEstimada)}
+            sub="MRR × 12"
+            color="text-emerald-400"
+          />
+          <MetricCard
+            icon={<Zap className="h-4 w-4" />}
+            label="Trial ativo"
+            value={m.trialAtivo}
+            color="text-sky-400"
+          />
+          <MetricCard
+            icon={<AlertTriangle className="h-4 w-4" />}
+            label="Inadimplentes"
+            value={m.inadimplentes}
+            color="text-orange-400"
+          />
+          <MetricCard
+            icon={<UserX className="h-4 w-4" />}
+            label="Churn no mês"
+            value={m.churnNoMes}
+            sub="Cancelamentos"
+            color="text-rose-400"
+          />
+          <MetricCard
+            icon={<Ticket className="h-4 w-4" />}
+            label="Tickets abertos"
+            value={m.ticketsAbertos}
+            color="text-indigo-400"
+          />
+        </div>
+      </div>
+
+      {/* ── Pagamentos (split paciente→médico) ── */}
+      <div>
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">
+          Pagamentos processados (pacientes)
+        </h2>
+        <div className="grid grid-cols-2 gap-4 md:max-w-md">
+          <MetricCard
+            icon={<CreditCard className="h-4 w-4" />}
+            label="Transações pagas"
+            value={m.pagamentos.count}
+            color="text-teal-400"
+          />
+          <MetricCard
+            icon={<Wallet className="h-4 w-4" />}
+            label="Volume processado"
+            value={formatBRL(m.pagamentos.valorTotal)}
+            color="text-emerald-400"
+          />
+        </div>
+      </div>
+
+      {/* ── Editor de preços dos planos ── */}
+      <PlanPriceEditor />
+    </div>
+  );
+}
+
+function PlanCard({
+  label,
+  value,
+  badge,
+  badgeCls,
+  barCls,
+  total,
+}: {
+  label: string;
+  value: number;
+  badge: string;
+  badgeCls: string;
+  barCls: string;
+  total: number;
+}) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm font-medium text-slate-300">{label}</span>
+        <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${badgeCls}`}>{badge}</span>
+      </div>
+      <div className="flex items-end justify-between">
+        <p className="text-3xl font-bold leading-none">{value}</p>
+        <span className="text-xs text-slate-500">{pct}%</span>
+      </div>
+      <div className="mt-3 h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
+        <div className={`h-full rounded-full ${barCls}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function PlanPriceEditor() {
+  const qc = useQueryClient();
+  const { data: prices } = useQuery({
+    queryKey: ["planPrices"],
+    queryFn: () => fetchPlanPrices(),
+    staleTime: 60_000,
+  });
+
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [savedPlano, setSavedPlano] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: ({
+      plano,
+      valorMensal,
+    }: {
+      plano: "free" | "pro" | "clinic";
+      valorMensal: string;
+    }) => updatePlanPrice({ data: { plano, valorMensal } }),
+    onSuccess: (_r, vars) => {
+      setSavedPlano(vars.plano);
+      void qc.invalidateQueries({ queryKey: ["planPrices"] });
+      void qc.invalidateQueries({ queryKey: ["admin-overview"] });
+      setTimeout(() => setSavedPlano(null), 2000);
+    },
+  });
+
+  const PLAN_LABEL: Record<string, string> = { free: "Gratuito", pro: "PRO", clinic: "Clínica" };
+
+  return (
+    <div>
+      <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">
+        Preços dos planos (base do MRR)
+      </h2>
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+        <p className="text-xs text-slate-500 mb-4">
+          Defina o valor mensal de cada plano. O MRR é calculado como a soma das assinaturas ativas
+          multiplicadas por estes preços.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {(prices ?? []).map((p) => {
+            const current = draft[p.plano] ?? p.valorMensal;
+            return (
+              <div key={p.plano} className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                  {PLAN_LABEL[p.plano]}
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-500">R$</span>
+                  <input
+                    value={current}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, [p.plano]: e.target.value.replace(/[^0-9.]/g, "") }))
+                    }
+                    placeholder="0.00"
+                    className="flex-1 w-full rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-sm text-slate-100 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none"
+                  />
+                  <button
+                    disabled={mutation.isPending || current === p.valorMensal}
+                    onClick={() =>
+                      mutation.mutate({
+                        plano: p.plano,
+                        valorMensal: current,
+                      })
+                    }
+                    className="shrink-0 grid size-8 place-items-center rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white transition"
+                    title="Salvar"
+                  >
+                    {savedPlano === p.plano ? (
+                      <CheckCircle2 className="h-4 w-4" />
+                    ) : mutation.isPending && mutation.variables?.plano === p.plano ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

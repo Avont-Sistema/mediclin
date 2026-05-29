@@ -1,16 +1,35 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getAuth } from "@clerk/tanstack-start/server";
 import { getWebRequest } from "vinxi/http";
-import { count, eq } from "drizzle-orm";
+import { z } from "zod";
+import { and, count, eq, gte, sql as dsql } from "drizzle-orm";
 import { db } from "../db";
 import {
   professionals,
   services,
   appointments,
   patients,
+  payments,
+  subscriptions,
+  supportTickets,
+  planPrices,
   users,
   availabilityRules,
 } from "../db/schema";
+
+// ─── Guard ──────────────────────────────────────────────────────────────────
+// Ponto único de autorização do admin. Hoje só exige login (gating de admin
+// pendente — ver ADMIN_CLERK_IDS). Para travar de verdade no futuro, troque o
+// corpo desta função por uma checagem de isAdminClerkId(auth.userId).
+
+async function requireAdminAccess(): Promise<string> {
+  const auth = await getAuth(getWebRequest());
+  if (!auth.userId) throw new Error("Não autenticado");
+  // TODO(segurança): habilitar gating quando ADMIN_CLERK_IDS estiver no Vercel:
+  //   const ids = (process.env.ADMIN_CLERK_IDS ?? "").split(",").map(s => s.trim());
+  //   if (!ids.includes(auth.userId)) throw new Error("Acesso negado");
+  return auth.userId;
+}
 
 // ─── fetchAdminOverview ───────────────────────────────────────────────────────
 
@@ -26,6 +45,21 @@ export type AdminProfessional = {
   appointmentsHoje: number;
 };
 
+export type AdminMetrics = {
+  totalMedicos: number;
+  novosNoMes: number;
+  porPlano: { free: number; pro: number; clinic: number };
+  trialAtivo: number;
+  inadimplentes: number;
+  churnNoMes: number;
+  mrr: number;
+  receitaAnualEstimada: number;
+  totalPacientes: number;
+  totalAgendamentos: number;
+  pagamentos: { count: number; valorTotal: number };
+  ticketsAbertos: number;
+};
+
 export type AdminOverview = {
   professionals: AdminProfessional[];
   totals: {
@@ -33,6 +67,7 @@ export type AdminOverview = {
     patients: number;
     appointments: number;
   };
+  metrics: AdminMetrics;
   features: {
     mp: boolean;
     resend: boolean;
@@ -43,13 +78,16 @@ export type AdminOverview = {
 
 export const fetchAdminOverview = createServerFn({ method: "GET" }).handler(
   async (): Promise<AdminOverview> => {
-    const auth = await getAuth(getWebRequest());
-    if (!auth.userId) throw new Error("Não autenticado");
+    await requireAdminAccess();
 
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
     const amanha = new Date(hoje);
     amanha.setDate(amanha.getDate() + 1);
+
+    const inicioMes = new Date();
+    inicioMes.setDate(1);
+    inicioMes.setHours(0, 0, 0, 0);
 
     // Load all professionals with counts
     const profs = await db.query.professionals.findMany({
@@ -60,8 +98,94 @@ export const fetchAdminOverview = createServerFn({ method: "GET" }).handler(
       orderBy: (p, { asc }) => [asc(p.criadoEm)],
     });
 
-    const [patientCount] = await db.select({ count: count() }).from(patients);
-    const [apptCount] = await db.select({ count: count() }).from(appointments);
+    // ── Agregados em paralelo ──────────────────────────────────────────────
+    const [
+      [patientCount],
+      [apptCount],
+      [novosNoMes],
+      planoRows,
+      subStatusRows,
+      [churnNoMes],
+      [pagAgg],
+      [ticketsAbertos],
+      prices,
+    ] = await Promise.all([
+      db.select({ count: count() }).from(patients),
+      db.select({ count: count() }).from(appointments),
+      db
+        .select({ count: count() })
+        .from(professionals)
+        .where(gte(professionals.criadoEm, inicioMes)),
+      // Profissionais ativos agrupados por plano
+      db
+        .select({ plano: professionals.plano, total: count() })
+        .from(professionals)
+        .where(eq(professionals.ativo, true))
+        .groupBy(professionals.plano),
+      // Assinaturas agrupadas por status
+      db
+        .select({ status: subscriptions.status, total: count() })
+        .from(subscriptions)
+        .groupBy(subscriptions.status),
+      // Cancelamentos no mês
+      db
+        .select({ count: count() })
+        .from(subscriptions)
+        .where(
+          and(eq(subscriptions.status, "cancelada"), gte(subscriptions.atualizadoEm, inicioMes)),
+        ),
+      // Pagamentos processados (status pago)
+      db
+        .select({
+          count: count(),
+          total: dsql<string>`COALESCE(SUM(${payments.valorBruto}), 0)`,
+        })
+        .from(payments)
+        .where(eq(payments.status, "pago")),
+      // Tickets abertos (aberto + em_andamento)
+      db
+        .select({ count: count() })
+        .from(supportTickets)
+        .where(dsql`${supportTickets.status} IN ('aberto','em_andamento')`),
+      db.select().from(planPrices),
+    ]);
+
+    const porPlano = { free: 0, pro: 0, clinic: 0 };
+    for (const row of planoRows) porPlano[row.plano] = Number(row.total);
+
+    const subByStatus: Record<string, number> = {};
+    for (const row of subStatusRows) subByStatus[row.status] = Number(row.total);
+
+    // MRR = soma das assinaturas ativas × preço do respectivo plano
+    const priceMap: Record<string, number> = {};
+    for (const p of prices) priceMap[p.plano] = Number(p.valorMensal);
+
+    const [subAtivasPorPlano] = await Promise.all([
+      db
+        .select({ plano: subscriptions.plano, total: count() })
+        .from(subscriptions)
+        .where(eq(subscriptions.status, "ativa"))
+        .groupBy(subscriptions.plano),
+    ]);
+    let mrr = 0;
+    for (const row of subAtivasPorPlano) {
+      mrr += Number(row.total) * (priceMap[row.plano] ?? 0);
+    }
+
+    const metrics: AdminMetrics = {
+      totalMedicos: profs.length,
+      novosNoMes: Number(novosNoMes.count),
+      porPlano,
+      trialAtivo: subByStatus["trial"] ?? 0,
+      inadimplentes: subByStatus["inadimplente"] ?? 0,
+      churnNoMes: Number(churnNoMes.count),
+      mrr,
+      receitaAnualEstimada: mrr * 12,
+      totalPacientes: Number(patientCount.count),
+      totalAgendamentos: Number(apptCount.count),
+      pagamentos: { count: Number(pagAgg.count), valorTotal: Number(pagAgg.total) },
+      ticketsAbertos: Number(ticketsAbertos.count),
+    };
 
     return {
       professionals: profs.map((p) => ({
@@ -81,6 +205,7 @@ export const fetchAdminOverview = createServerFn({ method: "GET" }).handler(
         patients: Number(patientCount.count),
         appointments: Number(apptCount.count),
       },
+      metrics,
       features: {
         mp: !!process.env.MERCADOPAGO_ACCESS_TOKEN,
         resend: !!process.env.RESEND_API_KEY,
@@ -90,6 +215,43 @@ export const fetchAdminOverview = createServerFn({ method: "GET" }).handler(
     };
   },
 );
+
+// ─── Plan prices (editável pelo admin) ────────────────────────────────────────
+
+export type PlanPrice = { plano: "free" | "pro" | "clinic"; valorMensal: string };
+
+export const fetchPlanPrices = createServerFn({ method: "GET" }).handler(
+  async (): Promise<PlanPrice[]> => {
+    await requireAdminAccess();
+    const rows = await db.select().from(planPrices);
+    const map: Record<string, string> = {};
+    for (const r of rows) map[r.plano] = r.valorMensal;
+    // Garante as 3 linhas mesmo que o seed não tenha rodado
+    return (["free", "pro", "clinic"] as const).map((plano) => ({
+      plano,
+      valorMensal: map[plano] ?? "0",
+    }));
+  },
+);
+
+export const updatePlanPrice = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      plano: z.enum(["free", "pro", "clinic"]),
+      valorMensal: z.string().regex(/^\d+(\.\d{1,2})?$/, "Valor inválido"),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await requireAdminAccess();
+    await db
+      .insert(planPrices)
+      .values({ plano: data.plano, valorMensal: data.valorMensal, atualizadoEm: new Date() })
+      .onConflictDoUpdate({
+        target: planPrices.plano,
+        set: { valorMensal: data.valorMensal, atualizadoEm: new Date() },
+      });
+    return { ok: true };
+  });
 
 // ─── runSeed ──────────────────────────────────────────────────────────────────
 
