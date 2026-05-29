@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/tanstack-start";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Users,
@@ -19,9 +19,31 @@ import {
   Crown,
   Zap,
   Monitor,
+  LifeBuoy,
+  MessageCircle,
+  Mail,
+  Send,
+  Ticket,
+  ArrowLeft,
+  Loader2,
+  AlertCircle,
+  Clock,
+  Save,
+  ChevronDown,
 } from "lucide-react";
 import { fetchAdminOverview, runSeed } from "../lib/admin";
 import type { AdminOverview } from "../lib/admin";
+import {
+  fetchSupportConfig,
+  updateSupportConfig,
+  fetchAllTickets,
+  fetchTicketMessages,
+  sendTicketMessage,
+  updateTicketStatus,
+  type SupportTicket,
+  type TicketMessage,
+  type TicketStatus,
+} from "../lib/support";
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
@@ -53,8 +75,11 @@ function AdminPage() {
   );
 }
 
+type AdminTab = "overview" | "suporte";
+
 function AdminContent() {
   const qc = useQueryClient();
+  const [adminTab, setAdminTab] = useState<AdminTab>("overview");
   const [previewSlug, setPreviewSlug] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<"patient" | "split">("patient");
 
@@ -104,11 +129,32 @@ function AdminContent() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Tab switcher */}
+            <div className="flex items-center gap-0.5 rounded-lg border border-slate-700 bg-slate-800/60 p-0.5">
+              {(
+                [
+                  { id: "overview" as const, label: "Visão Geral" },
+                  { id: "suporte" as const, label: "Suporte" },
+                ] as const
+              ).map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => setAdminTab(id)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
+                    adminTab === id
+                      ? "bg-slate-700 text-slate-100"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
             {/* Feature badges */}
             <div className="hidden md:flex items-center gap-2">
               <FeatureBadge ok={data.features.mp} label="MP" />
               <FeatureBadge ok={data.features.resend} label="Email" />
-              <FeatureBadge ok={data.features.twilio} label="WhatsApp" />
               <FeatureBadge ok={data.features.cron} label="Cron" />
             </div>
 
@@ -132,6 +178,8 @@ function AdminContent() {
       </header>
 
       <div className="mx-auto max-w-[1600px] px-6 py-6 space-y-6">
+        {adminTab === "suporte" && <AdminSuporteTab />}
+        {adminTab === "overview" && (<>
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-4">
           <StatCard
@@ -249,6 +297,400 @@ function AdminContent() {
             />
           </div>
         </div>
+        </>)}
+      </div>
+    </div>
+  );
+}
+
+// ─── AdminSuporteTab ──────────────────────────────────────────────────────────
+
+const STATUS_CFG: Record<TicketStatus, { label: string; cls: string }> = {
+  aberto:      { label: "Aberto",       cls: "bg-blue-900/40 text-blue-300 ring-blue-700" },
+  em_andamento:{ label: "Em andamento", cls: "bg-amber-900/40 text-amber-300 ring-amber-700" },
+  resolvido:   { label: "Resolvido",    cls: "bg-emerald-900/40 text-emerald-300 ring-emerald-700" },
+  fechado:     { label: "Fechado",      cls: "bg-slate-800 text-slate-400 ring-slate-700" },
+};
+
+const PRIORIDADE_CFG: Record<string, { dot: string; label: string }> = {
+  baixa:   { dot: "bg-slate-400", label: "Baixa" },
+  normal:  { dot: "bg-blue-400", label: "Normal" },
+  alta:    { dot: "bg-amber-400", label: "Alta" },
+  urgente: { dot: "bg-rose-500", label: "Urgente" },
+};
+
+function AdminSuporteTab() {
+  const qc = useQueryClient();
+  const [view, setView] = useState<"main" | "chat">("main");
+  const [activeTicketId, setActiveTicketId] = useState<string | null>(null);
+
+  // ── Config form ──
+  const { data: cfg, isLoading: cfgLoading } = useQuery({
+    queryKey: ["supportConfig"],
+    queryFn: () => fetchSupportConfig(),
+    staleTime: 30_000,
+  });
+
+  const [cfgForm, setCfgForm] = useState({ email: "", whatsapp: "", whatsappMessage: "" });
+  const [cfgSaved, setCfgSaved] = useState(false);
+
+  useEffect(() => {
+    if (cfg) {
+      setCfgForm({
+        email: cfg.email ?? "",
+        whatsapp: cfg.whatsapp ?? "",
+        whatsappMessage: cfg.whatsappMessage ?? "Olá, preciso de ajuda com o MediClin",
+      });
+    }
+  }, [cfg]);
+
+  const cfgMutation = useMutation({
+    mutationFn: () => updateSupportConfig({ data: cfgForm }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["supportConfig"] });
+      setCfgSaved(true);
+      setTimeout(() => setCfgSaved(false), 2500);
+    },
+  });
+
+  // ── Tickets ──
+  const { data: tickets = [], isLoading: ticketsLoading } = useQuery({
+    queryKey: ["adminTickets"],
+    queryFn: () => fetchAllTickets(),
+    staleTime: 20_000,
+    refetchInterval: 30_000,
+  });
+
+  const activeTicket = tickets.find((t) => t.id === activeTicketId) ?? null;
+  const unread = tickets.filter((t) => !t.lidoAdmin && t.status !== "fechado").length;
+
+  if (view === "chat" && activeTicketId) {
+    return (
+      <AdminTicketChat
+        ticketId={activeTicketId}
+        ticket={activeTicket}
+        onBack={() => {
+          setView("main");
+          void qc.invalidateQueries({ queryKey: ["adminTickets"] });
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6">
+      {/* ── Config ── */}
+      <div className="space-y-4">
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+          Configurações de Contato
+        </h2>
+        <div className="rounded-xl border border-slate-800 bg-slate-900 p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">
+              <Mail className="h-3 w-3 inline mr-1" /> E-mail de suporte
+            </label>
+            <input
+              value={cfgForm.email}
+              onChange={(e) => setCfgForm((f) => ({ ...f, email: e.target.value }))}
+              placeholder="suporte@seudomain.com"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 text-slate-100 placeholder-slate-500 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">
+              <MessageCircle className="h-3 w-3 inline mr-1" /> WhatsApp (com DDI)
+            </label>
+            <input
+              value={cfgForm.whatsapp}
+              onChange={(e) => setCfgForm((f) => ({ ...f, whatsapp: e.target.value }))}
+              placeholder="+5511999990000"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 text-slate-100 placeholder-slate-500 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">
+              Mensagem padrão do WhatsApp
+            </label>
+            <textarea
+              value={cfgForm.whatsappMessage}
+              onChange={(e) => setCfgForm((f) => ({ ...f, whatsappMessage: e.target.value }))}
+              rows={2}
+              maxLength={500}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 text-slate-100 placeholder-slate-500 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none resize-none"
+            />
+          </div>
+          <button
+            disabled={cfgMutation.isPending || cfgLoading}
+            onClick={() => cfgMutation.mutate()}
+            className="w-full flex items-center justify-center gap-2 rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white transition"
+          >
+            {cfgSaved ? (
+              <><CheckCircle2 className="h-4 w-4" /> Salvo!</>
+            ) : cfgMutation.isPending ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Salvando…</>
+            ) : (
+              <><Save className="h-4 w-4" /> Salvar configurações</>
+            )}
+          </button>
+          <p className="text-[10px] text-slate-500 text-center">
+            Estas informações aparecem na aba Suporte dos médicos.
+            <br />
+            Para tickets internos, configure ADMIN_CLERK_IDS no Vercel.
+          </p>
+        </div>
+      </div>
+
+      {/* ── Tickets ── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+            Chamados{unread > 0 && (
+              <span className="ml-2 inline-flex items-center justify-center h-4 w-4 rounded-full bg-rose-500 text-[9px] font-bold text-white">
+                {unread}
+              </span>
+            )}
+          </h2>
+          <button
+            onClick={() => qc.invalidateQueries({ queryKey: ["adminTickets"] })}
+            className="grid size-7 place-items-center rounded-md border border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200 transition"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        {ticketsLoading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
+          </div>
+        ) : tickets.length === 0 ? (
+          <div className="rounded-xl border border-slate-800 bg-slate-900 p-10 text-center">
+            <Ticket className="h-8 w-8 text-slate-700 mx-auto mb-3" />
+            <p className="text-sm text-slate-500">Nenhum chamado ainda</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {tickets.map((t) => {
+              const sCfg = STATUS_CFG[t.status];
+              const pCfg = PRIORIDADE_CFG[t.prioridade] ?? PRIORIDADE_CFG.normal;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => { setActiveTicketId(t.id); setView("chat"); }}
+                  className={`w-full text-left rounded-xl border p-4 transition group ${
+                    !t.lidoAdmin && t.status !== "fechado"
+                      ? "border-teal-700/60 bg-teal-900/20 hover:bg-teal-900/30"
+                      : "border-slate-800 bg-slate-900 hover:bg-slate-800/60"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${pCfg.dot}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold text-slate-100 truncate">{t.titulo}</p>
+                        {!t.lidoAdmin && t.status !== "fechado" && (
+                          <span className="shrink-0 rounded-full bg-teal-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                            NOVO
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5 truncate">
+                        {t.professional?.nomeCompleto ?? "—"} · {t.professional?.email ?? ""}
+                      </p>
+                      {t.lastMessage && (
+                        <p className="text-xs text-slate-500 mt-1 truncate">{t.lastMessage}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${sCfg.cls}`}>
+                          {sCfg.label}
+                        </span>
+                        {t.categoria && (
+                          <span className="text-[10px] text-slate-500">{t.categoria}</span>
+                        )}
+                        <span className="text-[10px] text-slate-600 ml-auto">
+                          {new Date(t.criadoEm).toLocaleDateString("pt-BR")}
+                        </span>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-slate-700 group-hover:text-teal-400 shrink-0 mt-1 transition" />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── AdminTicketChat ──────────────────────────────────────────────────────────
+
+function AdminTicketChat({
+  ticketId,
+  ticket,
+  onBack,
+}: {
+  ticketId: string;
+  ticket: SupportTicket | null;
+  onBack: () => void;
+}) {
+  const qc = useQueryClient();
+  const [text, setText] = useState("");
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const { data: messages = [], isLoading } = useQuery({
+    queryKey: ["ticketMessages", ticketId],
+    queryFn: () => fetchTicketMessages({ data: { ticketId } }),
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+  });
+
+  const sendMutation = useMutation({
+    mutationFn: () => sendTicketMessage({ data: { ticketId, conteudo: text } }),
+    onSuccess: () => {
+      setText("");
+      void qc.invalidateQueries({ queryKey: ["ticketMessages", ticketId] });
+      void qc.invalidateQueries({ queryKey: ["adminTickets"] });
+    },
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: (status: TicketStatus) => updateTicketStatus({ data: { ticketId, status } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["adminTickets"] }),
+  });
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length]);
+
+  const sCfg = ticket ? STATUS_CFG[ticket.status] : null;
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-start gap-3">
+        <button
+          onClick={onBack}
+          className="h-8 w-8 grid place-items-center rounded-lg border border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200 transition shrink-0"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-semibold text-slate-100 truncate">
+            {ticket?.titulo ?? "Chamado"}
+          </p>
+          <p className="text-xs text-slate-400">
+            {ticket?.professional?.nomeCompleto ?? "—"} · {ticket?.professional?.email ?? ""}
+          </p>
+        </div>
+
+        {/* Status dropdown */}
+        {ticket && (
+          <div className="relative shrink-0">
+            <select
+              value={ticket.status}
+              onChange={(e) => statusMutation.mutate(e.target.value as TicketStatus)}
+              disabled={statusMutation.isPending}
+              className="appearance-none rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 pr-8 text-xs font-medium text-slate-200 focus:outline-none cursor-pointer"
+            >
+              <option value="aberto">Aberto</option>
+              <option value="em_andamento">Em andamento</option>
+              <option value="resolvido">Resolvido</option>
+              <option value="fechado">Fechado</option>
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+          </div>
+        )}
+      </div>
+
+      {sCfg && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${sCfg.cls}`}>
+            {sCfg.label}
+          </span>
+          {ticket?.categoria && <span className="text-xs text-slate-500">{ticket.categoria}</span>}
+          {ticket?.prioridade && (
+            <span className="text-xs text-slate-500">
+              Prioridade: {PRIORIDADE_CFG[ticket.prioridade]?.label}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Messages */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden flex flex-col">
+        <div className="flex-1 p-4 space-y-3 min-h-[360px] max-h-[520px] overflow-y-auto">
+          {isLoading ? (
+            <div className="flex justify-center py-10">
+              <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
+            </div>
+          ) : messages.length === 0 ? (
+            <p className="text-xs text-slate-500 text-center py-10">Nenhuma mensagem</p>
+          ) : (
+            messages.map((msg) => <AdminMessageBubble key={msg.id} msg={msg} />)
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        {ticket?.status !== "fechado" ? (
+          <div className="border-t border-slate-800 p-3 flex items-end gap-2">
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  if (text.trim()) sendMutation.mutate();
+                }
+              }}
+              placeholder="Responder ao médico... (Enter para enviar)"
+              rows={2}
+              maxLength={5000}
+              className="flex-1 px-3 py-2 text-sm rounded-xl border border-slate-700 bg-slate-800 text-slate-100 placeholder-slate-500 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none resize-none"
+            />
+            <button
+              disabled={!text.trim() || sendMutation.isPending}
+              onClick={() => sendMutation.mutate()}
+              className="h-10 w-10 shrink-0 grid place-items-center rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white transition"
+            >
+              {sendMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+        ) : (
+          <div className="border-t border-slate-800 p-3 text-center text-xs text-slate-500">
+            Ticket fechado. Reabra alterando o status acima.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AdminMessageBubble({ msg }: { msg: TicketMessage }) {
+  const isAdmin = msg.autorRole === "admin";
+  return (
+    <div className={`flex ${isAdmin ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
+          isAdmin
+            ? "bg-teal-600 text-white rounded-br-sm"
+            : "bg-slate-800 text-slate-200 rounded-bl-sm"
+        }`}
+      >
+        {!isAdmin && (
+          <p className="text-[10px] font-semibold text-slate-400 mb-1">Médico</p>
+        )}
+        <p className="whitespace-pre-wrap break-words leading-relaxed">{msg.conteudo}</p>
+        <p className={`text-[10px] mt-1 ${isAdmin ? "text-teal-200" : "text-slate-500"} text-right`}>
+          {new Date(msg.criadoEm).toLocaleTimeString("pt-BR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </p>
       </div>
     </div>
   );

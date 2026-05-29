@@ -339,6 +339,67 @@ export const payments = pgTable(
   (t) => [index("payments_professional_idx").on(t.professionalId)],
 );
 
+// ─── support_config ───────────────────────────────────────────────────────────
+// Singleton — configurações de contato do suporte MediClin (gerenciado pelo admin)
+
+export const supportConfig = pgTable("support_config", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: varchar("email", { length: 255 }),
+  whatsapp: varchar("whatsapp", { length: 30 }),
+  whatsappMessage: text("whatsapp_message").default("Olá, preciso de ajuda com o MediClin"),
+  atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
+// ─── support_tickets ──────────────────────────────────────────────────────────
+
+export const ticketStatusEnum = pgEnum("ticket_status", [
+  "aberto",
+  "em_andamento",
+  "resolvido",
+  "fechado",
+]);
+
+export const ticketPrioridadeEnum = pgEnum("ticket_prioridade", [
+  "baixa",
+  "normal",
+  "alta",
+  "urgente",
+]);
+
+export const supportTickets = pgTable(
+  "support_tickets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    professionalId: uuid("professional_id")
+      .notNull()
+      .references(() => professionals.id, { onDelete: "cascade" }),
+    titulo: varchar("titulo", { length: 255 }).notNull(),
+    status: ticketStatusEnum("status").notNull().default("aberto"),
+    prioridade: ticketPrioridadeEnum("prioridade").notNull().default("normal"),
+    categoria: varchar("categoria", { length: 50 }), // financeiro | tecnico | conta | outro
+    lidoAdmin: boolean("lido_admin").notNull().default(false),
+    criadoEm: timestamp("criado_em").defaultNow().notNull(),
+    atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
+  },
+  (t) => [index("tickets_professional_idx").on(t.professionalId, t.criadoEm)],
+);
+
+// ─── support_messages ─────────────────────────────────────────────────────────
+
+export const supportMessages = pgTable(
+  "support_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ticketId: uuid("ticket_id")
+      .notNull()
+      .references(() => supportTickets.id, { onDelete: "cascade" }),
+    autorRole: varchar("autor_role", { length: 20 }).notNull(), // 'professional' | 'admin'
+    conteudo: text("conteudo").notNull(),
+    criadoEm: timestamp("criado_em").defaultNow().notNull(),
+  },
+  (t) => [index("messages_ticket_idx").on(t.ticketId, t.criadoEm)],
+);
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -443,5 +504,20 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
   professional: one(professionals, {
     fields: [payments.professionalId],
     references: [professionals.id],
+  }),
+}));
+
+export const supportTicketsRelations = relations(supportTickets, ({ one, many }) => ({
+  professional: one(professionals, {
+    fields: [supportTickets.professionalId],
+    references: [professionals.id],
+  }),
+  messages: many(supportMessages),
+}));
+
+export const supportMessagesRelations = relations(supportMessages, ({ one }) => ({
+  ticket: one(supportTickets, {
+    fields: [supportMessages.ticketId],
+    references: [supportTickets.id],
   }),
 }));
