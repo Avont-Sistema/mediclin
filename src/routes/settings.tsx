@@ -26,6 +26,7 @@ import {
 import { DashboardLayout } from "../components/DashboardLayout";
 import { PhotoUpload } from "../components/PhotoUpload";
 import { buildPublicUrl } from "../lib/subdomain";
+import { getPublicPageUrl, APP_DOMAIN } from "../lib/config";
 import {
   fetchSettingsData,
   updateProfile,
@@ -266,7 +267,7 @@ function ProfileTab({ data, onSaved }: { data: SettingsData; onSaved: () => void
             />
           </div>
           {field("Slug (URL pública)", "slug", {
-            hint: `Seu link: ${buildPublicUrl(form.slug || "seu-nome")}`,
+            hint: `Seu link: ${getPublicPageUrl(form.slug || "seu-nome")}`,
           })}
         </div>
         {field("Bio / Apresentação", "bio", {
@@ -343,7 +344,7 @@ function ProfileTab({ data, onSaved }: { data: SettingsData; onSaved: () => void
 
         <div className="flex items-center justify-between pt-2 border-t border-slate-100">
           <a
-            href={buildPublicUrl(form.slug || "seu-nome")}
+            href={getPublicPageUrl(form.slug || "seu-nome")}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 text-xs text-teal-600 hover:text-teal-800"
@@ -1010,7 +1011,7 @@ function MemberFormWidget({
             <span className="text-slate-400 font-normal">— preenchido automaticamente</span>
           </label>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400 shrink-0">cuidandovc.com.br/</span>
+            <span className="text-xs text-slate-400 shrink-0">{APP_DOMAIN}/</span>
             <input
               value={form.slug}
               onChange={(e) =>

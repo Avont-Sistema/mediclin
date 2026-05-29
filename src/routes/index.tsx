@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { fetchPublicProfile } from "../lib/subdomain";
 import { ProfessionalPublicPage, ProfessionalNotFound } from "../components/ProfessionalPublicPage";
+import { APP_DOMAIN } from "../lib/config";
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
@@ -561,7 +562,7 @@ function FAQ() {
     },
     {
       q: "Como os pacientes me encontram?",
-      a: "Você recebe um link personalizado (ex: cuidandovc.com.br/dr-nome) que pode colocar na bio do Instagram ou WhatsApp. O paciente acessa, escolhe o serviço e agenda sozinho.",
+      a: `Você recebe um link personalizado (ex: ${APP_DOMAIN}/dr-nome) que pode colocar na bio do Instagram ou WhatsApp. O paciente acessa, escolhe o serviço e agenda sozinho.`,
     },
     {
       q: "Como recebo os pagamentos?",
