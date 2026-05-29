@@ -26,7 +26,7 @@ async function main() {
     .insert(schema.users)
     .values({
       clerkId: "user_seed_felipe",
-      email: "dr.felipe@mediclin.dev",
+      email: "dr.felipe@cuidandovc.dev",
       nome: "Felipe Cardoso",
     })
     .onConflictDoNothing();

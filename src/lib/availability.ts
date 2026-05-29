@@ -195,7 +195,7 @@ export const createBooking = createServerFn({ method: "POST" })
     const emailToUse =
       patient.email && patient.email.length > 0
         ? patient.email
-        : `tel_${patient.telefone.replace(/\D/g, "")}@noemail.mediclin.app`;
+        : `tel_${patient.telefone.replace(/\D/g, "")}@noemail.cuidandovc.com.br`;
 
     // Upsert patient by email
     const [pat] = await db

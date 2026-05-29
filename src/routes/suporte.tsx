@@ -46,7 +46,7 @@ import {
 } from "../lib/support";
 
 export const Route = createFileRoute("/suporte")({
-  head: () => ({ meta: [{ title: "Suporte — MediClin" }] }),
+  head: () => ({ meta: [{ title: "Suporte — CuidandoVC" }] }),
   loader: () =>
     Promise.all([fetchCurrentProfessional(), fetchSupportConfig()]).then(([prof, cfg]) => ({
       prof,
@@ -127,7 +127,7 @@ const FAQ = [
     a: "Sim. Na Agenda, clique em 'Modo Folga' para bloquear dias específicos.",
   },
   {
-    q: "O MediClin funciona no celular?",
+    q: "O CuidandoVC funciona no celular?",
     a: "Sim. Tanto o painel do médico quanto a página do paciente são otimizados para mobile.",
   },
 ];
@@ -207,7 +207,7 @@ function SuporteContent() {
   });
 
   const waPhone = (cfg?.whatsapp ?? "").replace(/\D/g, "");
-  const waMsg = encodeURIComponent(cfg?.whatsappMessage ?? "Olá, preciso de ajuda com o MediClin");
+  const waMsg = encodeURIComponent(cfg?.whatsappMessage ?? "Olá, preciso de ajuda com o CuidandoVC");
   const waHref = waPhone ? `https://wa.me/${waPhone}?text=${waMsg}` : null;
   const mailHref = cfg?.email ? `mailto:${cfg.email}` : null;
 
@@ -407,7 +407,7 @@ function SuporteContent() {
               </div>
 
               <p className="mt-4 text-center text-[11px] text-slate-400">
-                MediClin · versão 1.0 · Desenvolvido por{" "}
+                CuidandoVC · versão 1.0 · Desenvolvido por{" "}
                 <a
                   href="https://avontsistemas.com.br"
                   target="_blank"
@@ -473,7 +473,7 @@ function TicketsSection() {
         <div>
           <h2 className="text-sm font-semibold text-slate-900">Meus chamados</h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Histórico de suporte com a equipe MediClin
+            Histórico de suporte com a equipe CuidandoVC
           </p>
         </div>
         <button
@@ -810,7 +810,7 @@ function MessageBubble({ msg }: { msg: TicketMessage }) {
         }`}
       >
         {isAdmin && (
-          <p className="text-[10px] font-semibold text-teal-700 mb-1">Equipe MediClin</p>
+          <p className="text-[10px] font-semibold text-teal-700 mb-1">Equipe CuidandoVC</p>
         )}
         <p className="whitespace-pre-wrap break-words leading-relaxed">{msg.conteudo}</p>
         <p
@@ -861,7 +861,7 @@ function PhoneTutorial() {
     <div className="rounded-2xl border border-slate-200 bg-white p-5">
       <div className="flex items-center gap-2 mb-5">
         <BookOpen className="h-4 w-4 text-slate-600" />
-        <h3 className="text-sm font-semibold text-slate-800">Como usar o MediClin</h3>
+        <h3 className="text-sm font-semibold text-slate-800">Como usar o CuidandoVC</h3>
       </div>
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-7">
         <div className="shrink-0 mx-auto sm:mx-0">
@@ -1055,7 +1055,7 @@ function LinkPhoneScreen() {
       <div className="rounded-xl border border-teal-200 bg-teal-50 p-2.5 mb-3">
         <p className="text-[8px] text-teal-600 font-medium mb-1.5">Seu link de agendamento:</p>
         <div className="flex items-center gap-1.5">
-          <code className="flex-1 text-[8px] font-mono text-teal-800 truncate font-bold">mediclin.com/dr-joao</code>
+          <code className="flex-1 text-[8px] font-mono text-teal-800 truncate font-bold">cuidandovc.com.br/dr-joao</code>
           <div className="shrink-0 rounded-md bg-teal-600 px-1.5 py-0.5 text-[8px] text-white font-bold">Copiar</div>
         </div>
       </div>
@@ -1074,7 +1074,7 @@ function LinkPhoneScreen() {
         </div>
         <div className="rounded-lg bg-slate-50 border border-slate-100 px-2 py-1.5 flex items-center gap-1">
           <LinkIcon className="h-2.5 w-2.5 text-blue-500 shrink-0" />
-          <span className="text-[8px] text-blue-600 font-semibold">mediclin.com/dr-joao</span>
+          <span className="text-[8px] text-blue-600 font-semibold">cuidandovc.com.br/dr-joao</span>
         </div>
       </div>
     </div>

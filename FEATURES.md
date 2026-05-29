@@ -2,7 +2,7 @@
 
 ## 📊 Resumo Executivo
 
-**CuidandoVC** é um SaaS multi-tenant para médicos, dentistas e profissionais de saúde. Cada profissional recebe um link público (ex: `dr-ricardo.mediclin.app`) para compartilhar na bio do Instagram. Pacientes agendam e pagam sem sair do app.
+**CuidandoVC** é um SaaS multi-tenant para médicos, dentistas e profissionais de saúde. Cada profissional recebe um link público (ex: `dr-ricardo.cuidandovc.com.br`) para compartilhar na bio do Instagram. Pacientes agendam e pagam sem sair do app.
 
 ---
 
@@ -15,18 +15,18 @@
 - Integração com Mercado Pago (PIX, cartão)
 - Sem necessidade de criar conta
 
-**URL:** `https://mediclin.vercel.app`
+**URL:** `https://cuidandovc.com.br`
 
 ---
 
 ### 2️⃣ Página do Profissional
-- Link compartilhável: `https://dr-nome.mediclin.app` (ou `/dr-nome`)
+- Link compartilhável: `https://dr-nome.cuidandovc.com.br` (ou `/dr-nome`)
 - Perfil com foto, especialidade, registro (CRM/CRO)
 - Lista de serviços com preço e duração
 - Link WhatsApp para contato direto
 - Carousel de disponibilidade em tempo real
 
-**Exemplo:** `https://mediclin.vercel.app/dr-joao`
+**Exemplo:** `https://cuidandovc.com.br/dr-joao`
 
 ---
 
@@ -80,7 +80,7 @@
 ### 2️⃣ Onboarding Wizard
 **Para novo profissional:**
 1. **Passo 1:** Preencher nome, especialidade, registro
-2. **Passo 2:** Escolher slug com preview da URL (`dr-seu-nome.mediclin.app`)
+2. **Passo 2:** Escolher slug com preview da URL (`dr-seu-nome.cuidandovc.com.br`)
 3. **Passo 3:** Confirmar dados → profissional criado
 4. Redirecionado ao dashboard para começar
 
@@ -208,9 +208,9 @@ payments (ID, appointmentId, professionalId, mpPaymentId, valorBruto, taxaPlataf
 ### Produção
 - **Hosting:** Vercel (Node.js Runtime)
 - **Database:** Neon Postgres (Vercel Marketplace)
-- **Domínio:** `mediclin.app` + wildcard `*.mediclin.app`
+- **Domínio:** `cuidandovc.com.br` + wildcard `*.cuidandovc.com.br`
 - **CI/CD:** GitHub Actions (Lint, Typecheck, Build)
-- **URL:** https://mediclin.vercel.app
+- **URL:** https://cuidandovc.com.br
 
 ### Cron Jobs
 - **Reminders:** A cada hora (`0 * * * *`)
@@ -273,7 +273,7 @@ payments (ID, appointmentId, professionalId, mpPaymentId, valorBruto, taxaPlataf
 | Notificações | ✅ Pronto | E-mail + WhatsApp |
 | Planos assinatura | ✅ Pronto | Free/Pro/Clinic |
 | Mobile nav | ✅ Pronto | Drawer deslizante |
-| Produção Vercel | ✅ Pronto | https://mediclin.vercel.app |
+| Produção Vercel | ✅ Pronto | https://cuidandovc.com.br |
 
 ---
 

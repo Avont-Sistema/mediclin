@@ -31,7 +31,7 @@ CLERK_WEBHOOK_SECRET = whsec_1bcPL+AdvXUPxsED1zdO2rjiOoM1Smb
 **Configurar webhook em Clerk:**
 1. Vá para **Webhooks**
 2. Clique **+ Create**
-3. Endpoint URL: `https://mediclin.vercel.app/api/webhooks/clerk`
+3. Endpoint URL: `https://cuidandovc.com.br/api/webhooks/clerk`
 4. Selecione eventos:
    - ✅ `user.created`
    - ✅ `user.updated`
@@ -62,7 +62,7 @@ MP_PLAN_ID_CLINIC = seu_plano_clinic_id
 
 **Webhook MP:**
 1. No painel → **Webhooks**
-2. URL: `https://mediclin.vercel.app/api/webhooks/mp`
+2. URL: `https://cuidandovc.com.br/api/webhooks/mp`
 3. Eventos: `payment`, `subscription_preapproval`
 
 ---
@@ -77,7 +77,7 @@ RESEND_API_KEY = re_...
 
 **Verificar domínio:**
 1. No Resend → **Domains**
-2. Adicionar `mediclin.com.br`
+2. Adicionar `cuidandovc.com.br`
 3. Seguir instruções SPF/DKIM/DMARC
 
 ---
@@ -99,7 +99,7 @@ TWILIO_WHATSAPP_FROM = whatsapp:+55XXXXXXXXXXXX  # seu número aprovado
 ### ⚙️ Configuração Geral
 
 ```
-APP_DOMAIN = mediclin.app
+APP_DOMAIN = cuidandovc.com.br
 CRON_SECRET = [gerado automaticamente pelo Vercel]
 ```
 
@@ -121,20 +121,20 @@ Isso cria as tabelas no Neon (users, professionals, services, appointments, etc.
 
 1. Vá para [Vercel Domains](https://vercel.com/avont-sistema/mediclin/domains)
 2. Clique **Add Domain**
-3. Digite `mediclin.app`
+3. Digite `cuidandovc.com.br`
 4. Configure DNS (adicionar registros A/CNAME conforme Vercel instruir)
 
 **Para subdomínios:**
 1. Vá para **Domains** → Clicar no domínio
 2. Clique **Add Subdomain**
-3. Padrão: `*.mediclin.app` → wildcard para `dr-nome.mediclin.app`
+3. Padrão: `*.cuidandovc.com.br` → wildcard para `dr-nome.cuidandovc.com.br`
 
 ---
 
 ## 4️⃣ Testar Fluxo Completo
 
 ### 🧪 Teste de Autenticação
-1. Acesse `https://mediclin.vercel.app`
+1. Acesse `https://cuidandovc.com.br`
 2. Clique **Sign Up**
 3. Crie conta → Verifica se webhook Clerk foi chamado (novo usuário na DB)
 
@@ -144,7 +144,7 @@ Isso cria as tabelas no Neon (users, professionals, services, appointments, etc.
 3. Crie profissional com slug (ex: `dr-joao`)
 4. Vá para dashboard → Configurações
 5. Crie um serviço
-6. Acesse `https://mediclin.vercel.app/dr-joao`
+6. Acesse `https://cuidandovc.com.br/dr-joao`
 7. Tente agendar → deve levar ao Mercado Pago (sandbox)
 
 ### 🧪 Teste de E-mail
@@ -162,8 +162,8 @@ Isso cria as tabelas no Neon (users, professionals, services, appointments, etc.
 - [ ] Migrations aplicadas (`DATABASE_URL` válida)
 - [ ] Resend domínio verificado
 - [ ] Twilio credenciais válidas
-- [ ] Domínio principal `mediclin.app` apontando para Vercel
-- [ ] Wildcard `*.mediclin.app` configurado (subdomínios)
+- [ ] Domínio principal `cuidandovc.com.br` apontando para Vercel
+- [ ] Wildcard `*.cuidandovc.com.br` configurado (subdomínios)
 - [ ] Teste de sign up → novo usuário criado
 - [ ] Teste de onboarding → profissional criado
 - [ ] Teste de agendamento → e-mails enviados
@@ -184,10 +184,10 @@ Isso cria as tabelas no Neon (users, professionals, services, appointments, etc.
 
 ### "E-mail não chega"
 → Verificar `RESEND_API_KEY` válida
-→ Domínio `mediclin.com.br` verificado no Resend
+→ Domínio `cuidandovc.com.br` verificado no Resend
 
 ---
 
 **✅ Pronto! CuidandoVC está em produção!**
 
-Acesse: **https://mediclin.vercel.app**
+Acesse: **https://cuidandovc.com.br**

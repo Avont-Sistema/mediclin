@@ -2,9 +2,9 @@
 
 **SaaS multi-tenant** para médicos, dentistas e profissionais de saúde.
 
-Cada médico recebe um **link público personalizado** (ex: `dr-ricardo.mediclin.app`) para colocar na bio do Instagram. Pacientes **agendam e pagam em minutos** sem sair do app — o dinheiro vai direto para a conta do profissional via **Mercado Pago Marketplace**.
+Cada médico recebe um **link público personalizado** (ex: `dr-ricardo.cuidandovc.com.br`) para colocar na bio do Instagram. Pacientes **agendam e pagam em minutos** sem sair do app — o dinheiro vai direto para a conta do profissional via **Mercado Pago Marketplace**.
 
-**🚀 Em produção:** https://mediclin.vercel.app
+**🚀 Em produção:** https://cuidandovc.com.br
 
 ---
 
@@ -168,6 +168,6 @@ O split acontece automaticamente via `application_fee_amount` — o dinheiro nun
 
 ## Produção
 
-- **URL:** https://mediclin.vercel.app
+- **URL:** https://cuidandovc.com.br
 - **Deploy:** automático via Vercel ao mergear na `main`
 - **Logs:** Vercel Dashboard → projeto `mediclin`

@@ -51,7 +51,7 @@ RESEND_API_KEY = re_...
 
 **App Domain:**
 ```
-APP_DOMAIN = mediclin.app
+APP_DOMAIN = cuidandovc.com.br
 ```
 
 ---
@@ -60,7 +60,7 @@ APP_DOMAIN = mediclin.app
 
 **URL:**
 ```
-https://mediclin.vercel.app/api/webhooks/clerk
+https://cuidandovc.com.br/api/webhooks/clerk
 ```
 
 **Passos:**
@@ -78,7 +78,7 @@ https://mediclin.vercel.app/api/webhooks/clerk
 ### 4. Testar Webhook Clerk
 
 **Sign Up Test:**
-1. Acesse https://mediclin.vercel.app
+1. Acesse https://cuidandovc.com.br
 2. Clique **Sign Up**
 3. Crie uma conta de teste
 4. Verifique se o usuário foi criado no banco:
@@ -142,7 +142,7 @@ MP_PLAN_ID_CLINIC = outro_plano_id
 
 **Webhook MP:**
 1. Dashboard → **Webhooks**
-2. URL: `https://mediclin.vercel.app/api/webhooks/mp`
+2. URL: `https://cuidandovc.com.br/api/webhooks/mp`
 3. Eventos: `payment`, `subscription_preapproval`
 
 ---
@@ -161,7 +161,7 @@ RESEND_API_KEY = re_...
 **Verificar Domínio (importante!):**
 1. Resend → **Domains**
 2. Clique **Add Domain**
-3. Digite `mediclin.com.br`
+3. Digite `cuidandovc.com.br`
 4. Verá instruções SPF/DKIM/DMARC
 5. Adicionar registros no DNS do domínio
 6. Aguardar verificação (~30 min)
@@ -188,21 +188,21 @@ TWILIO_AUTH_TOKEN = ...
 
 ## 🌍 Domínio & DNS (Próxima semana)
 
-### 9. Apontar `mediclin.app` para Vercel
+### 9. Apontar `cuidandovc.com.br` para Vercel
 
 **Em seu registrador de domínio (GoDaddy, Namecheap, etc):**
 1. Vá para DNS settings
 2. Remova registros antigos (se houver)
 3. Adicione CNAME:
    ```
-   mediclin.app → mediclin.vercel.app
+   cuidandovc.com.br → cuidandovc.com.br
    ```
 4. Aguarde propagação (até 24h)
 
 **No Vercel:**
 1. Settings → **Domains**
 2. Clique **Add Domain**
-3. Digite `mediclin.app`
+3. Digite `cuidandovc.com.br`
 4. Seguir instruções de verificação
 
 ---
@@ -212,12 +212,12 @@ TWILIO_AUTH_TOKEN = ...
 **No Vercel (após domínio configurado):**
 1. Settings → **Domains** → clique no domínio
 2. Clique **Add Subdomain**
-3. Digite: `*.mediclin.app`
+3. Digite: `*.cuidandovc.com.br`
 4. Save
 
 **Resultado:**
-- `dr-joao.mediclin.app` funciona automaticamente
-- `dr-maria.mediclin.app` funciona automaticamente
+- `dr-joao.cuidandovc.com.br` funciona automaticamente
+- `dr-maria.cuidandovc.com.br` funciona automaticamente
 - etc.
 
 ---
@@ -226,7 +226,7 @@ TWILIO_AUTH_TOKEN = ...
 
 ### Teste 1: Sign Up → Novo Profissional
 ```
-1. Acesse mediclin.vercel.app
+1. Acesse cuidandovc.com.br
 2. Sign Up com email
 3. Confirme que usuário foi criado (verificar DB)
 4. Vá para /onboarding
@@ -300,12 +300,12 @@ Se algo não funcionar:
 - [ ] CLERK_SECRET_KEY + VITE_CLERK_PUBLISHABLE_KEY adicionadas
 - [ ] MERCADOPAGO_ACCESS_TOKEN adicionada
 - [ ] RESEND_API_KEY adicionada
-- [ ] APP_DOMAIN = mediclin.app
+- [ ] APP_DOMAIN = cuidandovc.com.br
 - [ ] Migrations aplicadas (tabelas criadas)
 - [ ] Webhook Clerk testado (novo usuário criado ao sign up)
 - [ ] Resend domínio verificado (SPF/DKIM/DMARC)
-- [ ] Domínio mediclin.app apontando para Vercel
-- [ ] Wildcard *.mediclin.app configurado
+- [ ] Domínio cuidandovc.com.br apontando para Vercel
+- [ ] Wildcard *.cuidandovc.com.br configurado
 - [ ] Teste de sign up ✓
 - [ ] Teste de onboarding ✓
 - [ ] Teste de agendamento com pagamento sandbox ✓

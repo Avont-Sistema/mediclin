@@ -6,7 +6,7 @@ function getResend(): Resend {
   return new Resend(key);
 }
 
-const FROM = "CuidandoVC <notificacoes@mediclin.com.br>";
+const FROM = "CuidandoVC <notificacoes@cuidandovc.com.br>";
 
 // ─── Templates ───────────────────────────────────────────────────────────────
 
@@ -225,7 +225,7 @@ export async function sendNewBookingNotification(
 
     <p style="margin:0;font-size:14px;color:#64748b;">
       O valor já foi depositado na sua conta Mercado Pago, descontada a taxa da plataforma. Acesse seu
-      <a href="https://mediclin.app/dashboard" style="color:#0d9488;">painel</a> para ver todos os detalhes.
+      <a href="https://cuidandovc.com.br/dashboard" style="color:#0d9488;">painel</a> para ver todos os detalhes.
     </p>
   `;
 

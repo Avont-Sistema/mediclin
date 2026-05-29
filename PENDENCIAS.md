@@ -7,7 +7,7 @@
 
 ## ✅ Status atual (o que JÁ está funcionando em produção)
 
-**URL:** https://mediclin.vercel.app — todas as rotas testadas e funcionando:
+**URL:** https://cuidandovc.com.br — todas as rotas testadas e funcionando:
 
 | Rota                    | Status | Comportamento                                    |
 | ----------------------- | ------ | ------------------------------------------------ |
@@ -82,9 +82,9 @@ npx vercel env add <NOME> production
 
 | Variável         | Para que serve                                      |
 | ---------------- | --------------------------------------------------- |
-| `RESEND_API_KEY` | Envio de e-mails (`notificacoes@mediclin.com.br`)  |
+| `RESEND_API_KEY` | Envio de e-mails (`notificacoes@cuidandovc.com.br`)  |
 
-**Antes de adicionar:** você precisa verificar o domínio `mediclin.com.br` no Resend (SPF/DKIM/DMARC). Se ainda não tem o domínio próprio, o "from" precisa ser `onboarding@resend.dev` (sandbox).
+**Antes de adicionar:** você precisa verificar o domínio `cuidandovc.com.br` no Resend (SPF/DKIM/DMARC). Se ainda não tem o domínio próprio, o "from" precisa ser `onboarding@resend.dev` (sandbox).
 
 **Sem essa:** webhooks de pagamento aprovado e cron de lembretes falham silenciosamente (`try/catch` no código não quebra o webhook).
 
@@ -152,7 +152,7 @@ Reconstruí a publishable key correta a partir do domínio do app `aware-lynx-99
 
 - **Nova `VITE_CLERK_PUBLISHABLE_KEY`** = `pk_test_YXdhcmUtbHlueC05OS5jbGVyay5hY2NvdW50cy5kZXYk`
 - Redeploy disparado (deploy `epnkym0eq` Ready)
-- Verifiquei: a nova key está no bundle JS servido em `mediclin.vercel.app`
+- Verifiquei: a nova key está no bundle JS servido em `cuidandovc.com.br`
 - Frontend API agora responde 401 `dev_browser_unauthenticated` (esperado em dev mode — vai funcionar quando user real acessar via browser)
 
 ### ⚠️ Ainda pendente da sua parte
@@ -172,7 +172,7 @@ Ambas keys atuais ainda são `_test_` (não `_live_`). Para produção real (sem
 
 1. Criar uma instância **Production** no Clerk dashboard
 2. Substituir as keys no Vercel pelas `pk_live_...` e `sk_live_...`
-3. Verificar o domínio `mediclin.vercel.app` no Clerk
+3. Verificar o domínio `cuidandovc.com.br` no Clerk
 
 **Decisão recomendada:** _Adiar até ter usuários reais._ Test keys funcionam perfeitamente para desenvolvimento e MVP.
 
@@ -185,14 +185,14 @@ Os endpoints existem e validam corretamente, mas você precisa **registrar as UR
 ### Clerk (criação/atualização de usuários)
 
 - URL no painel Clerk: https://dashboard.clerk.com → seu app → Webhooks
-- **Endpoint:** `https://mediclin.vercel.app/api/webhooks/clerk`
+- **Endpoint:** `https://cuidandovc.com.br/api/webhooks/clerk`
 - **Events:** `user.created`, `user.updated`
 - **Signing secret:** copiar do Clerk e setar `CLERK_WEBHOOK_SECRET` (já configurado, mas confirme se o valor bate com o do app em uso)
 
 ### Mercado Pago (pagamentos + assinaturas)
 
 - URL no painel MP: https://www.mercadopago.com.br/developers/panel/notifications/webhooks
-- **Endpoint:** `https://mediclin.vercel.app/api/webhooks/mp`
+- **Endpoint:** `https://cuidandovc.com.br/api/webhooks/mp`
 - **Events:** `payment`, `subscription_preapproval`
 
 **Sem isso:** o sistema não atualiza status de pagamento/assinatura automaticamente.
@@ -201,13 +201,13 @@ Os endpoints existem e validam corretamente, mas você precisa **registrar as UR
 
 ## 🟢 NÃO-CRÍTICA #6 — Domínio próprio
 
-`mediclin.vercel.app` funciona como **production domain** do Vercel, mas você mencionou querer `mediclin.app` com wildcard `*.mediclin.app` (para os links públicos dos médicos: `dr-joao.mediclin.app`).
+`cuidandovc.com.br` funciona como **production domain** do Vercel, mas você mencionou querer `cuidandovc.com.br` com wildcard `*.cuidandovc.com.br` (para os links públicos dos médicos: `dr-joao.cuidandovc.com.br`).
 
 Quando comprar o domínio:
 
 1. Adicionar em https://vercel.com/avont-sistemas-projects/mediclin/settings/domains
-2. Adicionar **TANTO** `mediclin.app` quanto `*.mediclin.app`
-3. Atualizar `APP_DOMAIN=mediclin.app` no Vercel (atualmente está `mediclin.vercel.app`)
+2. Adicionar **TANTO** `cuidandovc.com.br` quanto `*.cuidandovc.com.br`
+3. Atualizar `APP_DOMAIN=cuidandovc.com.br` no Vercel (atualmente está `cuidandovc.com.br`)
 4. O `getSubdomain()` em `src/lib/subdomain.ts` já está preparado pra isso
 
 ---
@@ -225,7 +225,7 @@ Quando comprar o domínio:
 
 ### Configurações no Vercel
 
-- ✅ Adicionada env `APP_DOMAIN=mediclin.vercel.app` (Production + Development)
+- ✅ Adicionada env `APP_DOMAIN=cuidandovc.com.br` (Production + Development)
 - ✅ Criado Deploy Hook `HP9dxUj4Ij` (main → production)
 - ✅ Removido hook duplicado `c7TTjlObxH`
 

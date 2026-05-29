@@ -402,7 +402,7 @@ function AdminSuporteTab() {
       setCfgForm({
         email: cfg.email ?? "",
         whatsapp: cfg.whatsapp ?? "",
-        whatsappMessage: cfg.whatsappMessage ?? "Olá, preciso de ajuda com o MediClin",
+        whatsappMessage: cfg.whatsappMessage ?? "Olá, preciso de ajuda com o CuidandoVC",
       });
     }
   }, [cfg]);

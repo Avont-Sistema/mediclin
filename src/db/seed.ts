@@ -24,17 +24,17 @@ async function main() {
     .values([
       {
         clerkId: "user_seed_ricardo",
-        email: "dr.ricardo@mediclin.dev",
+        email: "dr.ricardo@cuidandovc.dev",
         nome: "Ricardo Fontes",
       },
       {
         clerkId: "user_seed_ana",
-        email: "dra.ana@mediclin.dev",
+        email: "dra.ana@cuidandovc.dev",
         nome: "Ana Salgado",
       },
       {
         clerkId: "user_seed_joao",
-        email: "dr.joao@mediclin.dev",
+        email: "dr.joao@cuidandovc.dev",
         nome: "João Tavares",
       },
     ])

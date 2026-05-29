@@ -1010,7 +1010,7 @@ function MemberFormWidget({
             <span className="text-slate-400 font-normal">— preenchido automaticamente</span>
           </label>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400 shrink-0">mediclin.vercel.app/</span>
+            <span className="text-xs text-slate-400 shrink-0">cuidandovc.com.br/</span>
             <input
               value={form.slug}
               onChange={(e) =>

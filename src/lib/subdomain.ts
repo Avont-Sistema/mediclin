@@ -9,16 +9,16 @@ import { professionalCards, professionals, services } from "../db/schema";
 /**
  * Extracts the subdomain slug from a Host header.
  *
- * Production:  dr-ricardo.mediclin.app  → "dr-ricardo"
+ * Production:  dr-ricardo.cuidandovc.com.br  → "dr-ricardo"
  * Local dev:   dr-test.localhost:3000   → "dr-test"
- * Root domain: mediclin.app             → null
+ * Root domain: cuidandovc.com.br             → null
  */
 export function getSubdomain(host: string): string | null {
   const hostname = host.split(":")[0]; // strip port
-  const baseDomain = process.env.APP_DOMAIN ?? "mediclin.app";
+  const baseDomain = process.env.APP_DOMAIN ?? "cuidandovc.com.br";
   const reserved = new Set(["www", "app", "dashboard", "api"]);
 
-  // Production: *.mediclin.app
+  // Production: *.cuidandovc.com.br
   if (hostname.endsWith(`.${baseDomain}`)) {
     const sub = hostname.slice(0, hostname.length - baseDomain.length - 1);
     if (sub && !reserved.has(sub)) return sub;

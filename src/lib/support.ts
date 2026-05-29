@@ -98,7 +98,7 @@ export const updateSupportConfig = createServerFn({ method: "POST" })
     const payload = {
       email: data.email || null,
       whatsapp: data.whatsapp || null,
-      whatsappMessage: data.whatsappMessage || "Olá, preciso de ajuda com o MediClin",
+      whatsappMessage: data.whatsappMessage || "Olá, preciso de ajuda com o CuidandoVC",
       atualizadoEm: new Date(),
     };
 

@@ -187,7 +187,7 @@ function HeroVisual() {
           <span className="h-2.5 w-2.5 rounded-full bg-red-400/70" />
           <span className="h-2.5 w-2.5 rounded-full bg-yellow-400/70" />
           <span className="h-2.5 w-2.5 rounded-full bg-green-400/70" />
-          <span className="ml-3 text-xs text-muted-foreground">mediclin.vercel.app/dashboard</span>
+          <span className="ml-3 text-xs text-muted-foreground">cuidandovc.com.br/dashboard</span>
         </div>
         {/* Stats row */}
         <div className="grid gap-4 p-6 md:grid-cols-3">
@@ -561,7 +561,7 @@ function FAQ() {
     },
     {
       q: "Como os pacientes me encontram?",
-      a: "Você recebe um link personalizado (ex: mediclin.vercel.app/dr-nome) que pode colocar na bio do Instagram ou WhatsApp. O paciente acessa, escolhe o serviço e agenda sozinho.",
+      a: "Você recebe um link personalizado (ex: cuidandovc.com.br/dr-nome) que pode colocar na bio do Instagram ou WhatsApp. O paciente acessa, escolhe o serviço e agenda sozinho.",
     },
     {
       q: "Como recebo os pagamentos?",

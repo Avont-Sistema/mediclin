@@ -358,7 +358,7 @@ export const supportConfig = pgTable("support_config", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: varchar("email", { length: 255 }),
   whatsapp: varchar("whatsapp", { length: 30 }),
-  whatsappMessage: text("whatsapp_message").default("Olá, preciso de ajuda com o MediClin"),
+  whatsappMessage: text("whatsapp_message").default("Olá, preciso de ajuda com o CuidandoVC"),
   atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
 });
 

@@ -61,7 +61,7 @@ function formatTime(isoStr: string) {
 }
 
 function isPlaceholderEmail(email: string) {
-  return email.endsWith("@noemail.mediclin.app");
+  return email.endsWith("@noemail.cuidandovc.com.br");
 }
 
 function whatsappUrl(tel: string) {

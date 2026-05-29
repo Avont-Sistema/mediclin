@@ -268,9 +268,9 @@ export const runSeed = createServerFn({ method: "POST" }).handler(async () => {
   const [userRicardo, userAna, userJoao] = await db
     .insert(users)
     .values([
-      { clerkId: "user_seed_ricardo", email: "dr.ricardo@mediclin.dev", nome: "Ricardo Fontes" },
-      { clerkId: "user_seed_ana", email: "dra.ana@mediclin.dev", nome: "Ana Salgado" },
-      { clerkId: "user_seed_joao", email: "dr.joao@mediclin.dev", nome: "João Tavares" },
+      { clerkId: "user_seed_ricardo", email: "dr.ricardo@cuidandovc.dev", nome: "Ricardo Fontes" },
+      { clerkId: "user_seed_ana", email: "dra.ana@cuidandovc.dev", nome: "Ana Salgado" },
+      { clerkId: "user_seed_joao", email: "dr.joao@cuidandovc.dev", nome: "João Tavares" },
     ])
     .returning();
 
