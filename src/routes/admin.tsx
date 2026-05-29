@@ -37,9 +37,26 @@ import {
   AlertTriangle,
   CreditCard,
   UserX,
+  Briefcase,
+  Flag,
+  Bell,
+  ScrollText,
+  Settings,
 } from "lucide-react";
 import { fetchAdminOverview, runSeed, fetchPlanPrices, updatePlanPrice } from "../lib/admin";
 import type { AdminOverview, AdminMetrics } from "../lib/admin";
+import { AnalyticsSection } from "../components/admin/AnalyticsSection";
+import { FinanceiroSection } from "../components/admin/FinanceiroSection";
+import {
+  ClientesSection,
+  AssinaturasSection,
+  LeadsSection,
+  FeatureFlagsSection,
+  AutomacoesSection,
+  NotificationsSection,
+  AuditSection,
+  SystemConfigSection,
+} from "../components/admin/AdminSections";
 import {
   fetchSupportConfig,
   updateSupportConfig,
@@ -82,11 +99,38 @@ function AdminPage() {
   );
 }
 
-type AdminTab = "overview" | "suporte";
+type AdminTab =
+  | "dashboard"
+  | "clientes"
+  | "assinaturas"
+  | "leads"
+  | "suporte"
+  | "automacoes"
+  | "analytics"
+  | "financeiro"
+  | "flags"
+  | "notificacoes"
+  | "auditoria"
+  | "config";
+
+const NAV: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "clientes", label: "Clientes", icon: Users },
+  { id: "assinaturas", label: "Assinaturas", icon: CreditCard },
+  { id: "leads", label: "Leads CRM", icon: Briefcase },
+  { id: "suporte", label: "Suporte", icon: LifeBuoy },
+  { id: "automacoes", label: "Automações", icon: Zap },
+  { id: "analytics", label: "Analytics", icon: Activity },
+  { id: "financeiro", label: "Financeiro", icon: Wallet },
+  { id: "flags", label: "Feature Flags", icon: Flag },
+  { id: "notificacoes", label: "Notificações", icon: Bell },
+  { id: "auditoria", label: "Auditoria", icon: ScrollText },
+  { id: "config", label: "Configurações do Sistema", icon: Settings },
+];
 
 function AdminContent() {
   const qc = useQueryClient();
-  const [adminTab, setAdminTab] = useState<AdminTab>("overview");
+  const [adminTab, setAdminTab] = useState<AdminTab>("dashboard");
   const [previewSlug, setPreviewSlug] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<"patient" | "split">("patient");
 
@@ -140,28 +184,6 @@ function AdminContent() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Tab switcher */}
-            <div className="flex items-center gap-0.5 rounded-lg border border-slate-700 bg-slate-800/60 p-0.5">
-              {(
-                [
-                  { id: "overview" as const, label: "Visão Geral" },
-                  { id: "suporte" as const, label: "Suporte" },
-                ] as const
-              ).map(({ id, label }) => (
-                <button
-                  key={id}
-                  onClick={() => setAdminTab(id)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition ${
-                    adminTab === id
-                      ? "bg-slate-700 text-slate-100"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
             {/* Feature badges */}
             <div className="hidden md:flex items-center gap-2">
               <FeatureBadge ok={data.features.mp} label="MP" />
@@ -188,112 +210,157 @@ function AdminContent() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1600px] px-6 py-6 space-y-6">
-        {adminTab === "suporte" && <AdminSuporteTab />}
-        {adminTab === "overview" && (
-          <>
-            {/* Métricas do negócio */}
-            <MetricsDashboard metrics={data.metrics} />
+      <div className="mx-auto max-w-[1600px] flex">
+        {/* Sidebar */}
+        <aside className="hidden md:block w-56 shrink-0 border-r border-slate-800 min-h-[calc(100vh-3rem)] py-4 px-3 sticky top-12 self-start">
+          <nav className="space-y-0.5">
+            {NAV.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setAdminTab(id)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition ${
+                  adminTab === id
+                    ? "bg-slate-800 text-slate-100 font-medium"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                }`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="truncate">{label}</span>
+              </button>
+            ))}
+          </nav>
+        </aside>
 
-            {/* Main grid */}
-            <div className="grid grid-cols-[340px_1fr] gap-6">
-              {/* Left: Professionals list */}
-              <div className="space-y-3">
-                <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                  Médicos cadastrados
-                </h2>
+        <main className="flex-1 min-w-0 px-6 py-6 space-y-6">
+          {/* Seletor de seção no mobile */}
+          <select
+            value={adminTab}
+            onChange={(e) => setAdminTab(e.target.value as AdminTab)}
+            className="md:hidden w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100"
+          >
+            {NAV.map((n) => (
+              <option key={n.id} value={n.id}>
+                {n.label}
+              </option>
+            ))}
+          </select>
 
-                {data.professionals.length === 0 ? (
-                  <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-center">
-                    <p className="text-sm text-slate-500 mb-3">Nenhum médico cadastrado</p>
-                    <button
-                      onClick={() => seed.mutate()}
-                      className="text-xs text-teal-400 hover:text-teal-300"
-                    >
-                      Executar seed de teste →
-                    </button>
-                  </div>
-                ) : (
-                  data.professionals.map((prof) => (
-                    <ProfessionalCard
-                      key={prof.id}
-                      prof={prof}
-                      origin={origin}
-                      isSelected={previewSlug === prof.slug}
-                      onPreview={() => {
-                        setPreviewSlug(prof.slug);
-                      }}
-                    />
-                  ))
-                )}
-              </div>
+          {adminTab === "suporte" && <AdminSuporteTab />}
+          {adminTab === "analytics" && <AnalyticsSection />}
+          {adminTab === "financeiro" && <FinanceiroSection />}
+          {adminTab === "clientes" && <ClientesSection professionals={data.professionals} />}
+          {adminTab === "assinaturas" && <AssinaturasSection professionals={data.professionals} />}
+          {adminTab === "leads" && <LeadsSection />}
+          {adminTab === "automacoes" && <AutomacoesSection />}
+          {adminTab === "flags" && <FeatureFlagsSection />}
+          {adminTab === "notificacoes" && <NotificationsSection />}
+          {adminTab === "auditoria" && <AuditSection />}
+          {adminTab === "config" && <SystemConfigSection />}
+          {adminTab === "dashboard" && (
+            <>
+              {/* Métricas do negócio */}
+              <MetricsDashboard metrics={data.metrics} />
 
-              {/* Right: Preview */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
+              {/* Main grid */}
+              <div className="grid grid-cols-[340px_1fr] gap-6">
+                {/* Left: Professionals list */}
+                <div className="space-y-3">
                   <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
-                    Preview
+                    Médicos cadastrados
                   </h2>
-                  {previewSlug && (
-                    <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 p-0.5">
+
+                  {data.professionals.length === 0 ? (
+                    <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-center">
+                      <p className="text-sm text-slate-500 mb-3">Nenhum médico cadastrado</p>
                       <button
-                        onClick={() => setPreviewMode("patient")}
-                        className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition ${previewMode === "patient" ? "bg-slate-700 text-slate-100" : "text-slate-400 hover:text-slate-200"}`}
+                        onClick={() => seed.mutate()}
+                        className="text-xs text-teal-400 hover:text-teal-300"
                       >
-                        <Globe className="h-3 w-3" /> Paciente
-                      </button>
-                      <button
-                        onClick={() => setPreviewMode("split")}
-                        className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition ${previewMode === "split" ? "bg-slate-700 text-slate-100" : "text-slate-400 hover:text-slate-200"}`}
-                      >
-                        <Monitor className="h-3 w-3" /> Split
+                        Executar seed de teste →
                       </button>
                     </div>
+                  ) : (
+                    data.professionals.map((prof) => (
+                      <ProfessionalCard
+                        key={prof.id}
+                        prof={prof}
+                        origin={origin}
+                        isSelected={previewSlug === prof.slug}
+                        onPreview={() => {
+                          setPreviewSlug(prof.slug);
+                        }}
+                      />
+                    ))
                   )}
                 </div>
 
-                {!previewSlug ? (
-                  <EmptyPreview />
-                ) : previewMode === "patient" ? (
-                  <PatientPreview slug={previewSlug} origin={origin} />
-                ) : (
-                  <SplitPreview slug={previewSlug} origin={origin} />
-                )}
-              </div>
-            </div>
+                {/* Right: Preview */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                      Preview
+                    </h2>
+                    {previewSlug && (
+                      <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 p-0.5">
+                        <button
+                          onClick={() => setPreviewMode("patient")}
+                          className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition ${previewMode === "patient" ? "bg-slate-700 text-slate-100" : "text-slate-400 hover:text-slate-200"}`}
+                        >
+                          <Globe className="h-3 w-3" /> Paciente
+                        </button>
+                        <button
+                          onClick={() => setPreviewMode("split")}
+                          className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition ${previewMode === "split" ? "bg-slate-700 text-slate-100" : "text-slate-400 hover:text-slate-200"}`}
+                        >
+                          <Monitor className="h-3 w-3" /> Split
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
-            {/* Feature status */}
-            <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">
-                Status das integrações
-              </h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <FeatureCard
-                  ok={data.features.mp}
-                  title="Mercado Pago"
-                  desc={
-                    data.features.mp ? "Pagamentos ativos" : "Adicionar MERCADOPAGO_ACCESS_TOKEN"
-                  }
-                />
-                <FeatureCard
-                  ok={data.features.resend}
-                  title="Resend (Email)"
-                  desc={data.features.resend ? "Emails ativos" : "Adicionar RESEND_API_KEY"}
-                />
-                <FeatureCard
-                  ok={data.features.twilio}
-                  title="Twilio (WhatsApp)"
-                  desc={data.features.twilio ? "WhatsApp ativo" : "Adicionar TWILIO_ACCOUNT_SID"}
-                />
-                <FeatureCard
-                  ok={data.features.cron}
-                  title="Cron (Lembretes)"
-                  desc={data.features.cron ? "Cron ativo" : "Adicionar CRON_SECRET"}
-                />
+                  {!previewSlug ? (
+                    <EmptyPreview />
+                  ) : previewMode === "patient" ? (
+                    <PatientPreview slug={previewSlug} origin={origin} />
+                  ) : (
+                    <SplitPreview slug={previewSlug} origin={origin} />
+                  )}
+                </div>
               </div>
-            </div>
-          </>
-        )}
+
+              {/* Feature status */}
+              <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-4">
+                  Status das integrações
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <FeatureCard
+                    ok={data.features.mp}
+                    title="Mercado Pago"
+                    desc={
+                      data.features.mp ? "Pagamentos ativos" : "Adicionar MERCADOPAGO_ACCESS_TOKEN"
+                    }
+                  />
+                  <FeatureCard
+                    ok={data.features.resend}
+                    title="Resend (Email)"
+                    desc={data.features.resend ? "Emails ativos" : "Adicionar RESEND_API_KEY"}
+                  />
+                  <FeatureCard
+                    ok={data.features.twilio}
+                    title="Twilio (WhatsApp)"
+                    desc={data.features.twilio ? "WhatsApp ativo" : "Adicionar TWILIO_ACCOUNT_SID"}
+                  />
+                  <FeatureCard
+                    ok={data.features.cron}
+                    title="Cron (Lembretes)"
+                    desc={data.features.cron ? "Cron ativo" : "Adicionar CRON_SECRET"}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+        </main>
       </div>
     </div>
   );

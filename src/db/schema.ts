@@ -4,6 +4,7 @@ import {
   decimal,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -407,6 +408,133 @@ export const supportMessages = pgTable(
     criadoEm: timestamp("criado_em").defaultNow().notNull(),
   },
   (t) => [index("messages_ticket_idx").on(t.ticketId, t.criadoEm)],
+);
+
+// ─── plans ────────────────────────────────────────────────────────────────────
+// Planos comerciais do CuidandoVC (Starter / Pro / Premium / White label)
+
+export const plans = pgTable("plans", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  slug: varchar("slug", { length: 50 }).notNull().unique(), // starter, pro, premium, white_label
+  nome: varchar("nome", { length: 100 }).notNull(),
+  descricao: text("descricao"),
+
+  precoMensal: decimal("preco_mensal", { precision: 10, scale: 2 }).notNull().default("0"),
+  precoAnual: decimal("preco_anual", { precision: 10, scale: 2 }).notNull().default("0"),
+  trialDias: integer("trial_dias").notNull().default(7),
+
+  // Limites e recursos
+  maxUsuarios: integer("max_usuarios").notNull().default(1), // Usuários
+  maxAgendamentosMes: integer("max_agendamentos_mes").notNull().default(-1), // -1 = ilimitado
+  armazenamentoGb: integer("armazenamento_gb").notNull().default(1), // Armazenamento
+  comissaoPct: decimal("comissao_pct", { precision: 5, scale: 2 }).notNull().default("5"), // Comissão
+  whatsappIncluso: boolean("whatsapp_incluso").notNull().default(false), // WhatsApp incluso
+  recursos: jsonb("recursos").$type<string[]>().notNull().default([]), // Recursos (lista)
+
+  ativo: boolean("ativo").notNull().default(true),
+  ordem: integer("ordem").notNull().default(0),
+  criadoEm: timestamp("criado_em").defaultNow().notNull(),
+  atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
+// ─── delinquency_config ───────────────────────────────────────────────────────
+// Singleton — regras de bloqueio progressivo por inadimplência.
+// ⚠️ ativo=false por padrão: enforcement NÃO roda até o admin ligar explicitamente.
+
+export const delinquencyConfig = pgTable("delinquency_config", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ativo: boolean("ativo").notNull().default(false),
+  diasAlerta: integer("dias_alerta").notNull().default(5), // Dia 5 → alerta
+  diasLimitar: integer("dias_limitar").notNull().default(10), // Dia 10 → limita agenda
+  diasBloquear: integer("dias_bloquear").notNull().default(20), // Dia 20 → bloqueia
+  atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
+// ─── admin_users (níveis de permissão) ────────────────────────────────────────
+
+export const adminRoleEnum = pgEnum("admin_role", [
+  "super_admin", // tudo
+  "financeiro", // só cobrança
+  "suporte", // só suporte
+  "comercial", // só leads/clientes
+  "operacional", // sem acesso financeiro
+]);
+
+export const adminUsers = pgTable("admin_users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clerkId: varchar("clerk_id", { length: 255 }).notNull().unique(),
+  nome: varchar("nome", { length: 255 }),
+  email: varchar("email", { length: 255 }),
+  role: adminRoleEnum("role").notNull().default("suporte"),
+  ativo: boolean("ativo").notNull().default(true),
+  criadoEm: timestamp("criado_em").defaultNow().notNull(),
+});
+
+// ─── leads (CRM) ──────────────────────────────────────────────────────────────
+
+export const leadStatusEnum = pgEnum("lead_status", [
+  "novo",
+  "contatado",
+  "qualificado",
+  "convertido",
+  "perdido",
+]);
+
+export const leads = pgTable(
+  "leads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    nome: varchar("nome", { length: 255 }).notNull(),
+    email: varchar("email", { length: 255 }),
+    telefone: varchar("telefone", { length: 30 }),
+    origem: varchar("origem", { length: 50 }), // instagram, indicacao, site, etc.
+    status: leadStatusEnum("status").notNull().default("novo"),
+    notas: text("notas"),
+    criadoEm: timestamp("criado_em").defaultNow().notNull(),
+    atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
+  },
+  (t) => [index("leads_status_idx").on(t.status, t.criadoEm)],
+);
+
+// ─── feature_flags ────────────────────────────────────────────────────────────
+
+export const featureFlags = pgTable("feature_flags", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  chave: varchar("chave", { length: 80 }).notNull().unique(),
+  descricao: text("descricao"),
+  ativo: boolean("ativo").notNull().default(false),
+  atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
+// ─── audit_log ────────────────────────────────────────────────────────────────
+
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    actorClerkId: varchar("actor_clerk_id", { length: 255 }),
+    actorNome: varchar("actor_nome", { length: 255 }),
+    acao: varchar("acao", { length: 100 }).notNull(),
+    entidade: varchar("entidade", { length: 80 }),
+    detalhe: text("detalhe"),
+    criadoEm: timestamp("criado_em").defaultNow().notNull(),
+  },
+  (t) => [index("audit_criado_idx").on(t.criadoEm)],
+);
+
+// ─── admin_notifications ──────────────────────────────────────────────────────
+
+export const adminNotifications = pgTable(
+  "admin_notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    titulo: varchar("titulo", { length: 255 }).notNull(),
+    mensagem: text("mensagem"),
+    tipo: varchar("tipo", { length: 20 }).notNull().default("info"), // info/warning/success/error
+    lida: boolean("lida").notNull().default(false),
+    criadoEm: timestamp("criado_em").defaultNow().notNull(),
+  },
+  (t) => [index("notif_criado_idx").on(t.criadoEm)],
 );
 
 // ─── Relations ────────────────────────────────────────────────────────────────
