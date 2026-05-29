@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useId, useRef } from "react";
+import { useState, useId, useRef, useEffect } from "react";
+import { SignedIn, SignedOut, SignIn, useUser } from "@clerk/tanstack-start";
 import {
   Stethoscope,
   ChevronRight,
@@ -11,14 +12,70 @@ import {
   UserCheck,
   BookOpen,
   ArrowRight,
+  Mail,
+  ShieldCheck,
 } from "lucide-react";
-import { createProfessional, checkSlugAvailability, slugify } from "../lib/onboarding";
+import {
+  createProfessional,
+  checkSlugAvailability,
+  slugify,
+  checkOnboardingStatus,
+} from "../lib/onboarding";
 import { buildPublicUrl } from "../lib/subdomain";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({ meta: [{ title: "CuidandoVC — Configure seu perfil" }] }),
   component: OnboardingPage,
 });
+
+// ─── Page wrapper: login Google (deslogado) → wizard (logado) ──────────────────
+
+function OnboardingPage() {
+  return (
+    <>
+      <SignedOut>
+        <OnboardingAuth />
+      </SignedOut>
+      <SignedIn>
+        <OnboardingWizard />
+      </SignedIn>
+    </>
+  );
+}
+
+function OnboardingAuth() {
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4 py-12">
+      {/* Logo */}
+      <div className="flex items-center gap-2.5 mb-6">
+        <img src="/logo-icon.png" alt="CuidandoVC" className="size-9 rounded-xl object-contain" />
+        <span className="text-xl font-bold tracking-tight text-slate-800">CuidandoVC</span>
+      </div>
+
+      <div className="w-full max-w-md text-center mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">Crie sua conta em segundos</h1>
+        <p className="mt-2 text-sm text-slate-500">
+          Entre com sua conta Google para começar. Sem senhas — rápido e seguro.
+        </p>
+      </div>
+
+      {/* Clerk: login social (Google) embutido. As opções exibidas seguem o que
+          estiver habilitado no painel do Clerk (habilite "Google" e desative
+          senha para deixar 100% passwordless). */}
+      <SignIn
+        routing="hash"
+        forceRedirectUrl="/onboarding"
+        signUpForceRedirectUrl="/onboarding"
+        appearance={{ elements: { rootBox: "w-full max-w-md mx-auto" } }}
+      />
+
+      <p className="mt-6 flex items-center gap-1.5 text-xs text-slate-400">
+        <ShieldCheck className="size-3.5" />
+        Autenticação via Google — não armazenamos sua senha
+      </p>
+    </div>
+  );
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -150,11 +207,26 @@ const STEP_LABELS: { num: Step; label: string }[] = [
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-function OnboardingPage() {
+function OnboardingWizard() {
   const navigate = useNavigate();
   const formId = useId();
+  const { user } = useUser();
+  const googleEmail = user?.primaryEmailAddress?.emailAddress ?? "";
 
   const [step, setStep] = useState<Step>(1);
+
+  // Profissional que já tem perfil não refaz onboarding → vai pro dashboard
+  useEffect(() => {
+    let active = true;
+    checkOnboardingStatus()
+      .then(({ hasProfile }) => {
+        if (active && hasProfile) void navigate({ to: "/dashboard" });
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [navigate]);
 
   // Step 1
   const [agendaAtual, setAgendaAtual] = useState<AgendaAtual | null>(null);
@@ -164,6 +236,11 @@ function OnboardingPage() {
   const [especialidade, setEspecialidade] = useState("");
   const [registro, setRegistro] = useState("");
   const [uf, setUf] = useState("");
+
+  // Pré-preenche o nome com o nome da conta Google (apenas se ainda vazio)
+  useEffect(() => {
+    if (user?.fullName) setNome((n) => n || (user.fullName ?? ""));
+  }, [user?.fullName]);
 
   // Step 3
   const [slug, setSlug] = useState("");
@@ -370,6 +447,22 @@ function OnboardingPage() {
                 Exibidas no seu perfil público para os pacientes.
               </p>
             </div>
+
+            {/* Conta Google conectada (somente leitura) */}
+            {googleEmail && (
+              <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-100">
+                  <Mail className="size-4 text-emerald-600" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
+                    Conta Google conectada
+                  </p>
+                  <p className="truncate text-sm font-medium text-slate-700">{googleEmail}</p>
+                </div>
+                <Check className="ml-auto size-4 shrink-0 text-emerald-600" />
+              </div>
+            )}
 
             <Field label="Nome completo" required>
               <input

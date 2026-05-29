@@ -102,13 +102,13 @@ function Nav() {
 
         <div className="flex items-center gap-3">
           <Link
-            to="/sign-in"
+            to="/onboarding"
             className="hidden text-sm text-muted-foreground hover:text-foreground transition-colors sm:block"
           >
             Entrar
           </Link>
           <Link
-            to="/sign-up"
+            to="/onboarding"
             className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:opacity-90"
           >
             Começar grátis <ArrowRight className="h-3.5 w-3.5" />
@@ -155,7 +155,7 @@ function Hero() {
 
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
-              to="/sign-up"
+              to="/onboarding"
               className="inline-flex h-12 items-center gap-2 rounded-full bg-brand px-7 text-sm font-medium text-brand-foreground shadow-lg shadow-brand/20 transition hover:shadow-xl hover:shadow-brand/30"
             >
               Experimente grátis por 14 dias <ArrowRight className="h-4 w-4" />
@@ -459,7 +459,7 @@ function ForWhom() {
             ))}
           </ul>
           <Link
-            to="/sign-up"
+            to="/onboarding"
             className="mt-8 inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:gap-2.5 transition-all"
           >
             Criar minha conta grátis <ArrowRight className="h-4 w-4" />
@@ -619,13 +619,13 @@ function FinalCTA() {
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
-              to="/sign-up"
+              to="/onboarding"
               className="inline-flex h-12 items-center gap-2 rounded-full bg-brand px-7 text-sm font-medium text-brand-foreground hover:opacity-90 transition"
             >
               Começar grátis <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              to="/sign-in"
+              to="/onboarding"
               className="inline-flex h-12 items-center gap-2 rounded-full border border-background/20 px-6 text-sm font-medium text-background hover:bg-background/10 transition"
             >
               Já tenho conta
@@ -662,11 +662,11 @@ function Footer() {
           <a href="#" className="hover:text-foreground transition-colors">
             Suporte
           </a>
-          <Link to="/sign-in" className="hover:text-foreground transition-colors">
+          <Link to="/onboarding" className="hover:text-foreground transition-colors">
             Entrar
           </Link>
           <Link
-            to="/sign-up"
+            to="/onboarding"
             className="rounded-full bg-foreground px-3 py-1 text-xs font-medium text-background hover:opacity-80 transition"
           >
             Começar grátis
