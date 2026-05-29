@@ -1065,8 +1065,8 @@ function PaginaPublicaPage() {
 
 const MODALIDADE_LABEL: Record<string, string> = {
   presencial: "Presencial",
-  online: "Online",
-  ambos: "Presencial + Online",
+  online: "Virtual",
+  ambos: "Presencial + Virtual",
 };
 
 const MODALIDADE_ICON: Record<string, React.ElementType> = {
@@ -1279,7 +1279,7 @@ function ServiceForm({
               onClick={() => setModalidade(m)}
               className={`flex-1 rounded-xl border py-2 text-xs font-medium transition-colors ${modalidade === m ? "border-teal-400 bg-teal-50 text-teal-700" : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"}`}
             >
-              {m === "presencial" ? "Presencial" : m === "online" ? "Online" : "Ambos"}
+              {m === "presencial" ? "Presencial" : m === "online" ? "Virtual" : "Ambos"}
             </button>
           ))}
         </div>

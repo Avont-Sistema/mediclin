@@ -77,7 +77,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Agende consultas presenciais ou telemedicina com especialistas. Confirmação imediata, sem filas de espera.",
+          "Agende consultas presenciais ou por atendimento virtual com especialistas. Confirmação imediata, sem filas de espera.",
       },
       { property: "og:title", content: "CuidandoVC — Agendamento online" },
       {

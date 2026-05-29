@@ -449,6 +449,7 @@ function AgendaContent() {
                                       appt.status === "cancelado" ? "line-through" : "none",
                                   }}
                                 >
+                                  {appt.modalidade === "online" ? "💻 " : ""}
                                   {appt.patient.nome.split(" ")[0]} · {appt.service.nome}
                                 </p>
                                 {heightPx > 44 && (
@@ -662,6 +663,31 @@ function ApptModal({
             <User className="h-4 w-4 text-slate-400 shrink-0" />
             <span className="text-xs truncate">{appt.patient.nome}</span>
           </div>
+
+          {/* Modalidade do atendimento */}
+          <div className="col-span-2">
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${
+                appt.modalidade === "online"
+                  ? "bg-sky-50 text-sky-700 ring-sky-200"
+                  : "bg-emerald-50 text-emerald-700 ring-emerald-200"
+              }`}
+            >
+              {appt.modalidade === "online" ? "💻 Atendimento Virtual" : "🏥 Presencial"}
+            </span>
+          </div>
+
+          {/* Link da sala virtual */}
+          {appt.modalidade === "online" && appt.meetLink && (
+            <a
+              href={appt.meetLink}
+              target="_blank"
+              rel="noreferrer"
+              className="col-span-2 flex items-center gap-1.5 text-xs font-medium text-sky-600 hover:text-sky-800 truncate"
+            >
+              🔗 Entrar na sala virtual →
+            </a>
+          )}
         </div>
 
         {appt.status !== "concluido" &&

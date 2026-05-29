@@ -67,8 +67,22 @@ type Phase =
       slot: string;
       nome: string;
       meetLink?: string | null;
+      modalidade?: "presencial" | "online";
       member?: ClinicMember;
     };
+
+// Modalidade efetiva = resolve "ambos" pela escolha do paciente
+type Modalidade = "presencial" | "online";
+function resolveModalidade(svc: Service, escolha: Modalidade): Modalidade {
+  if (svc.modalidade === "online") return "online";
+  if (svc.modalidade === "presencial") return "presencial";
+  return escolha; // "ambos" → escolha do paciente
+}
+const MOD_LABEL: Record<string, string> = {
+  presencial: "Presencial",
+  online: "Atendimento Virtual",
+  ambos: "Presencial ou Virtual",
+};
 
 // ─── Static Tailwind color map ─────────────────────────────────────────────────
 
@@ -233,6 +247,8 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  // Modalidade escolhida pelo paciente (só usada quando o serviço é "ambos")
+  const [modalidadeEscolhida, setModalidadeEscolhida] = useState<Modalidade>("presencial");
 
   const isClinic = professional.plano === "clinic" && (professional.members?.length ?? 0) > 0;
 
@@ -247,6 +263,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
     mutationFn: () => {
       if (phase.tag !== "hora" || !selectedSlot) throw new Error("Dados incompletos");
       const targetId = phase.member?.id ?? professional.id;
+      const modalidade = resolveModalidade(phase.service, modalidadeEscolhida);
       return createBooking({
         data: {
           professionalId: targetId,
@@ -254,19 +271,19 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
           dateStr: toDateStr(phase.date),
           timeSlot: selectedSlot,
           duracaoMinutos: phase.service.duracaoMinutos,
+          modalidade,
           patient: { nome, email, telefone },
         },
       });
     },
     onSuccess: (result) => {
       if (phase.tag !== "hora" || !selectedSlot) return;
+      const modalidade = resolveModalidade(phase.service, modalidadeEscolhida);
       if (professional.mpAccountAtivo) {
         mpMutation.mutate(result.appointmentId);
       } else {
         const meetLink =
-          phase.service.modalidade === "online" || phase.service.modalidade === "ambos"
-            ? (phase.member?.meetLink ?? professional.meetLink)
-            : null;
+          modalidade === "online" ? (phase.member?.meetLink ?? professional.meetLink) : null;
         setPhase({
           tag: "confirmado",
           service: phase.service,
@@ -274,6 +291,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
           slot: selectedSlot,
           nome,
           meetLink,
+          modalidade,
           member: phase.member,
         });
       }
@@ -298,6 +316,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
     setNome("");
     setEmail("");
     setTelefone("");
+    setModalidadeEscolhida("presencial");
     bookingMutation.reset();
     mpMutation.reset();
   };
@@ -415,6 +434,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
                   onBack={() => setPhase({ tag: "idle" })}
                   onSelect={(svc) => {
                     setSelectedSlot(null);
+                    setModalidadeEscolhida("presencial");
                     setPhase({ tag: "data", service: svc, member: phase.member });
                   }}
                 />
@@ -428,6 +448,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
                   colors={colors}
                   onSelect={(svc) => {
                     setSelectedSlot(null);
+                    setModalidadeEscolhida("presencial");
                     setPhase({ tag: "data", service: svc });
                   }}
                 />
@@ -484,6 +505,8 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
                 setEmail={setEmail}
                 telefone={telefone}
                 setTelefone={setTelefone}
+                modalidade={modalidadeEscolhida}
+                setModalidade={setModalidadeEscolhida}
                 canConfirm={canConfirm}
                 isConfirming={isConfirming}
                 onConfirm={handleConfirm}
@@ -683,6 +706,13 @@ function ServiceCard({
           {svc.descricao}
         </p>
       )}
+      <span className="mt-2 inline-flex w-fit items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+        {svc.modalidade === "online"
+          ? "💻 Virtual"
+          : svc.modalidade === "ambos"
+            ? "🏥 + 💻"
+            : "🏥 Presencial"}
+      </span>
       <div className="mt-auto pt-3 mt-3 border-t border-slate-100 flex items-end justify-between gap-1">
         <span className="text-[11px] text-slate-400">A partir de</span>
         <span className="text-sm font-black text-slate-900">{fmt(svc.preco)}</span>
@@ -879,6 +909,8 @@ function SummaryPanel({
   setEmail,
   telefone,
   setTelefone,
+  modalidade,
+  setModalidade,
   canConfirm,
   isConfirming,
   onConfirm,
@@ -895,6 +927,8 @@ function SummaryPanel({
   setEmail: (v: string) => void;
   telefone: string;
   setTelefone: (v: string) => void;
+  modalidade: Modalidade;
+  setModalidade: (v: Modalidade) => void;
   canConfirm: boolean;
   isConfirming: boolean;
   onConfirm: () => void;
@@ -904,6 +938,10 @@ function SummaryPanel({
     phase.tag === "data" || phase.tag === "hora" || phase.tag === "confirmado"
       ? phase.service
       : null;
+  // Modalidade efetiva e link de Meet a exibir
+  const efetiva = service ? resolveModalidade(service, modalidade) : "presencial";
+  const meetLink = member?.meetLink ?? professional.meetLink;
+  const virtualInfo = member?.atendimentoVirtualInfo ?? professional.atendimentoVirtualInfo;
   const date = phase.tag === "hora" || phase.tag === "confirmado" ? phase.date : null;
   const slot = phase.tag === "hora" ? selectedSlot : phase.tag === "confirmado" ? phase.slot : null;
 
@@ -937,6 +975,42 @@ function SummaryPanel({
                 : undefined
           }
         />
+
+        {/* Modalidade — seletor quando o serviço aceita ambos */}
+        {service && service.modalidade === "ambos" && (
+          <div>
+            <p className="text-xs text-slate-400 mb-1.5">Tipo de atendimento</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(["presencial", "online"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setModalidade(m)}
+                  className={`rounded-xl border py-2 text-xs font-semibold transition ${
+                    efetiva === m
+                      ? "border-transparent text-white"
+                      : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                  }`}
+                  style={efetiva === m ? { background: brand } : undefined}
+                >
+                  {m === "presencial" ? "🏥 Presencial" : "💻 Virtual"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Modalidade fixa (serviço só presencial ou só virtual) */}
+        {service && service.modalidade !== "ambos" && (
+          <SummaryRow label="Atendimento" value={MOD_LABEL[service.modalidade]} />
+        )}
+
+        {/* Como funciona o atendimento virtual */}
+        {service && efetiva === "online" && virtualInfo && (
+          <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
+            <p className="text-[11px] text-slate-500 leading-relaxed">{virtualInfo}</p>
+          </div>
+        )}
       </div>
 
       {/* Total */}

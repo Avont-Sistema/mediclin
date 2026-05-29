@@ -164,7 +164,7 @@ export const fetchAnalytics = createServerFn({ method: "GET" }).handler(
       db
         .select({ c: countDistinct(professionals.id) })
         .from(professionals)
-        .where(eq(professionals.telemedicinaAtivo, true)),
+        .where(eq(professionals.atendimentoVirtualAtivo, true)),
     ]);
 
     const usoRaw: { funcao: string; total: number }[] = [
@@ -173,7 +173,7 @@ export const fetchAnalytics = createServerFn({ method: "GET" }).handler(
       { funcao: "Página pública (cards)", total: Number(comCards.c) },
       { funcao: "Mercado Pago conectado", total: Number(comMP.c) },
       { funcao: "Recebeu agendamentos", total: Number(comAgendamentos.c) },
-      { funcao: "Telemedicina ativa", total: Number(comTelemedicina.c) },
+      { funcao: "Atendimento virtual ativo", total: Number(comTelemedicina.c) },
     ];
     const usoFuncoes = usoRaw
       .map((u) => ({ ...u, pct: Math.round((u.total / totalMedicos) * 100) }))

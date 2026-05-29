@@ -158,6 +158,9 @@ function ProfileTab({ data, onSaved }: { data: SettingsData; onSaved: () => void
     fotoUrl: p.fotoUrl ?? "",
     telefoneWhatsapp: p.telefoneWhatsapp ?? "",
     slug: p.slug,
+    atendimentoVirtualAtivo: p.atendimentoVirtualAtivo ?? false,
+    meetLink: p.meetLink ?? "",
+    atendimentoVirtualInfo: p.atendimentoVirtualInfo ?? "",
   });
   const [saved, setSaved] = useState(false);
 
@@ -270,6 +273,73 @@ function ProfileTab({ data, onSaved }: { data: SettingsData; onSaved: () => void
           textarea: true,
           placeholder: "Breve apresentação exibida no seu perfil público...",
         })}
+
+        {/* ── Atendimento Virtual ── */}
+        <div className="rounded-xl border border-slate-200 p-4 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-800">Atendimento Virtual</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Ofereça consultas online (Google Meet / Zoom). Quando ativo, os pacientes podem
+                escolher entre presencial e virtual na sua página.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setForm((f) => ({ ...f, atendimentoVirtualAtivo: !f.atendimentoVirtualAtivo }))
+              }
+              className={`relative h-6 w-11 shrink-0 rounded-full transition ${
+                form.atendimentoVirtualAtivo ? "bg-teal-500" : "bg-slate-300"
+              }`}
+              aria-label="Ativar atendimento virtual"
+            >
+              <span
+                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                  form.atendimentoVirtualAtivo ? "left-[22px]" : "left-0.5"
+                }`}
+              />
+            </button>
+          </div>
+
+          {form.atendimentoVirtualAtivo && (
+            <div className="space-y-3 pt-1">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Link da sala (Google Meet / Zoom)
+                </label>
+                <input
+                  type="url"
+                  value={form.meetLink}
+                  onChange={(e) => setForm((f) => ({ ...f, meetLink: e.target.value }))}
+                  placeholder="https://meet.google.com/abc-defg-hij"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none transition"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Enviado ao paciente após a confirmação da consulta virtual.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Como funciona o atendimento virtual
+                </label>
+                <textarea
+                  rows={3}
+                  value={form.atendimentoVirtualInfo}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, atendimentoVirtualInfo: e.target.value }))
+                  }
+                  placeholder="Ex: A consulta acontece por vídeo. O link é enviado por e-mail/WhatsApp 10 min antes. Tenha boa conexão e um ambiente reservado."
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none transition resize-none"
+                />
+              </div>
+              <p className="text-xs text-slate-500">
+                💡 Para cobrar valores diferentes do presencial, crie um serviço com modalidade
+                "Telemedicina" em Serviços. Para o mesmo preço, marque o serviço como "Ambos".
+              </p>
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center justify-between pt-2 border-t border-slate-100">
           <a
@@ -416,9 +486,9 @@ function ServicesTab({
                       }`}
                     >
                       {svc.modalidade === "online"
-                        ? "Telemedicina"
+                        ? "Virtual"
                         : svc.modalidade === "ambos"
-                          ? "Presencial+Online"
+                          ? "Presencial + Virtual"
                           : "Presencial"}
                     </span>
                   </div>
@@ -549,7 +619,7 @@ function ServiceFormWidget({
                 },
                 {
                   value: "online",
-                  label: "💻 Telemedicina",
+                  label: "💻 Virtual",
                   cls: "border-sky-200 bg-sky-50 text-sky-700",
                 },
                 {
@@ -1022,7 +1092,6 @@ function MemberFormWidget({
 }
 
 // ─── SupportTab ───────────────────────────────────────────────────────────────
-
 
 function SupportTab({ slug: _slug }: { slug: string }) {
   return (

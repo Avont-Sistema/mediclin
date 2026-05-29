@@ -103,6 +103,10 @@ export const updateProfile = createServerFn({ method: "POST" })
         .min(2)
         .regex(/^[a-z0-9-]+$/, "Slug deve conter apenas letras minúsculas, números e hífens"),
       plano: z.enum(["free", "pro", "clinic"]).optional(),
+      // Atendimento Virtual
+      atendimentoVirtualAtivo: z.boolean().optional(),
+      meetLink: z.string().url("Link inválido").optional().or(z.literal("")),
+      atendimentoVirtualInfo: z.string().max(600).optional(),
     }),
   )
   .handler(async ({ data }) => {
@@ -120,6 +124,13 @@ export const updateProfile = createServerFn({ method: "POST" })
         telefoneWhatsapp: data.telefoneWhatsapp || null,
         slug: data.slug,
         ...(data.plano ? { plano: data.plano } : {}),
+        ...(data.atendimentoVirtualAtivo !== undefined
+          ? { atendimentoVirtualAtivo: data.atendimentoVirtualAtivo }
+          : {}),
+        ...(data.meetLink !== undefined ? { meetLink: data.meetLink || null } : {}),
+        ...(data.atendimentoVirtualInfo !== undefined
+          ? { atendimentoVirtualInfo: data.atendimentoVirtualInfo || null }
+          : {}),
         atualizadoEm: new Date(),
       })
       .where(eq(professionals.id, profId));
@@ -139,7 +150,7 @@ export const updatePageCustomization = createServerFn({ method: "POST" })
       heroTitulo: z.string().max(255).optional(),
       heroSubtitulo: z.string().max(500).optional(),
       heroImageUrl: z.string().url().optional().or(z.literal("")),
-      telemedicinaAtivo: z.boolean(),
+      atendimentoVirtualAtivo: z.boolean(),
       meetLink: z.string().url().optional().or(z.literal("")),
     }),
   )
@@ -154,7 +165,7 @@ export const updatePageCustomization = createServerFn({ method: "POST" })
         heroTitulo: data.heroTitulo || null,
         heroSubtitulo: data.heroSubtitulo || null,
         heroImageUrl: data.heroImageUrl || null,
-        telemedicinaAtivo: data.telemedicinaAtivo,
+        atendimentoVirtualAtivo: data.atendimentoVirtualAtivo,
         meetLink: data.meetLink || null,
         atualizadoEm: new Date(),
       })

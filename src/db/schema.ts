@@ -124,8 +124,10 @@ export const professionals = pgTable(
     heroTitulo: varchar("hero_titulo", { length: 255 }),
     heroSubtitulo: text("hero_subtitulo"),
     heroImageUrl: text("hero_image_url"),
-    telemedicinaAtivo: boolean("telemedicina_ativo").default(false).notNull(),
-    meetLink: text("meet_link"), // Google Meet / Zoom link do médico
+    // Atendimento Virtual (antiga "telemedicina")
+    atendimentoVirtualAtivo: boolean("atendimento_virtual_ativo").default(false).notNull(),
+    meetLink: text("meet_link"), // link do Meet/Zoom usado nas consultas virtuais
+    atendimentoVirtualInfo: text("atendimento_virtual_info"), // como o atendimento virtual funciona
     modalidade: modalidadeEnum("modalidade").default("presencial").notNull(),
 
     // Mercado Pago Marketplace (pagamentos dos pacientes)

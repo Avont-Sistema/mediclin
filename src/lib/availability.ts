@@ -161,6 +161,8 @@ export const createBooking = createServerFn({ method: "POST" })
       dateStr: z.string(), // YYYY-MM-DD
       timeSlot: z.string(), // HH:mm
       duracaoMinutos: z.number(),
+      // Modalidade escolhida pelo paciente (resolvida a partir do serviço)
+      modalidade: z.enum(["presencial", "online"]).default("presencial"),
       patient: z.object({
         nome: z.string().min(2),
         // Email is optional from the patient's perspective
@@ -170,12 +172,23 @@ export const createBooking = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }) => {
-    const { professionalId, serviceId, dateStr, timeSlot, duracaoMinutos, patient } = data;
+    const { professionalId, serviceId, dateStr, timeSlot, duracaoMinutos, modalidade, patient } =
+      data;
 
     const [y, mo, d] = dateStr.split("-").map(Number);
     const [h, m] = timeSlot.split(":").map(Number);
     const inicio = new Date(y, mo - 1, d, h, m, 0);
     const fim = new Date(inicio.getTime() + duracaoMinutos * 60_000);
+
+    // Para atendimento virtual, copia o link do Meet do profissional no agendamento
+    let meetLink: string | null = null;
+    if (modalidade === "online") {
+      const prof = await db.query.professionals.findFirst({
+        where: eq(professionals.id, professionalId),
+        columns: { meetLink: true },
+      });
+      meetLink = prof?.meetLink ?? null;
+    }
 
     // When patient doesn't provide email, derive a stable placeholder from their phone
     // so the UNIQUE constraint is satisfied and repeat callers are still deduplicated.
@@ -202,6 +215,8 @@ export const createBooking = createServerFn({ method: "POST" })
         patientId: pat.id,
         inicio,
         fim,
+        modalidade,
+        meetLink,
         status: "aguardando_pagamento",
       })
       .returning();
