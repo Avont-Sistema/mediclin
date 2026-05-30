@@ -253,6 +253,8 @@ function DashboardContent() {
   const data = Route.useLoaderData() ?? null;
   const navigate = useNavigate();
   const router = useRouter();
+  // Link da sala virtual do profissional (configurado em Configurações → Perfil)
+  const meetLink = data?.professional?.meetLink ?? "";
   const [showNotifs, setShowNotifs] = useState(false);
   const [showNewAppt, setShowNewAppt] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -794,10 +796,25 @@ function DashboardContent() {
                         Iniciada às {emAndamento.time}
                       </div>
                       <div className="mt-5 grid grid-cols-2 gap-2">
-                        <button className="inline-flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg bg-white text-slate-900 hover:bg-slate-100 transition">
-                          <Video className="h-4 w-4" />
-                          Entrar
-                        </button>
+                        {meetLink ? (
+                          <a
+                            href={meetLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg bg-white text-slate-900 hover:bg-slate-100 transition"
+                          >
+                            <Video className="h-4 w-4" />
+                            Entrar
+                          </a>
+                        ) : (
+                          <button
+                            onClick={() => void navigate({ to: "/settings" })}
+                            className="inline-flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg bg-white text-slate-900 hover:bg-slate-100 transition"
+                          >
+                            <Video className="h-4 w-4" />
+                            Entrar
+                          </button>
+                        )}
                         <button className="inline-flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg bg-white/10 text-white hover:bg-white/20 transition">
                           <FileText className="h-4 w-4" />
                           Prontuário
@@ -838,10 +855,25 @@ function DashboardContent() {
                         </div>
                       </div>
 
-                      <button className="mt-5 w-full inline-flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white transition">
-                        <Video className="h-4 w-4" />
-                        Iniciar sala virtual
-                      </button>
+                      {meetLink ? (
+                        <a
+                          href={meetLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-5 w-full inline-flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white transition"
+                        >
+                          <Video className="h-4 w-4" />
+                          Iniciar sala virtual
+                        </a>
+                      ) : (
+                        <button
+                          onClick={() => void navigate({ to: "/settings" })}
+                          className="mt-5 w-full inline-flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl bg-white/10 text-white hover:bg-white/20 transition"
+                        >
+                          <Video className="h-4 w-4" />
+                          Configurar link da sala
+                        </button>
+                      )}
                     </>
                   )}
                 </div>

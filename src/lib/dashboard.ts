@@ -56,6 +56,8 @@ export type DashboardData = {
     registro: string;
     slug: string;
     mpAccountAtivo: boolean;
+    meetLink: string | null;
+    atendimentoVirtualAtivo: boolean;
   };
   subscription: SubscriptionInfo;
   stats: DashboardStats;
@@ -286,6 +288,8 @@ export const fetchDashboardData = createServerFn({ method: "GET" }).handler(
         registro: professional.registro,
         slug: professional.slug,
         mpAccountAtivo: professional.mpAccountAtivo,
+        meetLink: professional.meetLink,
+        atendimentoVirtualAtivo: professional.atendimentoVirtualAtivo,
       },
       subscription: {
         plano: (sub?.plano ?? "free") as "free" | "pro" | "clinic",
