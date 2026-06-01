@@ -1144,7 +1144,7 @@ export function IntegracoesSection() {
           </li>
           <li>
             Em <strong>Webhooks</strong>, configure a URL{" "}
-            <code className="text-slate-300">/api/webhooks/mercadopago</code> e cole a{" "}
+            <code className="text-slate-300">/api/webhooks/mp</code> e cole a{" "}
             <strong>assinatura secreta</strong> acima.
           </li>
           <li>
