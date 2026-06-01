@@ -3,15 +3,16 @@
 > Leia este arquivo PRIMEIRO em toda nova sessão. Atualizado a cada sessão.
 
 ## Estado atual
-- **Produção**: https://mediclin.vercel.app — 100% funcional
-- **Branch ativa**: `main`
-- **Última sessão**: 2026-05-22 — setup Claude Code (RTK + Serena + Context Mode + Caveman)
+- **Produção**: https://mediclin.vercel.app — 100% funcional (deploy commit 5881db6)
+- **Branch ativa**: `main` (sincronizada com origin)
+- **Última sessão**: 2026-05-31 — planos dinâmicos (Admin→DB→Dashboard→Checkout) + aba Integrações MP
 
 ## Próximos passos (por prioridade)
-1. Configurar env vars pendentes no Vercel (MP, Resend, Twilio, CRON_SECRET)
-2. Implementar Mercado Pago (split + webhook)
-3. Implementar Resend (emails)
-4. Implementar wizard de agendamento público
+1. **Colar chaves do Mercado Pago** em Admin → Integrações (teste primeiro) e testar assinatura
+2. Revisar `src/server/mp-webhook.ts` para ativar subscription com fluxo inline + plan_id
+3. Finalizar pagamentos de paciente (split/marketplace) em `mercadopago.ts`
+4. Implementar Resend (emails) + wizard de agendamento público
+5. (Opcional) Migrar chaves restantes (Resend/Twilio/CRON) para o env do Vercel
 
 ## Comandos rápidos
 ```bash
