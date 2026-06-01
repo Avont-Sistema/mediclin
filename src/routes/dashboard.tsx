@@ -38,7 +38,7 @@ import { fetchCurrentProfessional } from "../lib/auth";
 import { checkOnboardingStatus } from "../lib/onboarding";
 import { createMPOAuthLink, activateMPAccount } from "../lib/mercadopago";
 import { createMPSubscriptionCheckout, getMPSubscriptionPortalUrl } from "../lib/mp-subscription";
-import { fetchActivePlans } from "../lib/plans";
+import { fetchActivePlans, type PublicPlan } from "../lib/plans";
 import {
   fetchDashboardData,
   type DashboardData,
@@ -47,6 +47,7 @@ import {
 } from "../lib/dashboard";
 import { DashboardLayout } from "../components/DashboardLayout";
 import { NovoAgendamentoModal } from "../components/NovoAgendamentoModal";
+import { PlanCheckoutModal } from "../components/PlanCheckoutModal";
 import { updateAppointmentStatus } from "../lib/agenda";
 
 export const Route = createFileRoute("/dashboard")({
@@ -1037,6 +1038,7 @@ function formatPeriodEnd(iso: string | null): string {
 
 function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | null }) {
   const [successBanner, setSuccessBanner] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<PublicPlan | null>(null);
 
   const { data: activePlans = [] } = useQuery({
     queryKey: ["activePlans"],
@@ -1078,27 +1080,36 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
 
   // Botões de planos renderizados a partir do DB (geridos no admin).
   const planButtons = (
-    <div className="flex items-center gap-2 shrink-0 flex-wrap">
-      {paidPlans.length === 0 ? (
-        <span className="text-xs text-slate-400">Nenhum plano disponível no momento.</span>
-      ) : (
-        paidPlans.map((p, i) => (
-          <button
-            key={p.id}
-            disabled={isCheckoutPending}
-            onClick={() => checkoutMutation.mutate(p.id)}
-            className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white transition shadow-sm disabled:opacity-60 ${
-              i === 0 ? "bg-teal-600 hover:bg-teal-700" : "bg-indigo-600 hover:bg-indigo-700"
-            }`}
-          >
-            <Crown className="h-4 w-4" />
-            {pendingPlanId === p.id
-              ? "Aguarde..."
-              : `${p.nome} — ${formatPlanPrice(p.precoMensal)}/mês`}
-          </button>
-        ))
-      )}
-    </div>
+    <>
+      <div className="flex items-center gap-2 shrink-0 flex-wrap">
+        {paidPlans.length === 0 ? (
+          <span className="text-xs text-slate-400">Nenhum plano disponível no momento.</span>
+        ) : (
+          paidPlans.map((p, i) => (
+            <button
+              key={p.id}
+              disabled={isCheckoutPending}
+              onClick={() => setSelectedPlan(p)}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white transition shadow-sm disabled:opacity-60 ${
+                i === 0 ? "bg-teal-600 hover:bg-teal-700" : "bg-indigo-600 hover:bg-indigo-700"
+              }`}
+            >
+              <Crown className="h-4 w-4" />
+              {pendingPlanId === p.id
+                ? "Aguarde..."
+                : `${p.nome} — ${formatPlanPrice(p.precoMensal)}/mês`}
+            </button>
+          ))
+        )}
+      </div>
+      <PlanCheckoutModal
+        open={!!selectedPlan}
+        plan={selectedPlan}
+        pending={isCheckoutPending}
+        onConfirm={(id) => checkoutMutation.mutate(id)}
+        onClose={() => setSelectedPlan(null)}
+      />
+    </>
   );
 
   // ── Sucesso pós-checkout ─────────────────────────────────────────────────
