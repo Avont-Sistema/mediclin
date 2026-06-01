@@ -2,6 +2,20 @@
 
 > Template para handoff entre sessões. Preencher ao encerrar uma sessão longa.
 
+## Sessão encerrada em: 2026-06-01 (continuação)
+
+### Nesta continuação
+- **Webhook MP corrigido** (`src/server/mp-webhook.ts`): lia token de env (vazio) → agora
+  usa `getMPAccessToken()` (DB); external_reference é `{professionalId, planId}` → resolve
+  tier via `planToTier`; seta `planId` + `periodoFimEm`; valida x-signature se secret configurado.
+- **Deploys deduplicados**: removido `.github/workflows/deploy.yml` (Deploy Hook redundante);
+  a GitHub App nativa do Vercel já faz auto-deploy. REGRA: só `git push`, nunca `vercel --prod` manual.
+- **MP em produção configurado e validado** (ver SESSION_RESUME). Recusa de R$1 = antifraude
+  (`cc_rejected_high_risk`), não bug. Integração provada ponta-a-ponta menos o aceite do pagamento.
+- Plano de teste "TESTE 1 / teste" (R$1) **desativado** no DB. Ativos: Grátis + Profissional R$79,90.
+
+---
+
 ## Sessão encerrada em: 2026-05-31
 
 ## O que foi feito
