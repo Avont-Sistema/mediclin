@@ -422,7 +422,11 @@ function AdminSuporteTab() {
   });
 
   // ── Tickets ──
-  const { data: tickets = [], isLoading: ticketsLoading } = useQuery({
+  const {
+    data: tickets = [],
+    isLoading: ticketsLoading,
+    isError: ticketsError,
+  } = useQuery({
     queryKey: ["adminTickets"],
     queryFn: () => fetchAllTickets(),
     staleTime: 20_000,
@@ -536,6 +540,16 @@ function AdminSuporteTab() {
         {ticketsLoading ? (
           <div className="flex justify-center py-10">
             <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
+          </div>
+        ) : ticketsError ? (
+          <div className="rounded-xl border border-rose-800/60 bg-rose-900/20 p-6 text-center">
+            <AlertTriangle className="h-7 w-7 text-rose-400 mx-auto mb-2" />
+            <p className="text-sm font-medium text-rose-200">
+              Não foi possível carregar os chamados
+            </p>
+            <p className="text-xs text-rose-300/70 mt-1">
+              Sua conta não tem acesso de admin (ADMIN_CLERK_IDS). Verifique a configuração.
+            </p>
           </div>
         ) : tickets.length === 0 ? (
           <div className="rounded-xl border border-slate-800 bg-slate-900 p-10 text-center">
