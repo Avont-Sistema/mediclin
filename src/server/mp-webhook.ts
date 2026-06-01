@@ -1,7 +1,10 @@
+import { createHmac } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { appointments, payments, subscriptions, professionals } from "../db/schema";
+import { appointments, payments, plans, subscriptions, professionals } from "../db/schema";
 import { sendBookingConfirmation, sendNewBookingNotification } from "../lib/email";
+import { getMPAccessToken, getMPWebhookSecret } from "../lib/integrations";
+import { planToTier } from "../lib/plans";
 
 // ─── Tipos mínimos para as respostas da API do MP ────────────────────────────
 
@@ -29,12 +32,36 @@ async function fetchMP<T>(path: string, accessToken: string): Promise<T | null> 
   return res.json() as Promise<T>;
 }
 
+// ─── Validação de assinatura (x-signature) ───────────────────────────────────
+// Só é exigida quando o webhook secret está configurado no admin. Sem secret,
+// a validação é pulada (permite testar antes de configurar a assinatura).
+// Manifesto MP: id:<data.id>;request-id:<x-request-id>;ts:<ts>;
+
+function isValidSignature(request: Request, secret: string, dataId: string): boolean {
+  const signature = request.headers.get("x-signature");
+  const requestId = request.headers.get("x-request-id") ?? "";
+  if (!signature) return false;
+
+  const parts: Record<string, string> = {};
+  for (const segment of signature.split(",")) {
+    const [k, v] = segment.split("=");
+    if (k && v) parts[k.trim()] = v.trim();
+  }
+  const ts = parts.ts;
+  const v1 = parts.v1;
+  if (!ts || !v1) return false;
+
+  const manifest = `id:${dataId.toLowerCase()};request-id:${requestId};ts:${ts};`;
+  const computed = createHmac("sha256", secret).update(manifest).digest("hex");
+  return computed === v1;
+}
+
 // ─── Handler principal do webhook ────────────────────────────────────────────
 
 export async function handleMPWebhook(request: Request): Promise<Response> {
-  const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+  const accessToken = await getMPAccessToken();
   if (!accessToken)
-    return new Response("MERCADOPAGO_ACCESS_TOKEN não configurado", { status: 500 });
+    return new Response("Mercado Pago não configurado (Admin → Integrações)", { status: 500 });
 
   let body: { type?: string; action?: string; data?: { id?: string } };
   try {
@@ -46,6 +73,12 @@ export async function handleMPWebhook(request: Request): Promise<Response> {
   const type = body.type ?? "";
   const resourceId = body.data?.id ?? "";
   if (!resourceId) return new Response("OK", { status: 200 });
+
+  // ── Validação de assinatura (quando configurada) ──────────────────────────
+  const webhookSecret = await getMPWebhookSecret();
+  if (webhookSecret && !isValidSignature(request, webhookSecret, resourceId)) {
+    return new Response("Assinatura inválida", { status: 401 });
+  }
 
   // ── Pagamento de consulta ─────────────────────────────────────────────────
 
@@ -131,26 +164,44 @@ export async function handleMPWebhook(request: Request): Promise<Response> {
     const preApproval = await fetchMP<MPPreApproval>(`/preapproval/${resourceId}`, accessToken);
     if (!preApproval || !preApproval.external_reference) return new Response("OK", { status: 200 });
 
-    let refData: { professionalId: string; plan: string };
+    // external_reference do checkout novo: { professionalId, planId } (UUID).
+    // Compat: aceita também o formato legado { professionalId, plan } (tier).
+    let refData: { professionalId?: string; planId?: string; plan?: string };
     try {
       refData = JSON.parse(preApproval.external_reference) as typeof refData;
     } catch {
       return new Response("OK", { status: 200 });
     }
 
-    const { professionalId, plan } = refData;
+    const { professionalId, planId } = refData;
+    if (!professionalId) return new Response("OK", { status: 200 });
+
+    // Resolve o tier (plano grosseiro) a partir do plano dinâmico ou do legado.
+    let tier: "free" | "pro" | "clinic" = "pro";
+    if (planId) {
+      const plan = await db.query.plans.findFirst({ where: eq(plans.id, planId) });
+      if (plan) tier = planToTier(plan);
+    } else if (refData.plan === "pro" || refData.plan === "clinic" || refData.plan === "free") {
+      tier = refData.plan;
+    }
 
     let newStatus: "ativa" | "cancelada" | "inadimplente" | "trial" = "ativa";
     if (preApproval.status === "cancelled") newStatus = "cancelada";
     else if (preApproval.status === "paused") newStatus = "inadimplente";
     else if (preApproval.status === "pending") newStatus = "trial";
 
+    // Próximo vencimento: +1 mês a partir de agora (assinatura mensal).
+    const periodoFim = new Date();
+    periodoFim.setMonth(periodoFim.getMonth() + 1);
+
     await db
       .update(subscriptions)
       .set({
         status: newStatus,
         mpCustomerId: String(preApproval.payer_id),
-        plano: plan as "pro" | "clinic",
+        plano: tier,
+        ...(planId ? { planId } : {}),
+        ...(newStatus === "ativa" ? { periodoFimEm: periodoFim } : {}),
         atualizadoEm: new Date(),
       })
       .where(eq(subscriptions.mpSubscriptionId, preApproval.id));
@@ -158,7 +209,7 @@ export async function handleMPWebhook(request: Request): Promise<Response> {
     if (newStatus === "ativa") {
       await db
         .update(professionals)
-        .set({ plano: plan as "pro" | "clinic" })
+        .set({ plano: tier })
         .where(eq(professionals.id, professionalId));
     } else if (newStatus === "cancelada") {
       await db
