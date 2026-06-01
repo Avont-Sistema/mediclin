@@ -1,4 +1,5 @@
 import { ClerkProvider } from "@clerk/tanstack-start";
+import { ptBR } from "@clerk/localizations";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -133,6 +134,7 @@ function RootComponent() {
 
   return (
     <ClerkProvider
+      localization={ptBR}
       publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}
       signInUrl="/sign-in"
       signUpUrl="/sign-up"

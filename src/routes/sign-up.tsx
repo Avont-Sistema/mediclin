@@ -1,5 +1,5 @@
-import { SignUp } from "@clerk/tanstack-start";
 import { createFileRoute } from "@tanstack/react-router";
+import { AuthScreen } from "../components/AuthScreen";
 
 export const Route = createFileRoute("/sign-up")({
   head: () => ({
@@ -9,9 +9,5 @@ export const Route = createFileRoute("/sign-up")({
 });
 
 function SignUpPage() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50">
-      <SignUp routing="path" path="/sign-up" forceRedirectUrl="/onboarding" />
-    </div>
-  );
+  return <AuthScreen mode="sign-up" />;
 }
