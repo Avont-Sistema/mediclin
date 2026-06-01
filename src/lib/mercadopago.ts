@@ -6,10 +6,14 @@ import { getWebRequest } from "vinxi/http";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { appointments, professionals, users } from "../db/schema";
+import { getMPAccessToken } from "./integrations";
 
-function getPlatformClient(): MercadoPagoConfig {
-  const token = process.env.MERCADOPAGO_ACCESS_TOKEN;
-  if (!token) throw new Error("MERCADOPAGO_ACCESS_TOKEN não configurado");
+async function getPlatformClient(): Promise<MercadoPagoConfig> {
+  const token = await getMPAccessToken();
+  if (!token)
+    throw new Error(
+      "Mercado Pago não configurado. Adicione o Access Token em Admin → Integrações.",
+    );
   return new MercadoPagoConfig({ accessToken: token });
 }
 

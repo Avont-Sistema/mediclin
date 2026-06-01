@@ -304,6 +304,10 @@ export const subscriptions = pgTable("subscriptions", {
   mpSubscriptionId: varchar("mp_subscription_id", { length: 255 }),
   mpPlanId: varchar("mp_plan_id", { length: 255 }),
 
+  // Plano dinâmico assinado (tabela plans). plano (enum) é mantido como tier
+  // grosseiro p/ gating legado; planId aponta o pacote real escolhido no admin.
+  planId: uuid("plan_id"),
+
   plano: planoEnum("plano").notNull().default("free"),
   status: subscriptionStatusEnum("status").notNull().default("trial"),
 
@@ -561,6 +565,26 @@ export const adminNotifications = pgTable(
   },
   (t) => [index("notif_criado_idx").on(t.criadoEm)],
 );
+
+// ─── integration_config ───────────────────────────────────────────────────────
+// Singleton — chaves das integrações de plataforma do CuidandoVC (Mercado Pago),
+// gerenciadas pelo admin. São segredos da plataforma: acesso restrito ao admin.
+// O código lê daqui primeiro; se vazio, usa a env var como fallback.
+
+export const integrationConfig = pgTable("integration_config", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  // Mercado Pago — credenciais da plataforma (assinaturas dos médicos + marketplace)
+  mpAccessToken: text("mp_access_token"), // APP_USR-... (produção) ou TEST-...
+  mpPublicKey: text("mp_public_key"), // APP_USR-... public key
+  mpAppId: varchar("mp_app_id", { length: 100 }), // Client ID do app MP
+  mpAppSecret: text("mp_app_secret"), // Client Secret do app MP (OAuth marketplace)
+  mpWebhookSecret: text("mp_webhook_secret"), // assinatura do webhook
+  mpAmbiente: varchar("mp_ambiente", { length: 20 }).notNull().default("test"), // test | producao
+  mpAtivo: boolean("mp_ativo").notNull().default(false),
+
+  atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
+});
 
 // ─── Relations ────────────────────────────────────────────────────────────────
 

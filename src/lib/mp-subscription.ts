@@ -5,18 +5,26 @@ import { getAuth } from "@clerk/tanstack-start/server";
 import { getWebRequest } from "vinxi/http";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { subscriptions, users } from "../db/schema";
+import { plans, subscriptions, users } from "../db/schema";
+import { getMPAccessToken } from "./integrations";
+import { planToTier } from "./plans";
 
-function getPlatformClient(): MercadoPagoConfig {
-  const token = process.env.MERCADOPAGO_ACCESS_TOKEN;
-  if (!token) throw new Error("MERCADOPAGO_ACCESS_TOKEN não configurado");
+async function getPlatformClient(): Promise<MercadoPagoConfig> {
+  const token = await getMPAccessToken();
+  if (!token)
+    throw new Error(
+      "Mercado Pago não configurado. Adicione o Access Token em Admin → Integrações.",
+    );
   return new MercadoPagoConfig({ accessToken: token });
 }
 
-// ─── Criar assinatura via Preapproval ─────────────────────────────────────────
+// ─── Criar assinatura via Preapproval (preço inline, plano dinâmico) ──────────
+// Aceita o id de QUALQUER plano ativo criado no admin. Cria um preapproval com
+// auto_recurring (transaction_amount = preço do plano) — sem precisar pré-criar
+// planos no painel do Mercado Pago. Novos pacotes funcionam automaticamente.
 
 export const createMPSubscriptionCheckout = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ plan: z.enum(["pro", "clinic"]) }))
+  .inputValidator(z.object({ planId: z.string().uuid() }))
   .handler(async ({ data }) => {
     const auth = await getAuth(getWebRequest());
     if (!auth.userId) throw new Error("Não autenticado");
@@ -29,21 +37,52 @@ export const createMPSubscriptionCheckout = createServerFn({ method: "POST" })
     const professional = userRecord?.professional;
     if (!professional) throw new Error("Profissional não encontrado");
 
-    const planId = data.plan === "pro" ? process.env.MP_PLAN_ID_PRO : process.env.MP_PLAN_ID_CLINIC;
-    if (!planId) throw new Error(`MP_PLAN_ID_${data.plan.toUpperCase()} não configurado`);
+    const plan = await db.query.plans.findFirst({
+      where: eq(plans.id, data.planId),
+    });
+    if (!plan || !plan.ativo) throw new Error("Plano indisponível");
 
-    const client = getPlatformClient();
+    const valor = Number(plan.precoMensal);
+    const tier = planToTier(plan);
+
+    // Plano grátis: ativa direto, sem cobrança no Mercado Pago.
+    if (valor <= 0) {
+      const trialFim = new Date(Date.now() + plan.trialDias * 24 * 60 * 60 * 1000);
+      await db
+        .insert(subscriptions)
+        .values({
+          professionalId: professional.id,
+          planId: plan.id,
+          plano: tier,
+          status: "trial",
+          trialFimEm: professional.subscription?.trialFimEm ?? trialFim,
+        })
+        .onConflictDoUpdate({
+          target: subscriptions.professionalId,
+          set: { planId: plan.id, plano: tier, atualizadoEm: new Date() },
+        });
+      const origin = new URL(getWebRequest().url).origin;
+      return { url: `${origin}/dashboard?subscription=success` };
+    }
+
+    const client = await getPlatformClient();
     const preApproval = new PreApproval(client);
 
     const origin = new URL(getWebRequest().url).origin;
 
     const result = await preApproval.create({
       body: {
-        preapproval_plan_id: planId,
+        reason: `CuidandoVC ${plan.nome}`,
         payer_email: userRecord!.email,
-        reason: data.plan === "pro" ? "CuidandoVC Pro" : "CuidandoVC Clinic",
+        auto_recurring: {
+          frequency: 1,
+          frequency_type: "months",
+          transaction_amount: valor,
+          currency_id: "BRL",
+        },
         back_url: `${origin}/dashboard?subscription=success`,
-        external_reference: JSON.stringify({ professionalId: professional.id, plan: data.plan }),
+        status: "pending",
+        external_reference: JSON.stringify({ professionalId: professional.id, planId: plan.id }),
       },
     });
 
@@ -53,18 +92,19 @@ export const createMPSubscriptionCheckout = createServerFn({ method: "POST" })
       .values({
         professionalId: professional.id,
         mpSubscriptionId: result.id,
-        mpPlanId: planId,
-        plano: data.plan,
+        planId: plan.id,
+        plano: tier,
         status: "trial",
         trialFimEm:
-          professional.subscription?.trialFimEm ?? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+          professional.subscription?.trialFimEm ??
+          new Date(Date.now() + plan.trialDias * 24 * 60 * 60 * 1000),
       })
       .onConflictDoUpdate({
         target: subscriptions.professionalId,
         set: {
           mpSubscriptionId: result.id,
-          mpPlanId: planId,
-          plano: data.plan,
+          planId: plan.id,
+          plano: tier,
           atualizadoEm: new Date(),
         },
       });

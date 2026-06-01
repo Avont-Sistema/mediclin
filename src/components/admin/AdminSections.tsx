@@ -19,6 +19,11 @@ import {
   CheckCircle2,
   Clock,
   Mail,
+  Plug,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  AlertTriangle,
 } from "lucide-react";
 import {
   fetchLeads,
@@ -34,6 +39,7 @@ import {
   type Lead,
   type AdminUser,
 } from "../../lib/saas-admin";
+import { fetchIntegrationConfig, updateIntegrationConfig } from "../../lib/integrations";
 import type { AdminOverview } from "../../lib/admin";
 
 function Centered() {
@@ -856,6 +862,297 @@ function AdminEditor({
             Salvar
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══ INTEGRAÇÕES (Mercado Pago) ═══════════════════════════════════════════════
+
+type SecretField = "mpAccessToken" | "mpPublicKey" | "mpAppId" | "mpAppSecret" | "mpWebhookSecret";
+
+const MP_FIELDS: { key: SecretField; label: string; hint: string }[] = [
+  {
+    key: "mpAccessToken",
+    label: "Access Token",
+    hint: "Credenciais → Access Token. Começa com APP_USR- (produção) ou TEST- (teste).",
+  },
+  {
+    key: "mpPublicKey",
+    label: "Public Key",
+    hint: "Credenciais → Public Key. Usada no checkout do lado do cliente.",
+  },
+  {
+    key: "mpAppId",
+    label: "Client ID (App ID)",
+    hint: "Suas integrações → seu app → Client ID. Necessário para o marketplace (OAuth dos médicos).",
+  },
+  {
+    key: "mpAppSecret",
+    label: "Client Secret",
+    hint: "Suas integrações → seu app → Client Secret. Mantenha em segredo.",
+  },
+  {
+    key: "mpWebhookSecret",
+    label: "Assinatura do Webhook",
+    hint: "Webhooks → Assinatura secreta. Valida que as notificações vêm do Mercado Pago.",
+  },
+];
+
+export function IntegracoesSection() {
+  const qc = useQueryClient();
+  const { data: cfg, isLoading } = useQuery({
+    queryKey: ["integrationConfig"],
+    queryFn: () => fetchIntegrationConfig(),
+  });
+
+  const [secrets, setSecrets] = useState<Record<SecretField, string>>({
+    mpAccessToken: "",
+    mpPublicKey: "",
+    mpAppId: "",
+    mpAppSecret: "",
+    mpWebhookSecret: "",
+  });
+  const [reveal, setReveal] = useState<Record<SecretField, boolean>>({
+    mpAccessToken: false,
+    mpPublicKey: false,
+    mpAppId: false,
+    mpAppSecret: false,
+    mpWebhookSecret: false,
+  });
+  const [ambiente, setAmbiente] = useState<"test" | "producao">("test");
+  const [ativo, setAtivo] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  // Sincroniza ambiente/ativo quando os dados carregam (uma vez por carga).
+  if (cfg && !dirty && (ambiente !== cfg.mpAmbiente || ativo !== cfg.mpAtivo)) {
+    setAmbiente(cfg.mpAmbiente);
+    setAtivo(cfg.mpAtivo);
+  }
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      const payload: Record<string, string | boolean> = { mpAmbiente: ambiente, mpAtivo: ativo };
+      // Só envia segredos que o admin realmente digitou (vazio = mantém atual).
+      for (const { key } of MP_FIELDS) {
+        if (secrets[key].trim() !== "") payload[key] = secrets[key].trim();
+      }
+      return updateIntegrationConfig({ data: payload });
+    },
+    onSuccess: () => {
+      setSecrets({
+        mpAccessToken: "",
+        mpPublicKey: "",
+        mpAppId: "",
+        mpAppSecret: "",
+        mpWebhookSecret: "",
+      });
+      setDirty(false);
+      void qc.invalidateQueries({ queryKey: ["integrationConfig"] });
+    },
+  });
+
+  if (isLoading || !cfg) return <Centered />;
+
+  return (
+    <div className="space-y-6">
+      <SectionHead
+        title="Integrações"
+        desc="Chaves de plataforma do Mercado Pago — assinaturas dos médicos e pagamentos dos pacientes"
+      />
+
+      {/* Status geral */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 flex items-center gap-3 flex-wrap">
+        <div
+          className={`h-10 w-10 rounded-xl grid place-items-center shrink-0 ${
+            cfg.mpAtivo ? "bg-emerald-900/40" : "bg-slate-800"
+          }`}
+        >
+          <Plug className={`h-5 w-5 ${cfg.mpAtivo ? "text-emerald-400" : "text-slate-500"}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-slate-100">Mercado Pago</p>
+          <p className="text-xs text-slate-500">
+            {cfg.mpAccessToken.configured
+              ? `Access Token configurado · ambiente ${cfg.mpAmbiente === "producao" ? "Produção" : "Teste"}`
+              : "Access Token ainda não configurado"}
+          </p>
+        </div>
+        <span
+          className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+            cfg.mpAtivo
+              ? "bg-emerald-900/40 text-emerald-300 ring-1 ring-emerald-700"
+              : "bg-slate-800 text-slate-400 ring-1 ring-slate-700"
+          }`}
+        >
+          {cfg.mpAtivo ? "● Ativo" : "○ Inativo"}
+        </span>
+      </div>
+
+      {/* Aviso de segurança */}
+      <div className="rounded-xl border border-amber-900/50 bg-amber-950/30 p-3 flex items-start gap-2.5">
+        <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+        <p className="text-[11px] text-amber-200/80 leading-relaxed">
+          Estas são chaves <strong>secretas da plataforma</strong>, guardadas no banco com acesso
+          restrito ao admin. Nunca as compartilhe. Use as credenciais de <strong>Teste</strong> até
+          validar o fluxo e só então troque para <strong>Produção</strong>.
+        </p>
+      </div>
+
+      {/* Form de chaves */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-5 space-y-4">
+        {/* Ambiente */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <label className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+            Ambiente
+          </label>
+          <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 p-0.5">
+            {(["test", "producao"] as const).map((amb) => (
+              <button
+                key={amb}
+                onClick={() => {
+                  setAmbiente(amb);
+                  setDirty(true);
+                }}
+                className={`rounded-md px-3 py-1 text-xs font-medium transition ${
+                  ambiente === amb
+                    ? "bg-slate-700 text-slate-100"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                {amb === "test" ? "Teste" : "Produção"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Campos de segredo */}
+        {MP_FIELDS.map(({ key, label, hint }) => {
+          const field = cfg[key];
+          return (
+            <div key={key}>
+              <div className="flex items-center gap-2 mb-1">
+                <label className="text-[11px] font-medium text-slate-300">{label}</label>
+                {field.configured ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400">
+                    <CheckCircle2 className="h-3 w-3" /> configurado
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-500">não configurado</span>
+                )}
+              </div>
+              <div className="relative">
+                <input
+                  type={reveal[key] ? "text" : "password"}
+                  value={secrets[key]}
+                  onChange={(e) => {
+                    setSecrets((s) => ({ ...s, [key]: e.target.value }));
+                    setDirty(true);
+                  }}
+                  placeholder={
+                    field.configured
+                      ? `${field.masked} — cole nova chave para substituir`
+                      : "Cole a chave aqui"
+                  }
+                  autoComplete="off"
+                  className={`${inputCls} pr-9 font-mono`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setReveal((r) => ({ ...r, [key]: !r[key] }))}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                  title={reveal[key] ? "Ocultar" : "Mostrar"}
+                >
+                  {reveal[key] ? (
+                    <EyeOff className="h-3.5 w-3.5" />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-500 mt-1">{hint}</p>
+            </div>
+          );
+        })}
+
+        {/* Ativar */}
+        <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer pt-1">
+          <input
+            type="checkbox"
+            checked={ativo}
+            onChange={(e) => {
+              setAtivo(e.target.checked);
+              setDirty(true);
+            }}
+            className="size-4 rounded accent-emerald-500"
+          />
+          Integração ativa (libera cobrança de assinaturas e pagamentos)
+        </label>
+
+        {mutation.isError && (
+          <p className="text-xs text-rose-400">
+            {mutation.error instanceof Error ? mutation.error.message : "Erro ao salvar."}
+          </p>
+        )}
+        {mutation.isSuccess && !dirty && (
+          <p className="text-xs text-emerald-400">Chaves salvas com sucesso.</p>
+        )}
+
+        <div className="flex justify-end">
+          <button
+            disabled={mutation.isPending || !dirty}
+            onClick={() => mutation.mutate()}
+            className="inline-flex items-center gap-2 rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-50 px-5 py-2 text-sm font-semibold text-white transition"
+          >
+            {mutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}{" "}
+            Salvar chaves
+          </button>
+        </div>
+      </div>
+
+      {/* Guia passo a passo */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
+        <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">
+          Como obter as chaves
+        </h3>
+        <ol className="space-y-2 text-xs text-slate-400 list-decimal list-inside">
+          <li>
+            Acesse o{" "}
+            <a
+              href="https://www.mercadopago.com.br/developers/panel/app"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-0.5 text-teal-400 hover:text-teal-300"
+            >
+              painel de desenvolvedores do Mercado Pago <ExternalLink className="h-3 w-3" />
+            </a>{" "}
+            e crie uma aplicação (tipo: <strong>Pagamentos online · CheckoutPro/Assinaturas</strong>
+            ).
+          </li>
+          <li>
+            Em <strong>Credenciais de teste</strong>, copie o <strong>Access Token</strong> e a{" "}
+            <strong>Public Key</strong> e cole acima (mantenha o ambiente em <strong>Teste</strong>
+            ).
+          </li>
+          <li>
+            Em <strong>Suas integrações → seu app</strong>, copie o <strong>Client ID</strong> e o{" "}
+            <strong>Client Secret</strong> (necessários para conectar a conta MP de cada médico).
+          </li>
+          <li>
+            Em <strong>Webhooks</strong>, configure a URL{" "}
+            <code className="text-slate-300">/api/webhooks/mercadopago</code> e cole a{" "}
+            <strong>assinatura secreta</strong> acima.
+          </li>
+          <li>
+            Marque <strong>Integração ativa</strong> e salve. Teste uma assinatura no dashboard de
+            um médico. Validado? Troque para credenciais de <strong>Produção</strong> e ambiente{" "}
+            <strong>Produção</strong>.
+          </li>
+        </ol>
       </div>
     </div>
   );

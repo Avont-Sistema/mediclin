@@ -42,6 +42,7 @@ export type WeekDay = {
 
 export type SubscriptionInfo = {
   plano: "free" | "pro" | "clinic";
+  planId: string | null;
   status: "ativa" | "cancelada" | "inadimplente" | "trial";
   trialFimEm: string | null;
   periodoFimEm: string | null;
@@ -293,6 +294,7 @@ export const fetchDashboardData = createServerFn({ method: "GET" }).handler(
       },
       subscription: {
         plano: (sub?.plano ?? "free") as "free" | "pro" | "clinic",
+        planId: sub?.planId ?? null,
         status: (sub?.status ?? "trial") as "ativa" | "cancelada" | "inadimplente" | "trial",
         trialFimEm: sub?.trialFimEm?.toISOString() ?? null,
         periodoFimEm: sub?.periodoFimEm?.toISOString() ?? null,

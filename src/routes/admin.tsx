@@ -42,6 +42,7 @@ import {
   Bell,
   ScrollText,
   Settings,
+  Plug,
 } from "lucide-react";
 import { fetchAdminOverview, runSeed, fetchPlanPrices, updatePlanPrice } from "../lib/admin";
 import type { AdminOverview, AdminMetrics } from "../lib/admin";
@@ -56,6 +57,7 @@ import {
   NotificationsSection,
   AuditSection,
   SystemConfigSection,
+  IntegracoesSection,
 } from "../components/admin/AdminSections";
 import {
   fetchSupportConfig,
@@ -108,6 +110,7 @@ type AdminTab =
   | "automacoes"
   | "analytics"
   | "financeiro"
+  | "integracoes"
   | "flags"
   | "notificacoes"
   | "auditoria"
@@ -122,6 +125,7 @@ const NAV: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "automacoes", label: "Automações", icon: Zap },
   { id: "analytics", label: "Analytics", icon: Activity },
   { id: "financeiro", label: "Financeiro", icon: Wallet },
+  { id: "integracoes", label: "Integrações", icon: Plug },
   { id: "flags", label: "Feature Flags", icon: Flag },
   { id: "notificacoes", label: "Notificações", icon: Bell },
   { id: "auditoria", label: "Auditoria", icon: ScrollText },
@@ -248,6 +252,7 @@ function AdminContent() {
           {adminTab === "suporte" && <AdminSuporteTab />}
           {adminTab === "analytics" && <AnalyticsSection />}
           {adminTab === "financeiro" && <FinanceiroSection />}
+          {adminTab === "integracoes" && <IntegracoesSection />}
           {adminTab === "clientes" && <ClientesSection professionals={data.professionals} />}
           {adminTab === "assinaturas" && <AssinaturasSection professionals={data.professionals} />}
           {adminTab === "leads" && <LeadsSection />}

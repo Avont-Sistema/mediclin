@@ -38,6 +38,7 @@ import { fetchCurrentProfessional } from "../lib/auth";
 import { checkOnboardingStatus } from "../lib/onboarding";
 import { createMPOAuthLink, activateMPAccount } from "../lib/mercadopago";
 import { createMPSubscriptionCheckout, getMPSubscriptionPortalUrl } from "../lib/mp-subscription";
+import { fetchActivePlans } from "../lib/plans";
 import {
   fetchDashboardData,
   type DashboardData,
@@ -1037,8 +1038,13 @@ function formatPeriodEnd(iso: string | null): string {
 function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | null }) {
   const [successBanner, setSuccessBanner] = useState(false);
 
+  const { data: activePlans = [] } = useQuery({
+    queryKey: ["activePlans"],
+    queryFn: () => fetchActivePlans(),
+  });
+
   const checkoutMutation = useMutation({
-    mutationFn: (plan: "pro" | "clinic") => createMPSubscriptionCheckout({ data: { plan } }),
+    mutationFn: (planId: string) => createMPSubscriptionCheckout({ data: { planId } }),
     onSuccess: ({ url }) => {
       window.location.href = url;
     },
@@ -1065,7 +1071,35 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
   const { status, plano, trialFimEm, periodoFimEm, hasMPAccount } = subscription;
   const daysLeft = trialDaysLeft(trialFimEm);
   const isCheckoutPending = checkoutMutation.isPending;
-  const pendingPlan = isCheckoutPending ? (checkoutMutation.variables as "pro" | "clinic") : null;
+  const pendingPlanId = isCheckoutPending ? (checkoutMutation.variables as string) : null;
+
+  // Planos pagos disponíveis para assinar (o plano grátis é o próprio trial).
+  const paidPlans = activePlans.filter((p) => Number(p.precoMensal) > 0);
+
+  // Botões de planos renderizados a partir do DB (geridos no admin).
+  const planButtons = (
+    <div className="flex items-center gap-2 shrink-0 flex-wrap">
+      {paidPlans.length === 0 ? (
+        <span className="text-xs text-slate-400">Nenhum plano disponível no momento.</span>
+      ) : (
+        paidPlans.map((p, i) => (
+          <button
+            key={p.id}
+            disabled={isCheckoutPending}
+            onClick={() => checkoutMutation.mutate(p.id)}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold text-white transition shadow-sm disabled:opacity-60 ${
+              i === 0 ? "bg-teal-600 hover:bg-teal-700" : "bg-indigo-600 hover:bg-indigo-700"
+            }`}
+          >
+            <Crown className="h-4 w-4" />
+            {pendingPlanId === p.id
+              ? "Aguarde..."
+              : `${p.nome} — ${formatPlanPrice(p.precoMensal)}/mês`}
+          </button>
+        ))
+      )}
+    </div>
+  );
 
   // ── Sucesso pós-checkout ─────────────────────────────────────────────────
   if (successBanner) {
@@ -1156,22 +1190,7 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
             Reative seu plano para continuar recebendo agendamentos pelo CuidandoVC.
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0 flex-wrap">
-          <button
-            disabled={isCheckoutPending}
-            onClick={() => checkoutMutation.mutate("pro")}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white transition"
-          >
-            {pendingPlan === "pro" ? "Aguarde..." : "Plano Pro"}
-          </button>
-          <button
-            disabled={isCheckoutPending}
-            onClick={() => checkoutMutation.mutate("clinic")}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white transition"
-          >
-            {pendingPlan === "clinic" ? "Aguarde..." : "Plano Clinic"}
-          </button>
-        </div>
+        {planButtons}
       </div>
     );
   }
@@ -1192,26 +1211,17 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
           Assine um plano para continuar usando todos os recursos do CuidandoVC.
         </p>
       </div>
-      <div className="flex items-center gap-2 shrink-0 flex-wrap">
-        <button
-          disabled={isCheckoutPending}
-          onClick={() => checkoutMutation.mutate("pro")}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white transition shadow-sm"
-        >
-          <Crown className="h-4 w-4" />
-          {pendingPlan === "pro" ? "Aguarde..." : "Pro — R$79/mês"}
-        </button>
-        <button
-          disabled={isCheckoutPending}
-          onClick={() => checkoutMutation.mutate("clinic")}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white transition shadow-sm"
-        >
-          <Crown className="h-4 w-4" />
-          {pendingPlan === "clinic" ? "Aguarde..." : "Clinic — R$199/mês"}
-        </button>
-      </div>
+      {planButtons}
     </div>
   );
+}
+
+// Formata o preço mensal de um plano (string decimal → "R$ 79,90").
+function formatPlanPrice(precoMensal: string): string {
+  return Number(precoMensal).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
 }
 
 function MPConnectBanner() {
