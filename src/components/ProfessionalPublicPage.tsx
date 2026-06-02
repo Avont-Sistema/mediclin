@@ -26,6 +26,7 @@ import {
   GraduationCap,
   Sparkles,
   Check,
+  CalendarOff,
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Calendar as CalendarPicker } from "./ui/calendar";
@@ -35,6 +36,7 @@ import {
   createBooking,
   confirmCashBooking,
 } from "../lib/availability";
+import { fetchBlockedDates } from "../lib/folga";
 import { createMPPreference } from "../lib/mercadopago";
 import { PaymentMethodScreen } from "./PaymentMethodScreen";
 import type { InferSelectModel } from "drizzle-orm";
@@ -822,14 +824,41 @@ function StepDate({
 }) {
   const [selected, setSelected] = useState<Date | undefined>();
 
+  const today = new Date();
+  const maxDate = new Date();
+  maxDate.setDate(maxDate.getDate() + 60);
+
   const { data: availableDays = [] } = useQuery({
     queryKey: ["availableDays", professionalId],
     queryFn: () => fetchAvailableDays({ data: { professionalId } }),
   });
 
-  const today = new Date();
-  const maxDate = new Date();
-  maxDate.setDate(maxDate.getDate() + 60);
+  const { data: blockedDatesData = [] } = useQuery({
+    queryKey: ["blockedDates", professionalId],
+    queryFn: () =>
+      fetchBlockedDates({
+        data: {
+          professionalId,
+          fromDate: toDateStr(today),
+          toDate: toDateStr(maxDate),
+        },
+      }),
+  });
+
+  // Map dateStr → motivo para lookup rápido
+  const blockedMap = new Map<string, string | null>(
+    blockedDatesData.map((b) => [b.dateStr, b.motivo]),
+  );
+
+  // Date[] para o modificador visual do calendário
+  const blockedCalendarDates = blockedDatesData.map((b) => {
+    const [y, m, d] = b.dateStr.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  });
+
+  const selectedDateStr = selected ? toDateStr(selected) : null;
+  const isSelectedBlocked = selectedDateStr ? blockedMap.has(selectedDateStr) : false;
+  const blockedMotivo = selectedDateStr ? (blockedMap.get(selectedDateStr) ?? null) : null;
 
   const isDisabled = (day: Date) => day < today || !availableDays.includes(day.getDay());
 
@@ -859,10 +888,7 @@ function StepDate({
       </button>
 
       <div className="space-y-3">
-        {/* overflow-hidden prevents any cell from leaking outside the card boundary */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          {/* flex justify-center + no w-full → cells use natural --cell-size (1.75rem)
-              instead of stretching to fill the container, keeping height predictable */}
           <div className="flex justify-center py-4 px-2">
             <CalendarPicker
               mode="single"
@@ -873,17 +899,48 @@ function StepDate({
               toDate={maxDate}
               showOutsideDays={false}
               className="[--cell-size:2.25rem]"
+              modifiers={{ blocked: blockedCalendarDates }}
+              modifiersStyles={{
+                blocked: {
+                  backgroundColor: "#fff1f2",
+                  color: "#e11d48",
+                  fontWeight: "700",
+                  borderRadius: "6px",
+                },
+              }}
             />
           </div>
         </div>
-        <button
-          disabled={!selected}
-          onClick={() => selected && onNext(selected)}
-          className="relative z-10 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition disabled:opacity-40"
-          style={{ background: selected ? brand : "#94a3b8" }}
-        >
-          Continuar <ChevronRight className="h-4 w-4" />
-        </button>
+
+        {/* Dia de folga selecionado: exibe mensagem do médico */}
+        {isSelectedBlocked ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 flex items-start gap-3">
+            <div className="h-8 w-8 rounded-lg bg-rose-100 grid place-items-center shrink-0 mt-0.5">
+              <CalendarOff className="h-4 w-4 text-rose-500" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-rose-700">
+                Profissional indisponível nesta data
+              </p>
+              {blockedMotivo ? (
+                <p className="text-xs text-rose-500 mt-1 leading-relaxed">"{blockedMotivo}"</p>
+              ) : (
+                <p className="text-xs text-rose-400 mt-0.5">
+                  Por favor, escolha outra data disponível.
+                </p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <button
+            disabled={!selected}
+            onClick={() => selected && onNext(selected)}
+            className="relative z-10 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white transition disabled:opacity-40"
+            style={{ background: selected ? brand : "#94a3b8" }}
+          >
+            Continuar <ChevronRight className="h-4 w-4" />
+          </button>
+        )}
       </div>
     </div>
   );
