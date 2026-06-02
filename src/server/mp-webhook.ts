@@ -25,11 +25,19 @@ type MPPreApproval = {
 };
 
 async function fetchMP<T>(path: string, accessToken: string): Promise<T | null> {
-  const res = await fetch(`https://api.mercadopago.com${path}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) return null;
-  return res.json() as Promise<T>;
+  try {
+    const res = await fetch(`https://api.mercadopago.com${path}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) {
+      console.error(`[MP webhook] Erro ao buscar ${path}: ${res.status} ${res.statusText}`);
+      return null;
+    }
+    return res.json() as Promise<T>;
+  } catch (err) {
+    console.error(`[MP webhook] Erro de rede ao buscar ${path}:`, err);
+    return null;
+  }
 }
 
 // ─── Validação de assinatura (x-signature) ───────────────────────────────────
@@ -60,19 +68,26 @@ function isValidSignature(request: Request, secret: string, dataId: string): boo
 
 export async function handleMPWebhook(request: Request): Promise<Response> {
   const accessToken = await getMPAccessToken();
-  if (!accessToken)
+  if (!accessToken) {
+    console.error("[MP webhook] Access token não configurado");
     return new Response("Mercado Pago não configurado (Admin → Integrações)", { status: 500 });
+  }
 
   let body: { type?: string; action?: string; data?: { id?: string } };
   try {
     body = (await request.json()) as typeof body;
-  } catch {
+  } catch (err) {
+    console.error("[MP webhook] Erro ao parsear JSON:", err);
     return new Response("Body inválido", { status: 400 });
   }
 
   const type = body.type ?? "";
   const resourceId = body.data?.id ?? "";
-  if (!resourceId) return new Response("OK", { status: 200 });
+  console.log(`[MP webhook] Recebido: tipo=${type}, resourceId=${resourceId}`);
+  if (!resourceId) {
+    console.warn("[MP webhook] resourceId vazio");
+    return new Response("OK", { status: 200 });
+  }
 
   // ── Validação de assinatura (quando configurada) ──────────────────────────
   const webhookSecret = await getMPWebhookSecret();
@@ -83,8 +98,14 @@ export async function handleMPWebhook(request: Request): Promise<Response> {
   // ── Pagamento de consulta ─────────────────────────────────────────────────
 
   if (type === "payment") {
+    console.log(`[MP webhook] Processando pagamento ${resourceId}`);
     const payment = await fetchMP<MPPayment>(`/v1/payments/${resourceId}`, accessToken);
-    if (!payment) return new Response("OK", { status: 200 });
+    if (!payment) {
+      console.error(`[MP webhook] Não conseguiu buscar pagamento ${resourceId}`);
+      return new Response("OK", { status: 200 });
+    }
+
+    console.log(`[MP webhook] Status do pagamento: ${payment.status}, external_reference: ${payment.external_reference}`);
 
     if (payment.status === "approved" && payment.external_reference) {
       const appointmentId = payment.external_reference;
@@ -94,75 +115,97 @@ export async function handleMPWebhook(request: Request): Promise<Response> {
         where: eq(appointments.id, appointmentId),
       });
 
+      console.log(`[MP webhook] Agendamento encontrado: ${!!appt} (id: ${appointmentId})`);
+
       if (appt) {
-        await db
-          .update(appointments)
-          .set({
-            status: "confirmado",
-            valorPago: valorStr,
-            mpPaymentId: String(payment.id),
-          })
-          .where(eq(appointments.id, appointmentId));
-
-        await db.insert(payments).values({
-          appointmentId,
-          professionalId: appt.professionalId,
-          mpPaymentId: String(payment.id),
-          valorBruto: valorStr,
-          taxaPlataforma: "0",
-          valorLiquido: valorStr,
-          status: "pago",
-        });
-
-        // Envia e-mail de confirmação ao paciente
         try {
-          const full = await db.query.appointments.findFirst({
-            where: eq(appointments.id, appointmentId),
-            with: {
-              patient: true,
-              service: true,
-              professional: {
-                with: { user: true },
-              },
-            },
+          await db
+            .update(appointments)
+            .set({
+              status: "confirmado",
+              valorPago: valorStr,
+              mpPaymentId: String(payment.id),
+            })
+            .where(eq(appointments.id, appointmentId));
+
+          console.log(`[MP webhook] Agendamento ${appointmentId} atualizado para "confirmado"`);
+
+          await db.insert(payments).values({
+            appointmentId,
+            professionalId: appt.professionalId,
+            mpPaymentId: String(payment.id),
+            valorBruto: valorStr,
+            taxaPlataforma: "0",
+            valorLiquido: valorStr,
+            status: "pago",
           });
 
-          if (full) {
-            // E-mail ao paciente
-            await sendBookingConfirmation({
-              patientName: full.patient.nome,
-              patientEmail: full.patient.email,
-              professionalName: full.professional.nomeCompleto,
-              serviceName: full.service.nome,
-              appointmentStart: full.inicio,
-              valor: valorStr,
+          console.log(`[MP webhook] Pagamento registrado para ${appointmentId}`);
+
+          // Envia e-mail de confirmação ao paciente
+          try {
+            const full = await db.query.appointments.findFirst({
+              where: eq(appointments.id, appointmentId),
+              with: {
+                patient: true,
+                service: true,
+                professional: {
+                  with: { user: true },
+                },
+              },
             });
 
-            // E-mail ao profissional
-            if (full.professional.user?.email) {
-              await sendNewBookingNotification({
-                professionalEmail: full.professional.user.email,
-                professionalName: full.professional.nomeCompleto,
+            if (full) {
+              // E-mail ao paciente
+              await sendBookingConfirmation({
                 patientName: full.patient.nome,
+                patientEmail: full.patient.email,
+                professionalName: full.professional.nomeCompleto,
                 serviceName: full.service.nome,
                 appointmentStart: full.inicio,
                 valor: valorStr,
               });
+
+              // E-mail ao profissional
+              if (full.professional.user?.email) {
+                await sendNewBookingNotification({
+                  professionalEmail: full.professional.user.email,
+                  professionalName: full.professional.nomeCompleto,
+                  patientName: full.patient.nome,
+                  serviceName: full.service.nome,
+                  appointmentStart: full.inicio,
+                  valor: valorStr,
+                });
+              }
             }
+          } catch (emailErr) {
+            // Falha no e-mail não deve travar o webhook
+            console.error("[webhook] Erro ao enviar e-mails pós-pagamento:", emailErr);
           }
-        } catch (emailErr) {
-          // Falha no e-mail não deve travar o webhook
-          console.error("[webhook] Erro ao enviar e-mails pós-pagamento:", emailErr);
+        } catch (dbErr) {
+          console.error(`[MP webhook] Erro ao atualizar agendamento ${appointmentId}:`, dbErr);
         }
+      } else {
+        console.warn(`[MP webhook] Agendamento ${appointmentId} não encontrado`);
       }
+    } else {
+      console.log(`[MP webhook] Pagamento ${resourceId} não aprovado ou sem external_reference`);
     }
   }
 
   // ── Assinatura (preapproval) ──────────────────────────────────────────────
 
   if (type === "subscription_preapproval" || type === "preapproval") {
+    console.log(`[MP webhook] Processando assinatura ${resourceId}`);
     const preApproval = await fetchMP<MPPreApproval>(`/preapproval/${resourceId}`, accessToken);
-    if (!preApproval || !preApproval.external_reference) return new Response("OK", { status: 200 });
+    if (!preApproval) {
+      console.error(`[MP webhook] Não conseguiu buscar preapproval ${resourceId}`);
+      return new Response("OK", { status: 200 });
+    }
+    if (!preApproval.external_reference) {
+      console.warn(`[MP webhook] Preapproval sem external_reference`);
+      return new Response("OK", { status: 200 });
+    }
 
     // external_reference do checkout novo: { professionalId, planId } (UUID).
     // Compat: aceita também o formato legado { professionalId, plan } (tier).
