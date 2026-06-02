@@ -113,7 +113,8 @@ export function BookingWizard({
   });
 
   const mpPreferenceMutation = useMutation({
-    mutationFn: (appointmentId: string) => createMPPreference({ data: { appointmentId } }),
+    mutationFn: (appointmentId: string) =>
+      createMPPreference({ data: { appointmentId, metodo: "credito" } }),
     onSuccess: ({ url }) => {
       window.location.href = url;
     },

@@ -28,6 +28,7 @@ import {
   type Plan,
   type PlanFeature,
 } from "../../lib/saas-admin";
+import { METODOS_PAGAMENTO } from "../../lib/payment-methods";
 
 function brl(v: number | string) {
   return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -99,6 +100,7 @@ function emptyPlan(ordem: number): Plan {
     comissaoPct: "5",
     whatsappIncluso: false,
     recursos: [],
+    metodosPagamento: ["credito", "debito", "pix", "dinheiro"],
     ativo: true,
     ordem,
   };
@@ -267,6 +269,7 @@ function PlanEditor({
             .split("\n")
             .map((s) => s.trim())
             .filter(Boolean),
+          metodosPagamento: f.metodosPagamento,
           ativo: f.ativo,
           ordem: f.ordem,
         },
@@ -366,6 +369,45 @@ function PlanEditor({
               placeholder={"Agenda online\nLembretes WhatsApp"}
               className={inputCls + " resize-none"}
             />
+          </Field>
+        </div>
+
+        <div className="mt-3">
+          <Field label="Métodos de pagamento disponíveis neste plano">
+            <div className="flex flex-wrap gap-2">
+              {METODOS_PAGAMENTO.map((m) => {
+                const on = f.metodosPagamento.includes(m.value);
+                return (
+                  <button
+                    key={m.value}
+                    type="button"
+                    onClick={() =>
+                      setF((p) => ({
+                        ...p,
+                        metodosPagamento: on
+                          ? p.metodosPagamento.filter((x) => x !== m.value)
+                          : [...p.metodosPagamento, m.value],
+                      }))
+                    }
+                    className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                      on
+                        ? "border-teal-500 bg-teal-600/20 text-teal-200"
+                        : "border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {on ? (
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    ) : (
+                      <m.icon className="h-3.5 w-3.5" />
+                    )}
+                    {m.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1 text-[10px] text-slate-500">
+              Define o teto do plano. O médico ativa um subconjunto disso nas Configurações dele.
+            </p>
           </Field>
         </div>
 

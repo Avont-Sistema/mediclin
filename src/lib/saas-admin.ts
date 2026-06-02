@@ -49,6 +49,7 @@ export type Plan = {
   comissaoPct: string;
   whatsappIncluso: boolean;
   recursos: string[];
+  metodosPagamento: string[];
   ativo: boolean;
   ordem: number;
 };
@@ -70,6 +71,7 @@ export const fetchPlans = createServerFn({ method: "GET" }).handler(async (): Pr
     comissaoPct: p.comissaoPct,
     whatsappIncluso: p.whatsappIncluso,
     recursos: p.recursos ?? [],
+    metodosPagamento: p.metodosPagamento ?? [],
     ativo: p.ativo,
     ordem: p.ordem,
   }));
@@ -93,6 +95,7 @@ const planInput = z.object({
   comissaoPct: z.string().regex(/^\d+(\.\d{1,2})?$/),
   whatsappIncluso: z.boolean(),
   recursos: z.array(z.string().max(120)).max(30),
+  metodosPagamento: z.array(z.enum(["credito", "debito", "pix", "dinheiro"])).max(4),
   ativo: z.boolean(),
   ordem: z.number().int().min(0),
 });

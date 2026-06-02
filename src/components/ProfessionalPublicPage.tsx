@@ -29,8 +29,14 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Calendar as CalendarPicker } from "./ui/calendar";
-import { fetchAvailableDays, fetchAvailableSlots, createBooking } from "../lib/availability";
+import {
+  fetchAvailableDays,
+  fetchAvailableSlots,
+  createBooking,
+  confirmCashBooking,
+} from "../lib/availability";
 import { createMPPreference } from "../lib/mercadopago";
+import { PaymentMethodScreen } from "./PaymentMethodScreen";
 import type { InferSelectModel } from "drizzle-orm";
 import type { professionals, services, professionalCards } from "../db/schema";
 
@@ -60,6 +66,17 @@ type Phase =
   | { tag: "servicos"; member: ClinicMember }
   | { tag: "data"; service: Service; member?: ClinicMember }
   | { tag: "hora"; service: Service; date: Date; member?: ClinicMember }
+  | {
+      tag: "pagamento";
+      service: Service;
+      date: Date;
+      slot: string;
+      nome: string;
+      meetLink?: string | null;
+      modalidade?: "presencial" | "online";
+      member?: ClinicMember;
+      appointmentId: string;
+    }
   | {
       tag: "confirmado";
       service: Service;
@@ -253,9 +270,31 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
   const isClinic = professional.plano === "clinic" && (professional.members?.length ?? 0) > 0;
 
   const mpMutation = useMutation({
-    mutationFn: (appointmentId: string) => createMPPreference({ data: { appointmentId } }),
+    mutationFn: (vars: { appointmentId: string; metodo: "credito" | "debito" | "pix" }) =>
+      createMPPreference({ data: vars }),
     onSuccess: ({ url }) => {
       window.location.href = url;
+    },
+  });
+
+  // Pagamento em dinheiro (presencial): confirma sem passar pelo Mercado Pago.
+  const cashMutation = useMutation({
+    mutationFn: (appointmentId: string) => confirmCashBooking({ data: { appointmentId } }),
+    onSuccess: () => {
+      setPhase((p) =>
+        p.tag === "pagamento"
+          ? {
+              tag: "confirmado",
+              service: p.service,
+              date: p.date,
+              slot: p.slot,
+              nome: p.nome,
+              meetLink: p.meetLink,
+              modalidade: p.modalidade,
+              member: p.member,
+            }
+          : p,
+      );
     },
   });
 
@@ -279,11 +318,25 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
     onSuccess: (result) => {
       if (phase.tag !== "hora" || !selectedSlot) return;
       const modalidade = resolveModalidade(phase.service, modalidadeEscolhida);
-      if (professional.mpAccountAtivo) {
-        mpMutation.mutate(result.appointmentId);
+      const meetLink =
+        modalidade === "online" ? (phase.member?.meetLink ?? professional.meetLink) : null;
+      const metodos = professional.metodosPagamento ?? [];
+
+      // MP conectado + ao menos um método ativo → tela de escolha de pagamento.
+      if (professional.mpAccountAtivo && metodos.length > 0) {
+        setPhase({
+          tag: "pagamento",
+          service: phase.service,
+          date: phase.date,
+          slot: selectedSlot,
+          nome,
+          meetLink,
+          modalidade,
+          member: phase.member,
+          appointmentId: result.appointmentId,
+        });
       } else {
-        const meetLink =
-          modalidade === "online" ? (phase.member?.meetLink ?? professional.meetLink) : null;
+        // Sem MP ou sem métodos: confirma direto (paga presencialmente).
         setPhase({
           tag: "confirmado",
           service: phase.service,
@@ -319,6 +372,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
     setModalidadeEscolhida("presencial");
     bookingMutation.reset();
     mpMutation.reset();
+    cashMutation.reset();
   };
 
   return (
@@ -410,6 +464,27 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
           />
         )}
 
+        {/* Payment method selection */}
+        {phase.tag === "pagamento" && (
+          <PaymentMethodScreen
+            professionalNome={phase.member?.nomeCompleto ?? professional.nomeCompleto}
+            serviceNome={phase.service.nome}
+            valor={Number(phase.service.preco)}
+            dataLabel={`${phase.date.toLocaleDateString("pt-BR", {
+              day: "2-digit",
+              month: "long",
+            })} às ${phase.slot}`}
+            metodos={professional.metodosPagamento ?? []}
+            onlinePending={mpMutation.isPending}
+            cashPending={cashMutation.isPending}
+            onPickOnline={(metodo) =>
+              mpMutation.mutate({ appointmentId: phase.appointmentId, metodo })
+            }
+            onPickCash={() => cashMutation.mutate(phase.appointmentId)}
+            onBack={handleReset}
+          />
+        )}
+
         {/* Clinic: step 1 — choose professional */}
         {isClinic && phase.tag === "idle" && (
           <ClinicTeamSection
@@ -420,103 +495,107 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
           />
         )}
 
-        {/* All phases except confirmado and clinic idle: 2-col grid */}
-        {phase.tag !== "confirmado" && !(isClinic && phase.tag === "idle") && (
-          <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
-            {/* LEFT: wizard steps */}
-            <div>
-              {/* Clinic: step 2 — choose service for member */}
-              {isClinic && phase.tag === "servicos" && (
-                <ClinicMemberServicesSection
-                  member={phase.member}
-                  brand={brand}
-                  colors={colors}
-                  onBack={() => setPhase({ tag: "idle" })}
-                  onSelect={(svc) => {
-                    setSelectedSlot(null);
-                    setModalidadeEscolhida("presencial");
-                    setPhase({ tag: "data", service: svc, member: phase.member });
-                  }}
-                />
-              )}
+        {/* All phases except confirmado, pagamento and clinic idle: 2-col grid */}
+        {phase.tag !== "confirmado" &&
+          phase.tag !== "pagamento" &&
+          !(isClinic && phase.tag === "idle") && (
+            <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
+              {/* LEFT: wizard steps */}
+              <div>
+                {/* Clinic: step 2 — choose service for member */}
+                {isClinic && phase.tag === "servicos" && (
+                  <ClinicMemberServicesSection
+                    member={phase.member}
+                    brand={brand}
+                    colors={colors}
+                    onBack={() => setPhase({ tag: "idle" })}
+                    onSelect={(svc) => {
+                      setSelectedSlot(null);
+                      setModalidadeEscolhida("presencial");
+                      setPhase({ tag: "data", service: svc, member: phase.member });
+                    }}
+                  />
+                )}
 
-              {/* Individual: step 1 — choose service */}
-              {!isClinic && phase.tag === "idle" && (
-                <ServicesSection
-                  professional={professional}
-                  brand={brand}
-                  colors={colors}
-                  onSelect={(svc) => {
-                    setSelectedSlot(null);
-                    setModalidadeEscolhida("presencial");
-                    setPhase({ tag: "data", service: svc });
-                  }}
-                />
-              )}
+                {/* Individual: step 1 — choose service */}
+                {!isClinic && phase.tag === "idle" && (
+                  <ServicesSection
+                    professional={professional}
+                    brand={brand}
+                    colors={colors}
+                    onSelect={(svc) => {
+                      setSelectedSlot(null);
+                      setModalidadeEscolhida("presencial");
+                      setPhase({ tag: "data", service: svc });
+                    }}
+                  />
+                )}
 
-              {/* Step 2: date picker */}
-              {phase.tag === "data" && (
-                <StepDate
-                  professionalId={phase.member?.id ?? professional.id}
-                  service={phase.service}
-                  brand={brand}
-                  onBack={() =>
-                    isClinic && phase.member
-                      ? setPhase({ tag: "servicos", member: phase.member })
-                      : setPhase({ tag: "idle" })
-                  }
-                  onNext={(date) =>
-                    setPhase({ tag: "hora", service: phase.service, date, member: phase.member })
-                  }
-                />
-              )}
+                {/* Step 2: date picker */}
+                {phase.tag === "data" && (
+                  <StepDate
+                    professionalId={phase.member?.id ?? professional.id}
+                    service={phase.service}
+                    brand={brand}
+                    onBack={() =>
+                      isClinic && phase.member
+                        ? setPhase({ tag: "servicos", member: phase.member })
+                        : setPhase({ tag: "idle" })
+                    }
+                    onNext={(date) =>
+                      setPhase({ tag: "hora", service: phase.service, date, member: phase.member })
+                    }
+                  />
+                )}
 
-              {/* Step 3: time slots */}
-              {phase.tag === "hora" && (
-                <StepTime
-                  professionalId={phase.member?.id ?? professional.id}
-                  service={phase.service}
-                  date={phase.date}
+                {/* Step 3: time slots */}
+                {phase.tag === "hora" && (
+                  <StepTime
+                    professionalId={phase.member?.id ?? professional.id}
+                    service={phase.service}
+                    date={phase.date}
+                    selectedSlot={selectedSlot}
+                    brand={brand}
+                    onBack={() =>
+                      setPhase({ tag: "data", service: phase.service, member: phase.member })
+                    }
+                    onSelectSlot={(slot) => setSelectedSlot(slot)}
+                  />
+                )}
+              </div>
+
+              {/* RIGHT: sticky summary panel */}
+              <div className="lg:sticky lg:top-6">
+                <SummaryPanel
+                  phase={phase}
                   selectedSlot={selectedSlot}
-                  brand={brand}
-                  onBack={() =>
-                    setPhase({ tag: "data", service: phase.service, member: phase.member })
+                  professional={professional}
+                  member={
+                    phase.tag === "servicos" || phase.tag === "data" || phase.tag === "hora"
+                      ? phase.member
+                      : undefined
                   }
-                  onSelectSlot={(slot) => setSelectedSlot(slot)}
+                  brand={brand}
+                  nome={nome}
+                  setNome={setNome}
+                  email={email}
+                  setEmail={setEmail}
+                  telefone={telefone}
+                  setTelefone={setTelefone}
+                  modalidade={modalidadeEscolhida}
+                  setModalidade={setModalidadeEscolhida}
+                  canConfirm={canConfirm}
+                  isConfirming={isConfirming}
+                  onConfirm={handleConfirm}
+                  error={
+                    bookingMutation.error instanceof Error
+                      ? bookingMutation.error.message
+                      : undefined
+                  }
                 />
-              )}
+              </div>
             </div>
-
-            {/* RIGHT: sticky summary panel */}
-            <div className="lg:sticky lg:top-6">
-              <SummaryPanel
-                phase={phase}
-                selectedSlot={selectedSlot}
-                professional={professional}
-                member={
-                  phase.tag === "servicos" || phase.tag === "data" || phase.tag === "hora"
-                    ? phase.member
-                    : undefined
-                }
-                brand={brand}
-                nome={nome}
-                setNome={setNome}
-                email={email}
-                setEmail={setEmail}
-                telefone={telefone}
-                setTelefone={setTelefone}
-                modalidade={modalidadeEscolhida}
-                setModalidade={setModalidadeEscolhida}
-                canConfirm={canConfirm}
-                isConfirming={isConfirming}
-                onConfirm={handleConfirm}
-                error={
-                  bookingMutation.error instanceof Error ? bookingMutation.error.message : undefined
-                }
-              />
-            </div>
-          </div>
-        )}
+          )}
       </section>
 
       {/* Footer */}

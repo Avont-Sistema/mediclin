@@ -5,6 +5,7 @@ import { getAuth } from "@clerk/tanstack-start/server";
 import { getWebRequest } from "vinxi/http";
 import { db } from "../db";
 import { availabilityRules, professionals, services, users } from "../db/schema";
+import { getPlanMetodosPagamento } from "./plans";
 import type { InferSelectModel } from "drizzle-orm";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -18,6 +19,9 @@ export type SettingsData = {
   services: InferSelectModel<typeof services>[];
   availabilityRules: InferSelectModel<typeof availabilityRules>[];
   members: ClinicMember[];
+  // Métodos de pagamento liberados pelo plano do médico (teto). A UI usa isto
+  // para habilitar só os toggles permitidos.
+  metodosDisponiveis: string[];
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -82,9 +86,30 @@ export const fetchSettingsData = createServerFn({ method: "GET" }).handler(
       services: prof.services,
       availabilityRules: prof.availabilityRules,
       members: (prof.members ?? []) as ClinicMember[],
+      metodosDisponiveis: await getPlanMetodosPagamento(prof.id),
     };
   },
 );
+
+// ─── Métodos de pagamento (médico ativa um subconjunto do teto do plano) ──────
+
+export const updatePaymentMethods = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      metodos: z.array(z.enum(["credito", "debito", "pix", "dinheiro"])).max(4),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const profId = await getAuthProfId();
+    // Só permite ativar métodos dentro do teto liberado pelo plano.
+    const teto = await getPlanMetodosPagamento(profId);
+    const metodos = data.metodos.filter((m) => teto.includes(m));
+    await db
+      .update(professionals)
+      .set({ metodosPagamento: metodos })
+      .where(eq(professionals.id, profId));
+    return { ok: true };
+  });
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
 

@@ -7,6 +7,14 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { appointments, professionals, users } from "../db/schema";
 import { getMPAccessToken, getMPAppCredentials } from "./integrations";
+import { getProfessionalPlan } from "./plans";
+
+// Tipos de pagamento do MP a EXCLUIR para deixar só o método escolhido pelo paciente.
+const EXCLUDED_TYPES: Record<"credito" | "debito" | "pix", string[]> = {
+  credito: ["debit_card", "ticket", "bank_transfer", "atm"],
+  debito: ["credit_card", "ticket", "bank_transfer", "atm"],
+  pix: ["credit_card", "debit_card", "ticket", "atm"],
+};
 
 async function getPlatformClient(): Promise<MercadoPagoConfig> {
   const token = await getMPAccessToken();
@@ -24,7 +32,12 @@ function getSellerClient(accessToken: string): MercadoPagoConfig {
 // ─── Criar preferência de pagamento (consulta do paciente) ───────────────────
 
 export const createMPPreference = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ appointmentId: z.string() }))
+  .inputValidator(
+    z.object({
+      appointmentId: z.string(),
+      metodo: z.enum(["credito", "debito", "pix"]),
+    }),
+  )
   .handler(async ({ data }) => {
     const appt = await db.query.appointments.findFirst({
       where: eq(appointments.id, data.appointmentId),
@@ -41,6 +54,12 @@ export const createMPPreference = createServerFn({ method: "POST" })
     const origin = new URL(getWebRequest().url).origin;
     const { appId } = await getMPAppCredentials();
 
+    // Taxa da plataforma (split) = % de comissão do plano do médico.
+    const valor = Number(appt.service.preco);
+    const plan = await getProfessionalPlan(appt.professional.id);
+    const comissaoPct = plan ? Number(plan.comissaoPct) : 0;
+    const marketplaceFee = Math.round(valor * (comissaoPct / 100) * 100) / 100;
+
     const result = await preference.create({
       body: {
         items: [
@@ -48,7 +67,7 @@ export const createMPPreference = createServerFn({ method: "POST" })
             id: appt.service.id,
             title: appt.service.nome,
             quantity: 1,
-            unit_price: Number(appt.service.preco),
+            unit_price: valor,
             currency_id: "BRL",
           },
         ],
@@ -61,7 +80,11 @@ export const createMPPreference = createServerFn({ method: "POST" })
         auto_return: "approved",
         external_reference: appt.id,
         notification_url: `${origin}/api/webhooks/mp`,
-        ...(appId && { marketplace: appId, marketplace_fee: 0 }),
+        // Restringe o checkout do MP ao método escolhido pelo paciente.
+        payment_methods: {
+          excluded_payment_types: EXCLUDED_TYPES[data.metodo].map((id) => ({ id })),
+        },
+        ...(appId && { marketplace: appId, marketplace_fee: marketplaceFee }),
       },
     });
 

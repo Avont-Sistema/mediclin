@@ -22,6 +22,10 @@ import {
   LifeBuoy,
   MessageCircle,
   Mail,
+  CreditCard,
+  Lock,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { DashboardLayout } from "../components/DashboardLayout";
 import { PhotoUpload } from "../components/PhotoUpload";
@@ -35,10 +39,12 @@ import {
   addClinicMember,
   updateClinicMember,
   removeClinicMember,
+  updatePaymentMethods,
   slugify,
   type SettingsData,
   type ClinicMember,
 } from "../lib/settings";
+import { METODOS_PAGAMENTO, type MetodoPagamento } from "../lib/payment-methods";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Configurações — CuidandoVC" }] }),
@@ -52,7 +58,7 @@ function formatCurrency(v: string | number) {
   return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-type Tab = "perfil" | "equipe" | "suporte";
+type Tab = "perfil" | "pagamentos" | "equipe" | "suporte";
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -88,6 +94,7 @@ function SettingsContent() {
 
   const tabs = [
     { id: "perfil" as const, label: "Perfil", icon: User },
+    { id: "pagamentos" as const, label: "Pagamentos", icon: CreditCard },
     { id: "equipe" as const, label: "Equipe", icon: Users },
     { id: "suporte" as const, label: "Suporte", icon: LifeBuoy },
   ];
@@ -134,6 +141,9 @@ function SettingsContent() {
         </div>
 
         {tab === "perfil" && <ProfileTab data={data} onSaved={() => router.invalidate()} />}
+        {tab === "pagamentos" && (
+          <PaymentMethodsTab data={data} onSaved={() => router.invalidate()} />
+        )}
         {tab === "equipe" &&
           (isClinic ? (
             <TeamTab data={data} onSaved={() => router.invalidate()} />
@@ -1088,6 +1098,116 @@ function MemberFormWidget({
           {isPending ? "Salvando..." : "Salvar"}
         </button>
       </div>
+    </div>
+  );
+}
+
+// ─── PaymentMethodsTab ──────────────────────────────────────────────────────────
+
+function PaymentMethodsTab({ data, onSaved }: { data: SettingsData; onSaved: () => void }) {
+  const disponiveis = data.metodosDisponiveis;
+  const mpAtivo = data.professional.mpAccountAtivo;
+  const [selected, setSelected] = useState<MetodoPagamento[]>(
+    (data.professional.metodosPagamento ?? []) as MetodoPagamento[],
+  );
+  const [saved, setSaved] = useState(false);
+
+  const mutation = useMutation({
+    mutationFn: () => updatePaymentMethods({ data: { metodos: selected } }),
+    onSuccess: () => {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+      onSaved();
+    },
+  });
+
+  function toggle(m: MetodoPagamento) {
+    setSelected((cur) => (cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m]));
+  }
+
+  return (
+    <div className="space-y-5 max-w-xl">
+      <div>
+        <h2 className="text-base font-semibold text-slate-900">Métodos de pagamento</h2>
+        <p className="text-sm text-slate-500">
+          Escolha como seus pacientes podem pagar os agendamentos na sua página pública.
+        </p>
+      </div>
+
+      {!mpAtivo && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+          <p className="text-sm text-amber-800">
+            Conecte sua conta do <strong>Mercado Pago</strong> no painel para receber pagamentos
+            online (cartão e Pix). O método <strong>Dinheiro</strong> (presencial) funciona sem
+            isso.
+          </p>
+        </div>
+      )}
+
+      <div className="space-y-2.5">
+        {METODOS_PAGAMENTO.map((m) => {
+          const liberado = disponiveis.includes(m.value);
+          const on = selected.includes(m.value);
+          return (
+            <div
+              key={m.value}
+              className={`flex items-center gap-3 rounded-xl border p-4 transition ${
+                liberado ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-50 opacity-70"
+              }`}
+            >
+              <div className="h-10 w-10 rounded-lg bg-slate-100 grid place-items-center shrink-0">
+                <m.icon className="h-5 w-5 text-slate-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-800">{m.label}</p>
+                <p className="text-xs text-slate-500">
+                  {m.online
+                    ? "Pago online via Mercado Pago"
+                    : "Pago presencialmente no consultório"}
+                </p>
+              </div>
+              {liberado ? (
+                <button
+                  type="button"
+                  onClick={() => toggle(m.value)}
+                  aria-label={on ? "Desativar" : "Ativar"}
+                >
+                  {on ? (
+                    <ToggleRight className="h-7 w-7 text-teal-600" />
+                  ) : (
+                    <ToggleLeft className="h-7 w-7 text-slate-300" />
+                  )}
+                </button>
+              ) : (
+                <span className="flex items-center gap-1 text-xs font-medium text-slate-400 shrink-0">
+                  <Lock className="h-3.5 w-3.5" /> Plano superior
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        onClick={() => mutation.mutate()}
+        disabled={mutation.isPending}
+        className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+      >
+        {mutation.isPending ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" /> Salvando…
+          </>
+        ) : saved ? (
+          <>
+            <Check className="h-4 w-4" /> Salvo!
+          </>
+        ) : (
+          <>
+            <Save className="h-4 w-4" /> Salvar métodos
+          </>
+        )}
+      </button>
     </div>
   );
 }

@@ -1,7 +1,25 @@
 import { createServerFn } from "@tanstack/react-start";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { plans } from "../db/schema";
+import { plans, subscriptions } from "../db/schema";
+
+// Resolve a linha do plano (tabela plans) que o profissional assina, via
+// subscriptions.planId. Retorna null se não houver plano vinculado.
+// Reutilizado para taxa (comissaoPct) e métodos de pagamento (teto).
+export async function getProfessionalPlan(professionalId: string) {
+  const sub = await db.query.subscriptions.findFirst({
+    where: eq(subscriptions.professionalId, professionalId),
+  });
+  if (!sub?.planId) return null;
+  return (await db.query.plans.findFirst({ where: eq(plans.id, sub.planId) })) ?? null;
+}
+
+// Métodos liberados pelo plano do médico (teto). Sem plano vinculado → todos.
+const TODOS_METODOS = ["credito", "debito", "pix", "dinheiro"];
+export async function getPlanMetodosPagamento(professionalId: string): Promise<string[]> {
+  const plan = await getProfessionalPlan(professionalId);
+  return plan?.metodosPagamento ?? TODOS_METODOS;
+}
 
 // Planos comerciais visíveis para o médico assinar. Mesma fonte de verdade que
 // o admin gerencia (tabela plans) — sem gate de admin: só retorna ativos.
@@ -20,6 +38,7 @@ export type PublicPlan = {
   comissaoPct: string;
   whatsappIncluso: boolean;
   recursos: string[];
+  metodosPagamento: string[];
   ordem: number;
 };
 
@@ -43,6 +62,7 @@ export const fetchActivePlans = createServerFn({ method: "GET" }).handler(
       comissaoPct: p.comissaoPct,
       whatsappIncluso: p.whatsappIncluso,
       recursos: p.recursos ?? [],
+      metodosPagamento: p.metodosPagamento ?? [],
       ordem: p.ordem,
     }));
   },

@@ -134,6 +134,9 @@ export const professionals = pgTable(
     mpUserId: varchar("mp_user_id", { length: 255 }),
     mpAccessToken: text("mp_access_token"),
     mpAccountAtivo: boolean("mp_account_ativo").default(false).notNull(),
+    // Métodos de pagamento ATIVADOS pelo médico (subconjunto dos liberados pelo plano).
+    // Valores: "credito" | "debito" | "pix" | "dinheiro".
+    metodosPagamento: jsonb("metodos_pagamento").$type<string[]>().notNull().default([]),
 
     // Plano de assinatura com o CuidandoVC
     plano: planoEnum("plano").default("free").notNull(),
@@ -436,6 +439,12 @@ export const plans = pgTable("plans", {
   comissaoPct: decimal("comissao_pct", { precision: 5, scale: 2 }).notNull().default("5"), // Comissão
   whatsappIncluso: boolean("whatsapp_incluso").notNull().default(false), // WhatsApp incluso
   recursos: jsonb("recursos").$type<string[]>().notNull().default([]), // Recursos (lista)
+  // Métodos de pagamento DISPONÍVEIS neste plano (teto). O médico ativa um
+  // subconjunto disso. Valores: "credito" | "debito" | "pix" | "dinheiro".
+  metodosPagamento: jsonb("metodos_pagamento")
+    .$type<string[]>()
+    .notNull()
+    .default(["credito", "debito", "pix", "dinheiro"]),
 
   ativo: boolean("ativo").notNull().default(true),
   ordem: integer("ordem").notNull().default(0),

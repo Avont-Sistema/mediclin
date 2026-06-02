@@ -12,6 +12,7 @@ import {
   services,
 } from "../db/schema";
 import type { diasSemanaEnum } from "../db/schema";
+import { getPlanMetodosPagamento } from "./plans";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -69,7 +70,15 @@ export const fetchProfessionalBySlug = createServerFn({ method: "GET" })
         },
       },
     });
-    return prof ?? null;
+    if (!prof) return null;
+
+    // metodosPagamento exposto à página pública = interseção entre o que o plano
+    // libera (teto) e o que o médico ativou. É isso que o paciente verá.
+    const teto = await getPlanMetodosPagamento(prof.id);
+    const ativados = prof.metodosPagamento ?? [];
+    const metodosPagamento = ativados.filter((m) => teto.includes(m));
+
+    return { ...prof, metodosPagamento };
   });
 
 // ─── fetchAvailableDates ───────────────────────────────────────────────────────
@@ -222,4 +231,24 @@ export const createBooking = createServerFn({ method: "POST" })
       .returning();
 
     return { appointmentId: appt.id };
+  });
+
+// ─── confirmCashBooking ─────────────────────────────────────────────────────────
+// Paciente escolheu pagar em dinheiro (presencial): confirma o agendamento sem
+// passar pelo Mercado Pago. Só promove de "aguardando_pagamento" → "confirmado".
+
+export const confirmCashBooking = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ appointmentId: z.string().uuid() }))
+  .handler(async ({ data }) => {
+    const appt = await db.query.appointments.findFirst({
+      where: eq(appointments.id, data.appointmentId),
+    });
+    if (!appt) throw new Error("Agendamento não encontrado");
+    if (appt.status === "aguardando_pagamento") {
+      await db
+        .update(appointments)
+        .set({ status: "confirmado" })
+        .where(eq(appointments.id, data.appointmentId));
+    }
+    return { ok: true };
   });
