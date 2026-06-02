@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useId, useRef, useEffect } from "react";
-import { SignIn, useUser, useAuth } from "@clerk/tanstack-start";
+import { useSignIn, useUser, useAuth } from "@clerk/tanstack-start";
 import {
   Stethoscope,
   ChevronRight,
@@ -37,7 +37,51 @@ function OnboardingPage() {
 }
 
 // Tela de login (Google) exibida após a etapa de Situação, junto dos dados a preencher
+// Logo "G" oficial do Google (multicolor)
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z"
+      />
+    </svg>
+  );
+}
+
 function OnboardingAuth({ onVoltar }: { onVoltar: () => void }) {
+  const { isLoaded, signIn } = useSignIn();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleGoogle() {
+    if (!isLoaded || !signIn) return;
+    setError(null);
+    setLoading(true);
+    try {
+      await signIn.authenticateWithRedirect({
+        strategy: "oauth_google",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/onboarding",
+      });
+    } catch {
+      setError("Não foi possível conectar com o Google. Tente novamente.");
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4 py-12">
       {/* Logo */}
@@ -57,15 +101,25 @@ function OnboardingAuth({ onVoltar }: { onVoltar: () => void }) {
         </p>
       </div>
 
-      {/* Clerk: login social (Google) embutido. As opções exibidas seguem o que
-          estiver habilitado no painel do Clerk (habilite "Google" e desative
-          senha para deixar 100% passwordless). */}
-      <SignIn
-        routing="hash"
-        forceRedirectUrl="/onboarding"
-        signUpForceRedirectUrl="/onboarding"
-        appearance={{ elements: { rootBox: "w-full max-w-md mx-auto" } }}
-      />
+      {/* Botão Google customizado — sem UI do Clerk */}
+      <div className="w-full max-w-md">
+        <button
+          onClick={handleGoogle}
+          disabled={loading || !isLoaded}
+          className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin text-slate-400" /> Conectando...
+            </>
+          ) : (
+            <>
+              <GoogleIcon /> Continuar com Google
+            </>
+          )}
+        </button>
+        {error && <p className="mt-3 text-center text-sm text-rose-600">{error}</p>}
+      </div>
 
       <p className="mt-6 flex items-center gap-1.5 text-xs text-slate-400">
         <ShieldCheck className="size-3.5" />
