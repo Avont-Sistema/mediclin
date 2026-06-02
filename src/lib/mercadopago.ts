@@ -6,7 +6,7 @@ import { getWebRequest } from "vinxi/http";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { appointments, professionals, users } from "../db/schema";
-import { getMPAccessToken } from "./integrations";
+import { getMPAccessToken, getMPAppCredentials } from "./integrations";
 
 async function getPlatformClient(): Promise<MercadoPagoConfig> {
   const token = await getMPAccessToken();
@@ -39,7 +39,7 @@ export const createMPPreference = createServerFn({ method: "POST" })
     const preference = new Preference(client);
 
     const origin = new URL(getWebRequest().url).origin;
-    const appId = process.env.MERCADOPAGO_APP_ID ?? "";
+    const { appId } = await getMPAppCredentials();
 
     const result = await preference.create({
       body: {
@@ -79,8 +79,8 @@ export const createMPPreference = createServerFn({ method: "POST" })
 export const createMPOAuthLink = createServerFn({ method: "POST" })
   .inputValidator(z.object({ professionalId: z.string(), redirectPath: z.string().optional() }))
   .handler(async ({ data }) => {
-    const appId = process.env.MERCADOPAGO_APP_ID;
-    if (!appId) throw new Error("MERCADOPAGO_APP_ID não configurado");
+    const { appId } = await getMPAppCredentials();
+    if (!appId) throw new Error("Client ID do Mercado Pago não configurado (Admin → Integrações).");
 
     const origin = new URL(getWebRequest().url).origin;
     const path = data.redirectPath ?? "/dashboard";
@@ -98,9 +98,9 @@ export const activateMPAccount = createServerFn({ method: "POST" })
     z.object({ code: z.string(), professionalId: z.string(), redirectPath: z.string().optional() }),
   )
   .handler(async ({ data }) => {
-    const clientId = process.env.MERCADOPAGO_APP_ID;
-    const clientSecret = process.env.MERCADOPAGO_APP_SECRET;
-    if (!clientId || !clientSecret) throw new Error("Credenciais MP não configuradas");
+    const { appId: clientId, appSecret: clientSecret } = await getMPAppCredentials();
+    if (!clientId || !clientSecret)
+      throw new Error("Client ID/Secret do Mercado Pago não configurados (Admin → Integrações).");
 
     const origin = new URL(getWebRequest().url).origin;
     const path = data.redirectPath ?? "/dashboard";
