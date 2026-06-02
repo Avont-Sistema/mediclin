@@ -106,6 +106,43 @@ export const updateAppointmentStatus = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// ─── fetchAgendaRange ─────────────────────────────────────────────────────────
+
+export const fetchAgendaRange = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ startDate: z.string(), days: z.number().int().min(1).max(90) }))
+  .handler(async ({ data }): Promise<AgendaAppointment[] | null> => {
+    const auth = await getAuth(getWebRequest());
+    if (!auth.userId) return null;
+
+    const userRecord = await db.query.users.findFirst({
+      where: eq(users.clerkId, auth.userId),
+      with: { professional: true },
+    });
+
+    const profId = userRecord?.professional?.id;
+    if (!profId) return null;
+
+    const [y, m, d] = data.startDate.split("-").map(Number);
+    const start = new Date(y, m - 1, d, 0, 0, 0);
+    const end = new Date(y, m - 1, d + data.days, 0, 0, 0);
+
+    const appts = await db.query.appointments.findMany({
+      where: and(
+        eq(appointments.professionalId, profId),
+        gte(appointments.inicio, start),
+        lt(appointments.inicio, end),
+      ),
+      with: {
+        patient: true,
+        service: true,
+        professional: true,
+      },
+      orderBy: [asc(appointments.inicio)],
+    });
+
+    return appts as AgendaAppointment[];
+  });
+
 // ─── createManualBooking ──────────────────────────────────────────────────────
 
 export const createManualBooking = createServerFn({ method: "POST" })

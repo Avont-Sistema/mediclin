@@ -177,7 +177,7 @@ export const fetchDashboardData = createServerFn({ method: "GET" }).handler(
       new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1),
     );
     const { start: weekEndBound } = dayBounds(
-      new Date(now.getFullYear(), now.getMonth(), now.getDate() + 8),
+      new Date(now.getFullYear(), now.getMonth(), now.getDate() + 31),
     );
 
     const rawUpcoming = await db.query.appointments.findMany({

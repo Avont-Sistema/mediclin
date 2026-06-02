@@ -366,7 +366,7 @@ function DashboardContent() {
                       <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
                         <div>
                           <p className="text-sm font-semibold text-slate-900">Lembretes</p>
-                          <p className="text-xs text-slate-400">Próximas consultas da semana</p>
+                          <p className="text-xs text-slate-400">Próximas consultas</p>
                         </div>
                         <button
                           onClick={() => setShowNotifs(false)}

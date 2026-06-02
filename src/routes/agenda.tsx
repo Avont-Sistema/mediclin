@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { z } from "zod";
 import { DashboardLayout } from "../components/DashboardLayout";
-import { fetchAgendaWeek, updateAppointmentStatus, getMonday, addDays } from "../lib/agenda";
+import { fetchAgendaWeek, fetchAgendaRange, updateAppointmentStatus, getMonday, addDays } from "../lib/agenda";
 import type { AgendaAppointment } from "../lib/agenda";
 import { listFolgas, removeFolga, type FolgaBlock } from "../lib/folga";
 import { ModoFolgaModal } from "../components/ModoFolgaModal";
@@ -93,6 +93,11 @@ function todayMonday() {
   return getMonday(new Date());
 }
 
+function todayDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function toHHMM(d: Date | string): string {
   const date = d instanceof Date ? d : new Date(String(d));
   return `${String(date.getUTCHours()).padStart(2, "0")}:${String(date.getUTCMinutes()).padStart(2, "0")}`;
@@ -160,12 +165,22 @@ function AgendaContent() {
 
   const weekStart = searchWeek ?? todayMonday();
   const queryClient = useQueryClient();
+  const today = useMemo(() => todayDateStr(), []);
 
   const { data: appointments = [], isLoading } = useQuery({
     queryKey: ["agendaWeek", weekStart],
     queryFn: () => fetchAgendaWeek({ data: { weekStart } }),
     staleTime: 30_000,
+    enabled: view === "semana",
   });
+
+  const { data: rangeAppointmentsRaw, isLoading: isLoadingRange } = useQuery({
+    queryKey: ["agendaRange", today],
+    queryFn: () => fetchAgendaRange({ data: { startDate: today, days: 28 } }),
+    staleTime: 30_000,
+    enabled: view === "lista",
+  });
+  const rangeAppointments = rangeAppointmentsRaw ?? [];
 
   const { data: folgas = [] } = useQuery({
     queryKey: ["folgas"],
@@ -192,6 +207,7 @@ function AgendaContent() {
       updateAppointmentStatus({ data: { appointmentId, status } }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["agendaWeek", weekStart] });
+      void queryClient.invalidateQueries({ queryKey: ["agendaRange"] });
       setSelectedAppt(null);
     },
   });
@@ -224,7 +240,50 @@ function AgendaContent() {
     return out;
   }, [byDay, searchQuery]);
 
+  // ── Lista mode: próximos 28 dias ──────────────────────────────────────────
+  const listaDays = useMemo(
+    () => Array.from({ length: 28 }, (_, i) => addDays(today, i)),
+    [today],
+  );
+
+  const byDayRange = useMemo(() => {
+    const map = new Map<string, AgendaAppointment[]>();
+    for (const appt of rangeAppointments) {
+      const key = new Date(appt.inicio).toISOString().split("T")[0];
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(appt);
+    }
+    return map;
+  }, [rangeAppointments]);
+
+  const filteredByDayRange = useMemo(() => {
+    if (!searchQuery.trim()) return byDayRange;
+    const q = searchQuery.toLowerCase();
+    const out = new Map<string, AgendaAppointment[]>();
+    for (const [day, appts] of byDayRange) {
+      const m = appts.filter(
+        (a) => a.patient.nome.toLowerCase().includes(q) || a.service.nome.toLowerCase().includes(q),
+      );
+      if (m.length) out.set(day, m);
+    }
+    return out;
+  }, [byDayRange, searchQuery]);
+
+  // Mostra apenas dias com agendamentos/folgas (+ hoje quando não há busca ativa)
+  const visibleListaDays = useMemo(
+    () =>
+      listaDays.filter(
+        (day) =>
+          (filteredByDayRange.get(day) ?? []).length > 0 ||
+          blockedByDate.has(day) ||
+          (!searchQuery.trim() && isToday(day)),
+      ),
+    [listaDays, filteredByDayRange, blockedByDate, searchQuery],
+  );
+
   const isPending = statusMutation.isPending || removeFolgaMutation.isPending;
+
+  const isLoadingCurrent = view === "semana" ? isLoading : isLoadingRange;
 
   // shared toolbar props
   const toolbarProps = {
@@ -234,6 +293,7 @@ function AgendaContent() {
     onNext: () => goWeek(1),
     onToday: () => void navigate({ search: { week: todayMonday() } }),
     onViewChange: setView,
+    hideNav: view === "lista",
   };
 
   return (
@@ -291,7 +351,7 @@ function AgendaContent() {
 
       {/* ── Page content ─────────────────────────────────────────────────── */}
       <div className="p-4 lg:p-6">
-        {isLoading ? (
+        {isLoadingCurrent ? (
           <div className="text-center py-16 text-sm text-slate-400">Carregando agenda...</div>
         ) : view === "semana" ? (
           /* ── White card: toolbar + grid ─────────────────────────────── */
@@ -477,16 +537,23 @@ function AgendaContent() {
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm mb-4 overflow-hidden">
               <CalendarToolbar {...toolbarProps} />
             </div>
-            <ListView
-              days={days}
-              byDay={filteredByDay}
-              blockedByDate={blockedByDate}
-              selectedAppt={selectedAppt}
-              onSelectAppt={setSelectedAppt}
-              onUpdateStatus={(id, s) => statusMutation.mutate({ appointmentId: id, status: s })}
-              onRemoveFolga={(id) => removeFolgaMutation.mutate(id)}
-              isPending={isPending}
-            />
+            {visibleListaDays.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 py-16 text-center">
+                <p className="text-sm font-semibold text-slate-500">Nenhum agendamento nos próximos 28 dias</p>
+                <p className="text-xs text-slate-400 mt-1">Use "+ Novo agendamento" para adicionar.</p>
+              </div>
+            ) : (
+              <ListView
+                days={visibleListaDays}
+                byDay={filteredByDayRange}
+                blockedByDate={blockedByDate}
+                selectedAppt={selectedAppt}
+                onSelectAppt={setSelectedAppt}
+                onUpdateStatus={(id, s) => statusMutation.mutate({ appointmentId: id, status: s })}
+                onRemoveFolga={(id) => removeFolgaMutation.mutate(id)}
+                isPending={isPending}
+              />
+            )}
           </>
         )}
       </div>
@@ -520,6 +587,7 @@ function CalendarToolbar({
   onNext,
   onToday,
   onViewChange,
+  hideNav = false,
 }: {
   weekStart: string;
   view: ViewMode;
@@ -527,31 +595,38 @@ function CalendarToolbar({
   onNext: () => void;
   onToday: () => void;
   onViewChange: (v: ViewMode) => void;
+  hideNav?: boolean;
 }) {
   return (
     <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
-      {/* Week navigation */}
-      <button
-        onClick={onPrev}
-        className="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 transition text-slate-600"
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </button>
-      <button
-        onClick={onNext}
-        className="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 transition text-slate-600"
-      >
-        <ChevronRight className="h-4 w-4" />
-      </button>
-      <span className="text-sm font-semibold text-slate-800 min-w-[110px]">
-        {monthYearLabel(weekStart)}
-      </span>
-      <button
-        onClick={onToday}
-        className="px-3 h-8 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition"
-      >
-        Hoje
-      </button>
+      {/* Week navigation — oculto no modo Lista */}
+      {!hideNav ? (
+        <>
+          <button
+            onClick={onPrev}
+            className="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 transition text-slate-600"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            onClick={onNext}
+            className="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 transition text-slate-600"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <span className="text-sm font-semibold text-slate-800 min-w-[110px]">
+            {monthYearLabel(weekStart)}
+          </span>
+          <button
+            onClick={onToday}
+            className="px-3 h-8 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 transition"
+          >
+            Hoje
+          </button>
+        </>
+      ) : (
+        <span className="text-sm font-semibold text-slate-800">Próximos 28 dias</span>
+      )}
 
       <div className="ml-auto flex items-center gap-3">
         {/* View switcher */}
