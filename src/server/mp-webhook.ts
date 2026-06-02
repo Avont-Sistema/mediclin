@@ -108,85 +108,88 @@ export async function handleMPWebhook(request: Request): Promise<Response> {
     console.log(`[MP webhook] Status do pagamento: ${payment.status}, external_reference: ${payment.external_reference}`);
 
     if (payment.status === "approved" && payment.external_reference) {
-      const appointmentId = payment.external_reference;
+      const ref = payment.external_reference;
+      // Suporte a carrinho: "cart:id1|id2|id3" ou ID único avulso
+      const appointmentIds = ref.startsWith("cart:")
+        ? ref.slice(5).split("|").filter(Boolean)
+        : [ref];
       const valorStr = String(payment.transaction_amount);
 
-      const appt = await db.query.appointments.findFirst({
-        where: eq(appointments.id, appointmentId),
-      });
+      for (const appointmentId of appointmentIds) {
+        const appt = await db.query.appointments.findFirst({
+          where: eq(appointments.id, appointmentId),
+        });
 
-      console.log(`[MP webhook] Agendamento encontrado: ${!!appt} (id: ${appointmentId})`);
+        console.log(`[MP webhook] Agendamento encontrado: ${!!appt} (id: ${appointmentId})`);
 
-      if (appt) {
-        try {
-          await db
-            .update(appointments)
-            .set({
-              status: "confirmado",
-              valorPago: valorStr,
-              mpPaymentId: String(payment.id),
-            })
-            .where(eq(appointments.id, appointmentId));
-
-          console.log(`[MP webhook] Agendamento ${appointmentId} atualizado para "confirmado"`);
-
-          await db.insert(payments).values({
-            appointmentId,
-            professionalId: appt.professionalId,
-            mpPaymentId: String(payment.id),
-            valorBruto: valorStr,
-            taxaPlataforma: "0",
-            valorLiquido: valorStr,
-            status: "pago",
-          });
-
-          console.log(`[MP webhook] Pagamento registrado para ${appointmentId}`);
-
-          // Envia e-mail de confirmação ao paciente
+        if (appt) {
           try {
-            const full = await db.query.appointments.findFirst({
-              where: eq(appointments.id, appointmentId),
-              with: {
-                patient: true,
-                service: true,
-                professional: {
-                  with: { user: true },
-                },
-              },
+            await db
+              .update(appointments)
+              .set({
+                status: "confirmado",
+                valorPago: valorStr,
+                mpPaymentId: String(payment.id),
+              })
+              .where(eq(appointments.id, appointmentId));
+
+            console.log(`[MP webhook] Agendamento ${appointmentId} atualizado para "confirmado"`);
+
+            await db.insert(payments).values({
+              appointmentId,
+              professionalId: appt.professionalId,
+              mpPaymentId: String(payment.id),
+              valorBruto: valorStr,
+              taxaPlataforma: "0",
+              valorLiquido: valorStr,
+              status: "pago",
             });
 
-            if (full) {
-              // E-mail ao paciente
-              await sendBookingConfirmation({
-                patientName: full.patient.nome,
-                patientEmail: full.patient.email,
-                professionalName: full.professional.nomeCompleto,
-                serviceName: full.service.nome,
-                appointmentStart: full.inicio,
-                valor: valorStr,
+            console.log(`[MP webhook] Pagamento registrado para ${appointmentId}`);
+
+            // Envia e-mail de confirmação ao paciente
+            try {
+              const full = await db.query.appointments.findFirst({
+                where: eq(appointments.id, appointmentId),
+                with: {
+                  patient: true,
+                  service: true,
+                  professional: {
+                    with: { user: true },
+                  },
+                },
               });
 
-              // E-mail ao profissional
-              if (full.professional.user?.email) {
-                await sendNewBookingNotification({
-                  professionalEmail: full.professional.user.email,
-                  professionalName: full.professional.nomeCompleto,
+              if (full) {
+                await sendBookingConfirmation({
                   patientName: full.patient.nome,
+                  patientEmail: full.patient.email,
+                  professionalName: full.professional.nomeCompleto,
                   serviceName: full.service.nome,
                   appointmentStart: full.inicio,
                   valor: valorStr,
                 });
+
+                if (full.professional.user?.email) {
+                  await sendNewBookingNotification({
+                    professionalEmail: full.professional.user.email,
+                    professionalName: full.professional.nomeCompleto,
+                    patientName: full.patient.nome,
+                    serviceName: full.service.nome,
+                    appointmentStart: full.inicio,
+                    valor: valorStr,
+                  });
+                }
               }
+            } catch (emailErr) {
+              console.error("[webhook] Erro ao enviar e-mails pós-pagamento:", emailErr);
             }
-          } catch (emailErr) {
-            // Falha no e-mail não deve travar o webhook
-            console.error("[webhook] Erro ao enviar e-mails pós-pagamento:", emailErr);
+          } catch (dbErr) {
+            console.error(`[MP webhook] Erro ao atualizar agendamento ${appointmentId}:`, dbErr);
           }
-        } catch (dbErr) {
-          console.error(`[MP webhook] Erro ao atualizar agendamento ${appointmentId}:`, dbErr);
+        } else {
+          console.warn(`[MP webhook] Agendamento ${appointmentId} não encontrado`);
         }
-      } else {
-        console.warn(`[MP webhook] Agendamento ${appointmentId} não encontrado`);
       }
     } else {
       console.log(`[MP webhook] Pagamento ${resourceId} não aprovado ou sem external_reference`);

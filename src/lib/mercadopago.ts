@@ -3,7 +3,7 @@ import { z } from "zod";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { getAuth } from "@clerk/tanstack-start/server";
 import { getWebRequest } from "vinxi/http";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { appointments, professionals, users } from "../db/schema";
 import { getMPAccessToken, getMPAppCredentials } from "./integrations";
@@ -216,6 +216,72 @@ export const checkMPAccountStatus = createServerFn({ method: "POST" })
     }
 
     return { active: prof?.mpAccountAtivo ?? false };
+  });
+
+// ─── Preferência combinada para múltiplos agendamentos (carrinho) ────────────
+
+export const createCartMPPreference = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      appointmentIds: z.array(z.string()).min(1),
+      metodo: z.enum(["credito", "debito", "pix"]),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const apptList = await db.query.appointments.findMany({
+      where: inArray(appointments.id, data.appointmentIds),
+      with: { patient: true, service: true, professional: true },
+    });
+
+    if (apptList.length !== data.appointmentIds.length)
+      throw new Error("Um ou mais agendamentos não foram encontrados");
+
+    const prof = apptList[0].professional;
+    if (!prof.mpAccessToken) throw new Error("Médico não conectou o Mercado Pago ainda");
+
+    const client = getSellerClient(prof.mpAccessToken);
+    const preference = new Preference(client);
+
+    const origin = new URL(getWebRequest().url).origin;
+    const { appId } = await getMPAppCredentials();
+
+    const plan = await getProfessionalPlan(prof.id);
+    const comissaoPct = plan ? Number(plan.comissaoPct) : 0;
+    const totalValor = apptList.reduce((sum, a) => sum + Number(a.service.preco), 0);
+    const marketplaceFee = Math.round(totalValor * (comissaoPct / 100) * 100) / 100;
+
+    const result = await preference.create({
+      body: {
+        items: apptList.map((a) => ({
+          id: a.service.id,
+          title: a.service.nome,
+          quantity: 1,
+          unit_price: Number(a.service.preco),
+          currency_id: "BRL",
+        })),
+        payer: { email: apptList[0].patient.email, name: apptList[0].patient.nome },
+        back_urls: {
+          success: `${origin}/${prof.slug}?booking=success`,
+          failure: `${origin}/${prof.slug}?booking=failure`,
+          pending: `${origin}/${prof.slug}?booking=pending`,
+        },
+        auto_return: "approved",
+        external_reference: `cart:${data.appointmentIds.join("|")}`,
+        notification_url: `${origin}/api/webhooks/mp`,
+        payment_methods: { excluded_payment_types: excludedTypesFor(data.metodo) },
+        ...(appId && { marketplace: appId, marketplace_fee: marketplaceFee }),
+      },
+    });
+
+    if (!result.init_point)
+      throw new Error("Mercado Pago não retornou URL de checkout.");
+
+    await db
+      .update(appointments)
+      .set({ mpPreferenceId: result.id })
+      .where(inArray(appointments.id, data.appointmentIds));
+
+    return { url: result.init_point };
   });
 
 // Silencia aviso do lint para MercadoPagoConfig importado mas "não usado"

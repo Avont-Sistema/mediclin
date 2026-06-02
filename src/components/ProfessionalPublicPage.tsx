@@ -27,6 +27,8 @@ import {
   Sparkles,
   Check,
   CalendarOff,
+  X,
+  ShoppingCart,
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Calendar as CalendarPicker } from "./ui/calendar";
@@ -37,7 +39,7 @@ import {
   confirmCashBooking,
 } from "../lib/availability";
 import { fetchBlockedDates } from "../lib/folga";
-import { createMPPreference } from "../lib/mercadopago";
+import { createMPPreference, createCartMPPreference } from "../lib/mercadopago";
 import { PaymentMethodScreen } from "./PaymentMethodScreen";
 import type { InferSelectModel } from "drizzle-orm";
 import type { professionals, services, professionalCards } from "../db/schema";
@@ -45,6 +47,14 @@ import type { professionals, services, professionalCards } from "../db/schema";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Service = InferSelectModel<typeof services>;
+
+type CartItem = {
+  id: string;
+  service: Service;
+  member?: ClinicMember;
+  date: Date;
+  slot: string;
+};
 
 export type ProfessionalCard = InferSelectModel<typeof professionalCards>;
 
@@ -89,7 +99,14 @@ type Phase =
       meetLink?: string | null;
       modalidade?: "presencial" | "online";
       member?: ClinicMember;
-    };
+    }
+  | {
+      tag: "cartPagamento";
+      appointmentIds: string[];
+      total: number;
+      metodos: string[];
+    }
+  | { tag: "cartConfirmado" };
 
 // Modalidade efetiva = resolve "ambos" pela escolha do paciente
 type Modalidade = "presencial" | "online";
@@ -267,8 +284,17 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
   const [bookingSuccess, setBookingSuccess] = useState(false);
-  // Modalidade escolhida pelo paciente (só usada quando o serviço é "ambos")
   const [modalidadeEscolhida, setModalidadeEscolhida] = useState<Modalidade>("presencial");
+
+  // ── Carrinho ──────────────────────────────────────────────────────────────
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [pendingService, setPendingService] = useState<{
+    service: Service;
+    member?: ClinicMember;
+  } | null>(null);
+  const [serviceQueue, setServiceQueue] = useState<
+    Array<{ service: Service; member?: ClinicMember }>
+  >([]);
 
   const isClinic = professional.plano === "clinic" && (professional.members?.length ?? 0) > 0;
 
@@ -277,6 +303,58 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
       createMPPreference({ data: vars }),
     onSuccess: ({ url }) => {
       window.location.href = url;
+    },
+  });
+
+  // ── Checkout do carrinho ──────────────────────────────────────────────────
+  const cartBookingsMutation = useMutation({
+    mutationFn: async () => {
+      if (cart.length === 0) throw new Error("Carrinho vazio");
+      const results = await Promise.all(
+        cart.map((item) => {
+          const targetId = item.member?.id ?? professional.id;
+          const modalidade = resolveModalidade(item.service, "presencial");
+          return createBooking({
+            data: {
+              professionalId: targetId,
+              serviceId: item.service.id,
+              dateStr: toDateStr(item.date),
+              timeSlot: item.slot,
+              duracaoMinutos: item.service.duracaoMinutos,
+              modalidade,
+              patient: { nome, email, telefone },
+            },
+          });
+        }),
+      );
+      return results.map((r) => r.appointmentId);
+    },
+    onSuccess: (appointmentIds) => {
+      const total = cart.reduce((s, i) => s + Number(i.service.preco), 0);
+      const metodos = (professional.metodosPagamento ?? []).filter(
+        (m) => m === "dinheiro" || professional.mpAccountAtivo,
+      );
+      setPhase({ tag: "cartPagamento", appointmentIds, total, metodos });
+    },
+  });
+
+  const cartMPMutation = useMutation({
+    mutationFn: (vars: { appointmentIds: string[]; metodo: "credito" | "debito" | "pix" }) =>
+      createCartMPPreference({ data: vars }),
+    onSuccess: ({ url }) => {
+      window.location.href = url;
+    },
+  });
+
+  const cartCashMutation = useMutation({
+    mutationFn: async (appointmentIds: string[]) => {
+      await Promise.all(
+        appointmentIds.map((id) => confirmCashBooking({ data: { appointmentId: id } })),
+      );
+    },
+    onSuccess: () => {
+      setCart([]);
+      setPhase({ tag: "cartConfirmado" });
     },
   });
 
@@ -380,6 +458,61 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
     bookingMutation.reset();
     mpMutation.reset();
     cashMutation.reset();
+    setCart([]);
+    setServiceQueue([]);
+  };
+
+  // ── Handlers do carrinho ──────────────────────────────────────────────────
+
+  const handleServiceSelect = (svc: Service, member?: ClinicMember) => {
+    // Se wizard ativo → mostra dialog de conflito
+    if (phase.tag === "data" || phase.tag === "hora") {
+      setPendingService({ service: svc, member });
+      return;
+    }
+    setSelectedSlot(null);
+    setModalidadeEscolhida("presencial");
+    setPhase({ tag: "data", service: svc, member });
+  };
+
+  const handleTrocarServico = () => {
+    if (!pendingService) return;
+    setSelectedSlot(null);
+    setModalidadeEscolhida("presencial");
+    setPhase({ tag: "data", service: pendingService.service, member: pendingService.member });
+    setPendingService(null);
+  };
+
+  const handleQueueServico = () => {
+    if (!pendingService) return;
+    setServiceQueue((prev) => [...prev, pendingService]);
+    setPendingService(null);
+  };
+
+  const handleAddToCart = () => {
+    if (phase.tag !== "hora" || !selectedSlot) return;
+    const item: CartItem = {
+      id: crypto.randomUUID(),
+      service: phase.service,
+      member: phase.member,
+      date: phase.date,
+      slot: selectedSlot,
+    };
+    setCart((prev) => [...prev, item]);
+    setSelectedSlot(null);
+    bookingMutation.reset();
+
+    const next = serviceQueue[0];
+    if (next) {
+      setServiceQueue((prev) => prev.slice(1));
+      setPhase({ tag: "data", service: next.service, member: next.member });
+    } else {
+      setPhase({ tag: "idle" });
+    }
+  };
+
+  const handleRemoveFromCart = (id: string) => {
+    setCart((prev) => prev.filter((i) => i.id !== id));
   };
 
   return (
@@ -471,7 +604,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
           />
         )}
 
-        {/* Payment method selection */}
+        {/* Payment method selection — serviço único */}
         {phase.tag === "pagamento" && (
           <PaymentMethodScreen
             professionalNome={phase.member?.nomeCompleto ?? professional.nomeCompleto}
@@ -490,6 +623,46 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
             onPickCash={() => cashMutation.mutate(phase.appointmentId)}
             onBack={handleReset}
           />
+        )}
+
+        {/* Payment method selection — carrinho */}
+        {phase.tag === "cartPagamento" && (
+          <PaymentMethodScreen
+            professionalNome={professional.nomeCompleto}
+            serviceNome={`${phase.appointmentIds.length} serviço${phase.appointmentIds.length !== 1 ? "s" : ""}`}
+            valor={phase.total}
+            dataLabel="Múltiplos agendamentos"
+            metodos={phase.metodos}
+            onlinePending={cartMPMutation.isPending}
+            cashPending={cartCashMutation.isPending}
+            onPickOnline={(metodo) =>
+              cartMPMutation.mutate({ appointmentIds: phase.appointmentIds, metodo })
+            }
+            onPickCash={() => cartCashMutation.mutate(phase.appointmentIds)}
+            onBack={() => {
+              setPhase({ tag: "idle" });
+              cartBookingsMutation.reset();
+            }}
+          />
+        )}
+
+        {/* Confirmação do carrinho */}
+        {phase.tag === "cartConfirmado" && (
+          <div className="rounded-2xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+              <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+            </div>
+            <h2 className="text-xl font-black text-slate-900">Agendamentos confirmados!</h2>
+            <p className="mt-2 text-sm text-slate-500">
+              Todos os seus serviços foram agendados com sucesso.
+            </p>
+            <button
+              onClick={handleReset}
+              className="mt-6 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
+            >
+              Voltar ao início
+            </button>
+          </div>
         )}
 
         {/* Clinic: step 1 — choose professional */}
@@ -516,11 +689,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
                     brand={brand}
                     colors={colors}
                     onBack={() => setPhase({ tag: "idle" })}
-                    onSelect={(svc) => {
-                      setSelectedSlot(null);
-                      setModalidadeEscolhida("presencial");
-                      setPhase({ tag: "data", service: svc, member: phase.member });
-                    }}
+                    onSelect={(svc) => handleServiceSelect(svc, phase.member)}
                   />
                 )}
 
@@ -530,49 +699,72 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
                     professional={professional}
                     brand={brand}
                     colors={colors}
-                    onSelect={(svc) => {
-                      setSelectedSlot(null);
-                      setModalidadeEscolhida("presencial");
-                      setPhase({ tag: "data", service: svc });
-                    }}
+                    onSelect={(svc) => handleServiceSelect(svc)}
                   />
                 )}
 
                 {/* Step 2: date picker */}
                 {phase.tag === "data" && (
-                  <StepDate
-                    professionalId={phase.member?.id ?? professional.id}
-                    service={phase.service}
-                    brand={brand}
-                    onBack={() =>
-                      isClinic && phase.member
-                        ? setPhase({ tag: "servicos", member: phase.member })
-                        : setPhase({ tag: "idle" })
-                    }
-                    onNext={(date) =>
-                      setPhase({ tag: "hora", service: phase.service, date, member: phase.member })
-                    }
-                  />
+                  <>
+                    <StepDate
+                      professionalId={phase.member?.id ?? professional.id}
+                      service={phase.service}
+                      brand={brand}
+                      onBack={() =>
+                        isClinic && phase.member
+                          ? setPhase({ tag: "servicos", member: phase.member })
+                          : setPhase({ tag: "idle" })
+                      }
+                      onNext={(date) =>
+                        setPhase({ tag: "hora", service: phase.service, date, member: phase.member })
+                      }
+                    />
+                    <AddOutroServicoBotao
+                      professional={professional}
+                      brand={brand}
+                      colors={colors}
+                      serviceQueue={serviceQueue}
+                      onSelect={(svc, member) => handleServiceSelect(svc, member)}
+                    />
+                  </>
                 )}
 
                 {/* Step 3: time slots */}
                 {phase.tag === "hora" && (
-                  <StepTime
-                    professionalId={phase.member?.id ?? professional.id}
-                    service={phase.service}
-                    date={phase.date}
-                    selectedSlot={selectedSlot}
-                    brand={brand}
-                    onBack={() =>
-                      setPhase({ tag: "data", service: phase.service, member: phase.member })
-                    }
-                    onSelectSlot={(slot) => setSelectedSlot(slot)}
-                  />
+                  <>
+                    <StepTime
+                      professionalId={phase.member?.id ?? professional.id}
+                      service={phase.service}
+                      date={phase.date}
+                      selectedSlot={selectedSlot}
+                      brand={brand}
+                      onBack={() =>
+                        setPhase({ tag: "data", service: phase.service, member: phase.member })
+                      }
+                      onSelectSlot={(slot) => setSelectedSlot(slot)}
+                      onAddToCart={selectedSlot ? handleAddToCart : undefined}
+                    />
+                    <AddOutroServicoBotao
+                      professional={professional}
+                      brand={brand}
+                      colors={colors}
+                      serviceQueue={serviceQueue}
+                      onSelect={(svc, member) => handleServiceSelect(svc, member)}
+                    />
+                  </>
                 )}
               </div>
 
               {/* RIGHT: sticky summary panel */}
-              <div className="lg:sticky lg:top-6">
+              <div className="lg:sticky lg:top-6 space-y-4">
+                {/* Carrinho (quando tem itens e wizard ativo) */}
+                {cart.length > 0 && phase.tag !== "idle" && (
+                  <CartPanel
+                    cart={cart}
+                    brand={brand}
+                    onRemove={handleRemoveFromCart}
+                  />
+                )}
                 <SummaryPanel
                   phase={phase}
                   selectedSlot={selectedSlot}
@@ -594,16 +786,41 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
                   canConfirm={canConfirm}
                   isConfirming={isConfirming}
                   onConfirm={handleConfirm}
+                  onAddToCart={selectedSlot && phase.tag === "hora" ? handleAddToCart : undefined}
+                  cart={cart}
+                  canCheckoutCart={
+                    cart.length > 0 &&
+                    phase.tag === "idle" &&
+                    nome.trim().length >= 2 &&
+                    telefone.trim().length >= 8
+                  }
+                  isCheckingOutCart={cartBookingsMutation.isPending}
+                  onCheckoutCart={() => cartBookingsMutation.mutate()}
+                  onRemoveFromCart={handleRemoveFromCart}
                   error={
                     bookingMutation.error instanceof Error
                       ? bookingMutation.error.message
-                      : undefined
+                      : cartBookingsMutation.error instanceof Error
+                        ? cartBookingsMutation.error.message
+                        : undefined
                   }
                 />
               </div>
             </div>
           )}
       </section>
+
+      {/* Dialog: trocar serviço atual ou adicionar à fila */}
+      {pendingService && (phase.tag === "data" || phase.tag === "hora") && (
+        <PendingServiceDialog
+          currentServiceNome={phase.service.nome}
+          newService={pendingService.service}
+          queue={serviceQueue}
+          onTrocar={handleTrocarServico}
+          onAddToQueue={handleQueueServico}
+          onClose={() => setPendingService(null)}
+        />
+      )}
 
       {/* Footer */}
       <footer className="mt-16 border-t border-slate-100 py-8 text-center">
@@ -956,6 +1173,7 @@ function StepTime({
   brand,
   onBack,
   onSelectSlot,
+  onAddToCart,
 }: {
   professionalId: string;
   service: Service;
@@ -964,6 +1182,7 @@ function StepTime({
   brand: string;
   onBack: () => void;
   onSelectSlot: (slot: string) => void;
+  onAddToCart?: () => void;
 }) {
   const { data: slots = [], isFetching } = useQuery({
     queryKey: ["slots", professionalId, toDateStr(date)],
@@ -1024,10 +1243,20 @@ function StepTime({
               ))}
             </div>
             {selectedSlot && (
-              <p className="mt-4 text-center text-xs text-slate-500">
-                Horário <strong>{selectedSlot}</strong> selecionado. Preencha seus dados ao lado
-                para confirmar.
-              </p>
+              <>
+                <p className="mt-4 text-center text-xs text-slate-500">
+                  Horário <strong>{selectedSlot}</strong> selecionado. Preencha seus dados ao lado
+                  para confirmar.
+                </p>
+                {onAddToCart && (
+                  <button
+                    onClick={onAddToCart}
+                    className="mt-2 w-full text-xs text-center font-medium py-2 rounded-xl border border-dashed border-teal-300 text-teal-600 hover:bg-teal-50 transition"
+                  >
+                    + Adicionar ao carrinho e escolher mais serviços
+                  </button>
+                )}
+              </>
             )}
           </>
         )}
@@ -1055,6 +1284,12 @@ function SummaryPanel({
   canConfirm,
   isConfirming,
   onConfirm,
+  onAddToCart,
+  cart,
+  canCheckoutCart,
+  isCheckingOutCart,
+  onCheckoutCart,
+  onRemoveFromCart,
   error,
 }: {
   phase: Phase;
@@ -1073,6 +1308,12 @@ function SummaryPanel({
   canConfirm: boolean;
   isConfirming: boolean;
   onConfirm: () => void;
+  onAddToCart?: () => void;
+  cart: CartItem[];
+  canCheckoutCart: boolean;
+  isCheckingOutCart: boolean;
+  onCheckoutCart: () => void;
+  onRemoveFromCart: (id: string) => void;
   error?: string;
 }) {
   const service =
@@ -1209,40 +1450,100 @@ function SummaryPanel({
         </div>
       </div>
 
+      {/* Itens no carrinho (compacto, quando phase === idle) */}
+      {cart.length > 0 && phase.tag === "idle" && (
+        <div className="mx-5 mb-4 rounded-xl border border-teal-100 bg-teal-50/60 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-teal-600 mb-2">
+            Carrinho ({cart.length})
+          </p>
+          <ul className="space-y-1.5">
+            {cart.map((item) => (
+              <li key={item.id} className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-800 truncate">{item.service.nome}</p>
+                  <p className="text-[10px] text-slate-500">
+                    {item.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} · {item.slot}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs font-bold text-slate-700">{fmt(item.service.preco)}</span>
+                  <button
+                    onClick={() => onRemoveFromCart(item.id)}
+                    className="h-5 w-5 grid place-items-center rounded-full hover:bg-rose-100 text-slate-400 hover:text-rose-500 transition"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-2 pt-2 border-t border-teal-200 flex justify-between">
+            <span className="text-xs font-bold text-slate-700">Total</span>
+            <span className="text-xs font-bold text-slate-900">
+              {fmt(cart.reduce((s, i) => s + Number(i.service.preco), 0))}
+            </span>
+          </div>
+        </div>
+      )}
+
       {error && (
         <p className="mx-5 mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">
           {error}
         </p>
       )}
 
-      <div className="px-5 pb-6">
-        <button
-          disabled={!canConfirm || isConfirming}
-          onClick={onConfirm}
-          className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: brand }}
-        >
-          {isConfirming ? (
-            <span className="flex items-center justify-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" /> Confirmando...
-            </span>
-          ) : professional.mpAccountAtivo ? (
-            <span className="flex items-center justify-center gap-2">
-              <CreditCard className="h-4 w-4" /> Ir para pagamento →
-            </span>
-          ) : (
-            "Confirmar agendamento →"
-          )}
-        </button>
+      <div className="px-5 pb-6 space-y-2">
+        {/* Botão principal: confirmar serviço único OU finalizar carrinho */}
+        {cart.length > 0 && phase.tag === "idle" ? (
+          <button
+            disabled={!canCheckoutCart || isCheckingOutCart}
+            onClick={onCheckoutCart}
+            className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            style={{ background: brand }}
+          >
+            {isCheckingOutCart ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Criando agendamentos...
+              </>
+            ) : (
+              <>
+                <CreditCard className="h-4 w-4" />
+                Finalizar {cart.length} serviço{cart.length !== 1 ? "s" : ""} →
+              </>
+            )}
+          </button>
+        ) : (
+          <button
+            disabled={!canConfirm || isConfirming}
+            onClick={onConfirm}
+            className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: brand }}
+          >
+            {isConfirming ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Confirmando...
+              </span>
+            ) : professional.mpAccountAtivo ? (
+              <span className="flex items-center justify-center gap-2">
+                <CreditCard className="h-4 w-4" /> Ir para pagamento →
+              </span>
+            ) : (
+              "Confirmar agendamento →"
+            )}
+          </button>
+        )}
 
-        {!canConfirm && phase.tag !== "idle" && (
-          <p className="mt-2 text-center text-[11px] text-slate-400">
+        {!canConfirm && phase.tag !== "idle" && cart.length === 0 && (
+          <p className="text-center text-[11px] text-slate-400">
             {!service
               ? "Selecione um serviço"
               : !selectedSlot
                 ? "Selecione data e horário"
                 : "Preencha nome e telefone"}
           </p>
+        )}
+        {cart.length > 0 && phase.tag === "idle" && !canCheckoutCart && (
+          <p className="text-center text-[11px] text-slate-400">Preencha nome e telefone para finalizar</p>
         )}
 
         <div className="mt-4 flex items-center justify-center gap-4 text-slate-400">
@@ -1562,6 +1863,193 @@ function buildWhatsAppUrl(
   ].join("\n");
   const base = phone ? `https://wa.me/${phone}` : `https://wa.me`;
   return `${base}?text=${encodeURIComponent(msg)}`;
+}
+
+// ─── PendingServiceDialog ────────────────────────────────────────────────────
+
+function PendingServiceDialog({
+  currentServiceNome,
+  newService,
+  queue,
+  onTrocar,
+  onAddToQueue,
+  onClose,
+}: {
+  currentServiceNome: string;
+  newService: Service;
+  queue: Array<{ service: Service; member?: ClinicMember }>;
+  onTrocar: () => void;
+  onAddToQueue: () => void;
+  onClose: () => void;
+}) {
+  const alreadyQueued = queue.some((q) => q.service.id === newService.id);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+        <p className="text-xs text-slate-500 mb-0.5">Você está agendando</p>
+        <p className="font-bold text-slate-900 mb-4 truncate">{currentServiceNome}</p>
+
+        <p className="text-xs text-slate-400 mb-3">
+          O que fazer com <strong className="text-slate-700">{newService.nome}</strong>?
+        </p>
+
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={onTrocar}
+            className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-left transition hover:bg-slate-50"
+          >
+            <span className="font-semibold text-slate-800">🔄 Trocar por este serviço</span>
+            <p className="text-[11px] text-slate-400 mt-0.5">Cancela a seleção atual e começa com {newService.nome}</p>
+          </button>
+
+          {!alreadyQueued && (
+            <button
+              onClick={onAddToQueue}
+              className="w-full rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-left transition hover:bg-teal-100"
+            >
+              <span className="font-semibold text-teal-700">+ Adicionar ao carrinho depois</span>
+              <p className="text-[11px] text-teal-500 mt-0.5">
+                Termine o agendamento atual — {newService.nome} será o próximo
+              </p>
+            </button>
+          )}
+
+          <button
+            onClick={onClose}
+            className="w-full text-xs text-center text-slate-400 py-2 hover:text-slate-600 transition"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── AddOutroServicoBotao ─────────────────────────────────────────────────────
+
+function AddOutroServicoBotao({
+  professional,
+  brand,
+  serviceQueue,
+  onSelect,
+}: {
+  professional: ProfessionalPublic;
+  brand: string;
+  colors: ColorPalette;
+  serviceQueue: Array<{ service: Service; member?: ClinicMember }>;
+  onSelect: (svc: Service, member?: ClinicMember) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (professional.services.length === 0) return null;
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2.5 rounded-xl border border-dashed border-slate-200 text-slate-400 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50/50 transition"
+      >
+        <ShoppingCart className="h-3.5 w-3.5" />
+        Adicionar outro serviço ao carrinho
+        {serviceQueue.length > 0 && (
+          <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-teal-100 text-teal-600 font-bold text-[10px]">
+            {serviceQueue.length}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
+          <div className="relative bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <p className="font-bold text-slate-900">Escolher outro serviço</p>
+              <button
+                onClick={() => setOpen(false)}
+                className="h-7 w-7 grid place-items-center rounded-lg hover:bg-slate-100 text-slate-400"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {professional.services.map((svc, idx) => (
+                <ServiceCard
+                  key={svc.id}
+                  svc={svc}
+                  idx={idx}
+                  brand={brand}
+                  onSelect={(s) => {
+                    onSelect(s);
+                    setOpen(false);
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── CartPanel ────────────────────────────────────────────────────────────────
+
+function CartPanel({
+  cart,
+  onRemove,
+}: {
+  cart: CartItem[];
+  brand: string;
+  onRemove: (id: string) => void;
+}) {
+  if (cart.length === 0) return null;
+
+  const total = cart.reduce((s, i) => s + Number(i.service.preco), 0);
+
+  return (
+    <div className="rounded-2xl border border-teal-200 bg-teal-50/50 p-4 shadow-sm">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-teal-600 mb-3 flex items-center gap-1.5">
+        <ShoppingCart className="h-3 w-3" />
+        No carrinho ({cart.length})
+      </p>
+      <ul className="space-y-2">
+        {cart.map((item) => (
+          <li
+            key={item.id}
+            className="flex items-start gap-2 bg-white rounded-xl px-3 py-2 border border-teal-100"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-slate-800 truncate">{item.service.nome}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">
+                {item.date.toLocaleDateString("pt-BR", {
+                  weekday: "short",
+                  day: "2-digit",
+                  month: "short",
+                })}{" "}
+                · {item.slot}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-bold text-slate-700">{fmt(item.service.preco)}</span>
+              <button
+                onClick={() => onRemove(item.id)}
+                className="h-5 w-5 grid place-items-center rounded-full hover:bg-rose-100 text-slate-400 hover:text-rose-500 transition"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3 pt-2 border-t border-teal-200 flex justify-between items-center">
+        <span className="text-xs text-slate-500">Total parcial</span>
+        <span className="text-sm font-black text-slate-900">{fmt(total)}</span>
+      </div>
+    </div>
+  );
 }
 
 // ─── Not-found ────────────────────────────────────────────────────────────────
