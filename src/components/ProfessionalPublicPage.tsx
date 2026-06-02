@@ -76,6 +76,7 @@ type Phase =
       modalidade?: "presencial" | "online";
       member?: ClinicMember;
       appointmentId: string;
+      metodos: string[];
     }
   | {
       tag: "confirmado";
@@ -320,10 +321,13 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
       const modalidade = resolveModalidade(phase.service, modalidadeEscolhida);
       const meetLink =
         modalidade === "online" ? (phase.member?.meetLink ?? professional.meetLink) : null;
-      const metodos = professional.metodosPagamento ?? [];
+      // Métodos usáveis pelo paciente: dinheiro sempre; online só com MP conectado.
+      const metodos = (professional.metodosPagamento ?? []).filter(
+        (m) => m === "dinheiro" || professional.mpAccountAtivo,
+      );
 
-      // MP conectado + ao menos um método ativo → tela de escolha de pagamento.
-      if (professional.mpAccountAtivo && metodos.length > 0) {
+      // Ao menos um método usável → tela de escolha de pagamento.
+      if (metodos.length > 0) {
         setPhase({
           tag: "pagamento",
           service: phase.service,
@@ -334,6 +338,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
           modalidade,
           member: phase.member,
           appointmentId: result.appointmentId,
+          metodos,
         });
       } else {
         // Sem MP ou sem métodos: confirma direto (paga presencialmente).
@@ -474,7 +479,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
               day: "2-digit",
               month: "long",
             })} às ${phase.slot}`}
-            metodos={professional.metodosPagamento ?? []}
+            metodos={phase.metodos}
             onlinePending={mpMutation.isPending}
             cashPending={cashMutation.isPending}
             onPickOnline={(metodo) =>
