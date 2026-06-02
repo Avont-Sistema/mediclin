@@ -1039,6 +1039,7 @@ function formatPeriodEnd(iso: string | null): string {
 function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | null }) {
   const [successBanner, setSuccessBanner] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PublicPlan | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const { data: activePlans = [] } = useQuery({
     queryKey: ["activePlans"],
@@ -1048,7 +1049,13 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
   const checkoutMutation = useMutation({
     mutationFn: (planId: string) => createMPSubscriptionCheckout({ data: { planId } }),
     onSuccess: ({ url }) => {
+      setCheckoutError(null);
       window.location.href = url;
+    },
+    onError: (error) => {
+      setCheckoutError(
+        error instanceof Error ? error.message : "Erro ao processar o checkout. Tente novamente."
+      );
     },
   });
 
@@ -1106,8 +1113,15 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
         open={!!selectedPlan}
         plan={selectedPlan}
         pending={isCheckoutPending}
-        onConfirm={(id) => checkoutMutation.mutate(id)}
-        onClose={() => setSelectedPlan(null)}
+        error={checkoutError}
+        onConfirm={(id) => {
+          setCheckoutError(null);
+          checkoutMutation.mutate(id);
+        }}
+        onClose={() => {
+          setSelectedPlan(null);
+          setCheckoutError(null);
+        }}
       />
     </>
   );

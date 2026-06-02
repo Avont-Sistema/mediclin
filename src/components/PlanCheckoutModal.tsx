@@ -8,6 +8,7 @@ interface Props {
   open: boolean;
   plan: PublicPlan | null;
   pending: boolean;
+  error?: string | null;
   onConfirm: (planId: string) => void;
   onClose: () => void;
 }
@@ -33,7 +34,7 @@ function formatPlanPrice(precoMensal: string): string {
 
 // ─── PlanCheckoutModal ────────────────────────────────────────────────────────
 
-export function PlanCheckoutModal({ open, plan, pending, onConfirm, onClose }: Props) {
+export function PlanCheckoutModal({ open, plan, pending, error, onConfirm, onClose }: Props) {
   // Fecha no Escape (mesmo padrão do NovoAgendamentoModal)
   useEffect(() => {
     if (!open) return;
@@ -106,6 +107,13 @@ export function PlanCheckoutModal({ open, plan, pending, onConfirm, onClose }: P
                 </span>
               )}
             </div>
+
+            {/* Mensagem de erro */}
+            {error && (
+              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs text-rose-700">
+                {error}
+              </div>
+            )}
           </div>
 
           {/* Rodapé */}
