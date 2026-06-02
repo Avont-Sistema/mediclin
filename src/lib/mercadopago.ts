@@ -9,12 +9,33 @@ import { appointments, professionals, users } from "../db/schema";
 import { getMPAccessToken, getMPAppCredentials } from "./integrations";
 import { getProfessionalPlan } from "./plans";
 
-// Tipos de pagamento do MP a EXCLUIR para deixar só o método escolhido pelo paciente.
-const EXCLUDED_TYPES: Record<"credito" | "debito" | "pix", string[]> = {
-  credito: ["debit_card", "ticket", "bank_transfer", "atm"],
-  debito: ["credit_card", "ticket", "bank_transfer", "atm"],
-  pix: ["credit_card", "debit_card", "ticket", "atm"],
+// Todos os tipos de pagamento do MP. Para deixar SÓ o método escolhido, excluímos
+// todos os outros (abordagem allowlist → exclui o complemento).
+const ALL_PAYMENT_TYPES = [
+  "credit_card",
+  "debit_card",
+  "prepaid_card",
+  "ticket",
+  "atm",
+  "bank_transfer",
+  "account_money",
+  "digital_currency",
+  "digital_wallet",
+  "voucher_card",
+  "crypto_transfer",
+];
+
+// Tipo(s) do MP que cada método nosso permite.
+const ALLOWED_TYPES: Record<"credito" | "debito" | "pix", string[]> = {
+  credito: ["credit_card"],
+  debito: ["debit_card"],
+  pix: ["bank_transfer"],
 };
+
+function excludedTypesFor(metodo: "credito" | "debito" | "pix") {
+  const allowed = ALLOWED_TYPES[metodo];
+  return ALL_PAYMENT_TYPES.filter((t) => !allowed.includes(t)).map((id) => ({ id }));
+}
 
 async function getPlatformClient(): Promise<MercadoPagoConfig> {
   const token = await getMPAccessToken();
@@ -82,7 +103,7 @@ export const createMPPreference = createServerFn({ method: "POST" })
         notification_url: `${origin}/api/webhooks/mp`,
         // Restringe o checkout do MP ao método escolhido pelo paciente.
         payment_methods: {
-          excluded_payment_types: EXCLUDED_TYPES[data.metodo].map((id) => ({ id })),
+          excluded_payment_types: excludedTypesFor(data.metodo),
         },
         ...(appId && { marketplace: appId, marketplace_fee: marketplaceFee }),
       },
