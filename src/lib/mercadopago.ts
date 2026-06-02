@@ -109,13 +109,17 @@ export const createMPPreference = createServerFn({ method: "POST" })
       },
     });
 
+    if (!result.init_point) {
+      throw new Error("Mercado Pago não retornou URL de checkout. Tente novamente ou contate o suporte.");
+    }
+
     // Persiste o preference ID no agendamento
     await db
       .update(appointments)
       .set({ mpPreferenceId: result.id })
       .where(eq(appointments.id, appt.id));
 
-    return { url: result.init_point! };
+    return { url: result.init_point };
   });
 
 // ─── Gerar link OAuth para o médico conectar conta MP ────────────────────────

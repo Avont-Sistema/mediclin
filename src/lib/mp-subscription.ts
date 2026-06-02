@@ -86,6 +86,10 @@ export const createMPSubscriptionCheckout = createServerFn({ method: "POST" })
       },
     });
 
+    if (!result.init_point) {
+      throw new Error("Mercado Pago não retornou URL de checkout. Tente novamente ou contate o suporte.");
+    }
+
     // Salva o preapproval_id (será atualizado via webhook quando ativado)
     await db
       .insert(subscriptions)
@@ -109,7 +113,7 @@ export const createMPSubscriptionCheckout = createServerFn({ method: "POST" })
         },
       });
 
-    return { url: result.init_point! };
+    return { url: result.init_point };
   });
 
 // ─── Link para gerenciar assinatura no portal MP ──────────────────────────────
