@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useId, useRef, useEffect } from "react";
 import { useSignIn, useUser, useAuth } from "@clerk/tanstack-start";
 import {
@@ -396,10 +396,17 @@ function OnboardingWizard() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4 py-12">
       {/* Logo */}
-      <div className="flex items-center gap-2.5 mb-8">
+      <div className={`flex items-center gap-2.5 ${step === 1 ? "mb-3" : "mb-8"}`}>
         <img src="/logo-icon.png" alt="CuidandoVC" className="size-9 rounded-xl object-contain" />
         <span className="text-xl font-bold tracking-tight text-slate-800">CuidandoVC</span>
       </div>
+
+      {/* Atalho para quem já tem conta (só na primeira etapa) */}
+      {step === 1 && (
+        <Link to="/sign-in" className="mb-7 text-sm text-slate-500 hover:text-teal-600 transition">
+          Já tem uma conta? <span className="font-semibold text-teal-600">Entrar</span>
+        </Link>
+      )}
 
       {/* Progress bar */}
       <div className="w-full max-w-lg mb-8">

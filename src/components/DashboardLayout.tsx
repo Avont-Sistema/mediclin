@@ -61,7 +61,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     .join("");
 
   function handleSignOut() {
-    void signOut(() => void navigate({ to: "/" }));
+    void signOut(() => void navigate({ to: "/sign-in" }));
   }
 
   // ── Shared nav items renderer (used in both sidebar & drawer) ───────────────
@@ -110,7 +110,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* ── Mobile top bar ─────────────────────────────────────────────────────── */}
       <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between border-b border-slate-200 bg-white px-4 h-14">
         <Link to="/" className="flex items-center gap-2">
-          <img src="/logo-icon.png" alt="CuidandoVC" className="h-8 w-8 rounded-lg object-contain" />
+          <img
+            src="/logo-icon.png"
+            alt="CuidandoVC"
+            className="h-8 w-8 rounded-lg object-contain"
+          />
           <span className="text-sm font-semibold tracking-tight">CuidandoVC</span>
         </Link>
 
@@ -137,7 +141,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* Drawer header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
               <Link to="/" className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
-                <img src="/logo-icon.png" alt="CuidandoVC" className="h-9 w-9 rounded-xl object-contain" />
+                <img
+                  src="/logo-icon.png"
+                  alt="CuidandoVC"
+                  className="h-9 w-9 rounded-xl object-contain"
+                />
                 <div>
                   <div className="text-sm font-semibold tracking-tight">CuidandoVC</div>
                   <div className="text-[11px] text-slate-500">Painel do médico</div>
@@ -184,7 +192,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white min-h-screen sticky top-0">
           <div className="px-6 py-5 border-b border-slate-100">
             <Link to="/" className="flex items-center gap-2">
-              <img src="/logo-icon.png" alt="CuidandoVC" className="h-9 w-9 rounded-xl object-contain" />
+              <img
+                src="/logo-icon.png"
+                alt="CuidandoVC"
+                className="h-9 w-9 rounded-xl object-contain"
+              />
               <div>
                 <div className="text-sm font-semibold tracking-tight">CuidandoVC</div>
                 <div className="text-[11px] text-slate-500">Painel do médico</div>

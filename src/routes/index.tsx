@@ -103,7 +103,7 @@ function Nav() {
 
         <div className="flex items-center gap-3">
           <Link
-            to="/onboarding"
+            to="/sign-in"
             className="hidden text-sm text-muted-foreground hover:text-foreground transition-colors sm:block"
           >
             Entrar
@@ -626,7 +626,7 @@ function FinalCTA() {
               Começar grátis <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              to="/onboarding"
+              to="/sign-in"
               className="inline-flex h-12 items-center gap-2 rounded-full border border-background/20 px-6 text-sm font-medium text-background hover:bg-background/10 transition"
             >
               Já tenho conta
@@ -663,7 +663,7 @@ function Footer() {
           <a href="#" className="hover:text-foreground transition-colors">
             Suporte
           </a>
-          <Link to="/onboarding" className="hover:text-foreground transition-colors">
+          <Link to="/sign-in" className="hover:text-foreground transition-colors">
             Entrar
           </Link>
           <Link
