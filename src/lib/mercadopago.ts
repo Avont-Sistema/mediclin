@@ -11,6 +11,8 @@ import { getProfessionalPlan } from "./plans";
 
 // Todos os tipos de pagamento do MP. Para deixar SÓ o método escolhido, excluímos
 // todos os outros (abordagem allowlist → exclui o complemento).
+// account_money (saldo em conta MP) não pode ser excluído no Brasil pela API do MP.
+// Nunca inclua na lista de exclusões — simplesmente ignore e deixe disponível.
 const ALL_PAYMENT_TYPES = [
   "credit_card",
   "debit_card",
@@ -18,7 +20,6 @@ const ALL_PAYMENT_TYPES = [
   "ticket",
   "atm",
   "bank_transfer",
-  "account_money",
   "digital_currency",
   "digital_wallet",
   "voucher_card",
