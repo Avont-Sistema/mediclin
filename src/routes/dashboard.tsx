@@ -1,4 +1,5 @@
 import { createFileRoute, redirect, useNavigate, useRouter } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/tanstack-start";
 import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -1053,9 +1054,9 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
       window.location.href = url;
     },
     onError: (error) => {
-      setCheckoutError(
-        error instanceof Error ? error.message : "Erro ao processar o checkout. Tente novamente."
-      );
+      const msg = error instanceof Error ? error.message : "Erro ao processar o checkout. Tente novamente.";
+      setCheckoutError(msg);
+      toast.error(msg);
     },
   });
 

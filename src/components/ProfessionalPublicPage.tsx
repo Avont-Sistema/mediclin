@@ -30,6 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Calendar as CalendarPicker } from "./ui/calendar";
 import {
   fetchAvailableDays,
@@ -279,12 +280,18 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
     mutationFn: (vars: { appointmentId: string; metodo: "credito" | "debito" | "pix" }) =>
       createMPPreference({ data: vars }),
     onSuccess: ({ url }) => { window.location.href = url; },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Erro ao processar pagamento. Tente novamente.");
+    },
   });
 
   const cartMPMutation = useMutation({
     mutationFn: (vars: { appointmentIds: string[]; metodo: "credito" | "debito" | "pix" }) =>
       createCartMPPreference({ data: vars }),
     onSuccess: ({ url }) => { window.location.href = url; },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Erro ao processar pagamento. Tente novamente.");
+    },
   });
 
   const cashMutation = useMutation({
@@ -297,6 +304,9 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
           ? { tag: "confirmado", services: p.services, date: p.date, slot: p.slot, nome: p.nome, meetLink: p.meetLink, modalidade: p.modalidade }
           : p,
       );
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Erro ao confirmar agendamento. Tente novamente.");
     },
   });
 
@@ -320,6 +330,9 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
           patient: { nome, email, telefone },
         },
       });
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Erro ao criar agendamento. Tente novamente.");
     },
     onSuccess: (result) => {
       if (phase.tag !== "hora" || !selectedSlot) return;
