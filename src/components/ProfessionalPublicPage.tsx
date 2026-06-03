@@ -31,6 +31,14 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
+
+function msgFromError(err: unknown, fallback: string): string {
+  if (!err) return fallback;
+  if (typeof err === "string") return err;
+  const e = err as Record<string, unknown>;
+  if (typeof e.message === "string") return e.message;
+  return fallback;
+}
 import { Calendar as CalendarPicker } from "./ui/calendar";
 import {
   fetchAvailableDays,
@@ -281,7 +289,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
       createMPPreference({ data: vars }),
     onSuccess: ({ url }) => { window.location.href = url; },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Erro ao processar pagamento. Tente novamente.");
+      toast.error(msgFromError(err, "Erro ao processar pagamento. Tente novamente."));
     },
   });
 
@@ -290,7 +298,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
       createCartMPPreference({ data: vars }),
     onSuccess: ({ url }) => { window.location.href = url; },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Erro ao processar pagamento. Tente novamente.");
+      toast.error(msgFromError(err, "Erro ao processar pagamento. Tente novamente."));
     },
   });
 
@@ -306,7 +314,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
       );
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Erro ao confirmar agendamento. Tente novamente.");
+      toast.error(msgFromError(err, "Erro ao confirmar agendamento. Tente novamente."));
     },
   });
 
@@ -332,7 +340,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
       });
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Erro ao criar agendamento. Tente novamente.");
+      toast.error(msgFromError(err, "Erro ao criar agendamento. Tente novamente."));
     },
     onSuccess: (result) => {
       if (phase.tag !== "hora" || !selectedSlot) return;
