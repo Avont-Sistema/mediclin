@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, asc, eq, gte, lt, lte, not } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt, lte, not } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db";
 import {
@@ -308,6 +308,20 @@ export const createConsecutiveBookings = createServerFn({ method: "POST" })
     }
 
     return { appointmentIds };
+  });
+
+// ─── fetchAppointmentsPublic ──────────────────────────────────────────────────
+// Busca dados básicos de agendamentos para exibir a tela de sucesso após
+// redirecionamento do MP. Sem autenticação — protegido por UUID não adivinháveis.
+
+export const fetchAppointmentsPublic = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ ids: z.array(z.string().uuid()).min(1).max(10) }))
+  .handler(async ({ data }) => {
+    const appts = await db.query.appointments.findMany({
+      where: inArray(appointments.id, data.ids),
+      with: { service: true, patient: true },
+    });
+    return appts.sort((a, b) => a.inicio.getTime() - b.inicio.getTime());
   });
 
 // ─── confirmCashBooking ─────────────────────────────────────────────────────────

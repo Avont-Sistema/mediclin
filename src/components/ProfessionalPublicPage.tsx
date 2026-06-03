@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Clock,
   Video,
@@ -45,6 +45,7 @@ import {
   fetchAvailableSlots,
   createConsecutiveBookings,
   confirmCashBooking,
+  fetchAppointmentsPublic,
 } from "../lib/availability";
 import { fetchBlockedDates } from "../lib/folga";
 import { createMPPreference, createCartMPPreference } from "../lib/mercadopago";
@@ -283,6 +284,44 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
   const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
 
   const isClinic = professional.plano === "clinic" && (professional.members?.length ?? 0) > 0;
+
+  // Detecta redirect de volta do MP após pagamento aprovado e reconstrói a tela de sucesso.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("collection_status") ?? params.get("status");
+    const externalRef = params.get("external_reference");
+    if (status !== "approved" || !externalRef) return;
+
+    // Limpa a URL imediatamente para não repetir no refresh
+    window.history.replaceState({}, "", window.location.pathname);
+
+    const ids = externalRef.startsWith("cart:")
+      ? externalRef.slice(5).split("|").filter(Boolean)
+      : [externalRef];
+    if (ids.length === 0) return;
+
+    fetchAppointmentsPublic({ data: { ids } })
+      .then((appts) => {
+        if (!appts || appts.length === 0) return;
+        const first = appts[0];
+        const inicio = new Date(first.inicio);
+        const slot = `${String(inicio.getHours()).padStart(2, "0")}:${String(inicio.getMinutes()).padStart(2, "0")}`;
+        setPhase({
+          tag: "confirmado",
+          services: appts.map((a) => ({ service: a.service })),
+          date: inicio,
+          slot,
+          nome: first.patient.nome,
+          meetLink: first.meetLink ?? null,
+          modalidade: (first.modalidade as "presencial" | "online") ?? "presencial",
+        });
+      })
+      .catch(() => {
+        // Falha silenciosa — paciente vê a página normal sem tela de sucesso
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const mpMutation = useMutation({
     mutationFn: (vars: { appointmentId: string; metodo: "credito" | "debito" | "pix" }) =>
