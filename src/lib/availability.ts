@@ -233,6 +233,83 @@ export const createBooking = createServerFn({ method: "POST" })
     return { appointmentId: appt.id };
   });
 
+// ─── createConsecutiveBookings ────────────────────────────────────────────────
+// Cria múltiplos agendamentos em sequência automática para o mesmo dia.
+// Cada serviço começa exatamente onde o anterior termina.
+
+export const createConsecutiveBookings = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      professionalId: z.string(),
+      services: z
+        .array(z.object({ serviceId: z.string(), duracaoMinutos: z.number().int().positive() }))
+        .min(1),
+      dateStr: z.string(),
+      startTimeSlot: z.string(), // HH:mm
+      modalidade: z.enum(["presencial", "online"]).default("presencial"),
+      patient: z.object({
+        nome: z.string().min(2),
+        email: z.string().email().optional().or(z.literal("")),
+        telefone: z.string().min(8),
+      }),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const { professionalId, services, dateStr, startTimeSlot, modalidade, patient } = data;
+    const [y, mo, d] = dateStr.split("-").map(Number);
+
+    const emailToUse =
+      patient.email && patient.email.length > 0
+        ? patient.email
+        : `tel_${patient.telefone.replace(/\D/g, "")}@noemail.cuidandovc.com.br`;
+
+    const [pat] = await db
+      .insert(patients)
+      .values({ ...patient, email: emailToUse })
+      .onConflictDoUpdate({
+        target: patients.email,
+        set: { nome: patient.nome, telefone: patient.telefone },
+      })
+      .returning();
+
+    let meetLink: string | null = null;
+    if (modalidade === "online") {
+      const prof = await db.query.professionals.findFirst({
+        where: eq(professionals.id, professionalId),
+        columns: { meetLink: true },
+      });
+      meetLink = prof?.meetLink ?? null;
+    }
+
+    const appointmentIds: string[] = [];
+    let [curH, curM] = startTimeSlot.split(":").map(Number);
+
+    for (const svc of services) {
+      const inicio = new Date(y, mo - 1, d, curH, curM, 0);
+      const fim = new Date(inicio.getTime() + svc.duracaoMinutos * 60_000);
+
+      const [appt] = await db
+        .insert(appointments)
+        .values({
+          professionalId,
+          serviceId: svc.serviceId,
+          patientId: pat.id,
+          inicio,
+          fim,
+          modalidade,
+          meetLink,
+          status: "aguardando_pagamento",
+        })
+        .returning();
+
+      appointmentIds.push(appt.id);
+      curH = fim.getHours();
+      curM = fim.getMinutes();
+    }
+
+    return { appointmentIds };
+  });
+
 // ─── confirmCashBooking ─────────────────────────────────────────────────────────
 // Paciente escolheu pagar em dinheiro (presencial): confirma o agendamento sem
 // passar pelo Mercado Pago. Só promove de "aguardando_pagamento" → "confirmado".

@@ -28,14 +28,13 @@ import {
   Check,
   CalendarOff,
   X,
-  ShoppingCart,
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Calendar as CalendarPicker } from "./ui/calendar";
 import {
   fetchAvailableDays,
   fetchAvailableSlots,
-  createBooking,
+  createConsecutiveBookings,
   confirmCashBooking,
 } from "../lib/availability";
 import { fetchBlockedDates } from "../lib/folga";
@@ -48,13 +47,7 @@ import type { professionals, services, professionalCards } from "../db/schema";
 
 type Service = InferSelectModel<typeof services>;
 
-type CartItem = {
-  id: string;
-  service: Service;
-  member?: ClinicMember;
-  date: Date;
-  slot: string;
-};
+type SelectedService = { service: Service; member?: ClinicMember };
 
 export type ProfessionalCard = InferSelectModel<typeof professionalCards>;
 
@@ -76,37 +69,28 @@ interface Props {
 type Phase =
   | { tag: "idle" }
   | { tag: "servicos"; member: ClinicMember }
-  | { tag: "data"; service: Service; member?: ClinicMember }
-  | { tag: "hora"; service: Service; date: Date; member?: ClinicMember }
+  | { tag: "data"; services: SelectedService[] }
+  | { tag: "hora"; services: SelectedService[]; date: Date }
   | {
       tag: "pagamento";
-      service: Service;
+      services: SelectedService[];
       date: Date;
       slot: string;
       nome: string;
       meetLink?: string | null;
       modalidade?: "presencial" | "online";
-      member?: ClinicMember;
-      appointmentId: string;
+      appointmentIds: string[];
       metodos: string[];
     }
   | {
       tag: "confirmado";
-      service: Service;
+      services: SelectedService[];
       date: Date;
       slot: string;
       nome: string;
       meetLink?: string | null;
       modalidade?: "presencial" | "online";
-      member?: ClinicMember;
-    }
-  | {
-      tag: "cartPagamento";
-      appointmentIds: string[];
-      total: number;
-      metodos: string[];
-    }
-  | { tag: "cartConfirmado" };
+    };
 
 // Modalidade efetiva = resolve "ambos" pela escolha do paciente
 type Modalidade = "presencial" | "online";
@@ -286,94 +270,31 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [modalidadeEscolhida, setModalidadeEscolhida] = useState<Modalidade>("presencial");
 
-  // ── Carrinho ──────────────────────────────────────────────────────────────
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [pendingService, setPendingService] = useState<{
-    service: Service;
-    member?: ClinicMember;
-  } | null>(null);
-  const [serviceQueue, setServiceQueue] = useState<
-    Array<{ service: Service; member?: ClinicMember }>
-  >([]);
+  // Serviços selecionados (multi-select na tela de serviços)
+  const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
 
   const isClinic = professional.plano === "clinic" && (professional.members?.length ?? 0) > 0;
 
   const mpMutation = useMutation({
     mutationFn: (vars: { appointmentId: string; metodo: "credito" | "debito" | "pix" }) =>
       createMPPreference({ data: vars }),
-    onSuccess: ({ url }) => {
-      window.location.href = url;
-    },
-  });
-
-  // ── Checkout do carrinho ──────────────────────────────────────────────────
-  const cartBookingsMutation = useMutation({
-    mutationFn: async () => {
-      if (cart.length === 0) throw new Error("Carrinho vazio");
-      const results = await Promise.all(
-        cart.map((item) => {
-          const targetId = item.member?.id ?? professional.id;
-          const modalidade = resolveModalidade(item.service, "presencial");
-          return createBooking({
-            data: {
-              professionalId: targetId,
-              serviceId: item.service.id,
-              dateStr: toDateStr(item.date),
-              timeSlot: item.slot,
-              duracaoMinutos: item.service.duracaoMinutos,
-              modalidade,
-              patient: { nome, email, telefone },
-            },
-          });
-        }),
-      );
-      return results.map((r) => r.appointmentId);
-    },
-    onSuccess: (appointmentIds) => {
-      const total = cart.reduce((s, i) => s + Number(i.service.preco), 0);
-      const metodos = (professional.metodosPagamento ?? []).filter(
-        (m) => m === "dinheiro" || professional.mpAccountAtivo,
-      );
-      setPhase({ tag: "cartPagamento", appointmentIds, total, metodos });
-    },
+    onSuccess: ({ url }) => { window.location.href = url; },
   });
 
   const cartMPMutation = useMutation({
     mutationFn: (vars: { appointmentIds: string[]; metodo: "credito" | "debito" | "pix" }) =>
       createCartMPPreference({ data: vars }),
-    onSuccess: ({ url }) => {
-      window.location.href = url;
-    },
+    onSuccess: ({ url }) => { window.location.href = url; },
   });
 
-  const cartCashMutation = useMutation({
-    mutationFn: async (appointmentIds: string[]) => {
-      await Promise.all(
-        appointmentIds.map((id) => confirmCashBooking({ data: { appointmentId: id } })),
-      );
-    },
-    onSuccess: () => {
-      setCart([]);
-      setPhase({ tag: "cartConfirmado" });
-    },
-  });
-
-  // Pagamento em dinheiro (presencial): confirma sem passar pelo Mercado Pago.
   const cashMutation = useMutation({
-    mutationFn: (appointmentId: string) => confirmCashBooking({ data: { appointmentId } }),
+    mutationFn: async (appointmentIds: string[]) => {
+      await Promise.all(appointmentIds.map((id) => confirmCashBooking({ data: { appointmentId: id } })));
+    },
     onSuccess: () => {
       setPhase((p) =>
         p.tag === "pagamento"
-          ? {
-              tag: "confirmado",
-              service: p.service,
-              date: p.date,
-              slot: p.slot,
-              nome: p.nome,
-              meetLink: p.meetLink,
-              modalidade: p.modalidade,
-              member: p.member,
-            }
+          ? { tag: "confirmado", services: p.services, date: p.date, slot: p.slot, nome: p.nome, meetLink: p.meetLink, modalidade: p.modalidade }
           : p,
       );
     },
@@ -382,15 +303,19 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
   const bookingMutation = useMutation({
     mutationFn: () => {
       if (phase.tag !== "hora" || !selectedSlot) throw new Error("Dados incompletos");
-      const targetId = phase.member?.id ?? professional.id;
-      const modalidade = resolveModalidade(phase.service, modalidadeEscolhida);
-      return createBooking({
+      const firstMember = phase.services[0]?.member;
+      const targetId = firstMember?.id ?? professional.id;
+      const firstSvc = phase.services[0].service;
+      const modalidade = resolveModalidade(firstSvc, modalidadeEscolhida);
+      return createConsecutiveBookings({
         data: {
           professionalId: targetId,
-          serviceId: phase.service.id,
+          services: phase.services.map((ss) => ({
+            serviceId: ss.service.id,
+            duracaoMinutos: ss.service.duracaoMinutos,
+          })),
           dateStr: toDateStr(phase.date),
-          timeSlot: selectedSlot,
-          duracaoMinutos: phase.service.duracaoMinutos,
+          startTimeSlot: selectedSlot,
           modalidade,
           patient: { nome, email, telefone },
         },
@@ -398,39 +323,34 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
     },
     onSuccess: (result) => {
       if (phase.tag !== "hora" || !selectedSlot) return;
-      const modalidade = resolveModalidade(phase.service, modalidadeEscolhida);
-      const meetLink =
-        modalidade === "online" ? (phase.member?.meetLink ?? professional.meetLink) : null;
-      // Métodos usáveis pelo paciente: dinheiro sempre; online só com MP conectado.
+      const firstSvc = phase.services[0].service;
+      const firstMember = phase.services[0]?.member;
+      const modalidade = resolveModalidade(firstSvc, modalidadeEscolhida);
+      const meetLink = modalidade === "online" ? (firstMember?.meetLink ?? professional.meetLink) : null;
       const metodos = (professional.metodosPagamento ?? []).filter(
         (m) => m === "dinheiro" || professional.mpAccountAtivo,
       );
-
-      // Ao menos um método usável → tela de escolha de pagamento.
       if (metodos.length > 0) {
         setPhase({
           tag: "pagamento",
-          service: phase.service,
+          services: phase.services,
           date: phase.date,
           slot: selectedSlot,
           nome,
           meetLink,
           modalidade,
-          member: phase.member,
-          appointmentId: result.appointmentId,
+          appointmentIds: result.appointmentIds,
           metodos,
         });
       } else {
-        // Sem MP ou sem métodos: confirma direto (paga presencialmente).
         setPhase({
           tag: "confirmado",
-          service: phase.service,
+          services: phase.services,
           date: phase.date,
           slot: selectedSlot,
           nome,
           meetLink,
           modalidade,
-          member: phase.member,
         });
       }
     },
@@ -442,7 +362,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
     nome.trim().length >= 2 &&
     telefone.trim().length >= 8;
 
-  const isConfirming = bookingMutation.isPending || mpMutation.isPending;
+  const isConfirming = bookingMutation.isPending || mpMutation.isPending || cartMPMutation.isPending;
 
   const handleConfirm = () => {
     if (canConfirm && !isConfirming) bookingMutation.mutate();
@@ -455,64 +375,27 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
     setEmail("");
     setTelefone("");
     setModalidadeEscolhida("presencial");
+    setSelectedServices([]);
     bookingMutation.reset();
     mpMutation.reset();
     cashMutation.reset();
-    setCart([]);
-    setServiceQueue([]);
+    cartMPMutation.reset();
   };
 
-  // ── Handlers do carrinho ──────────────────────────────────────────────────
+  const handleToggleService = (svc: Service, member?: ClinicMember) => {
+    setSelectedServices((prev) => {
+      const exists = prev.some((ss) => ss.service.id === svc.id);
+      return exists
+        ? prev.filter((ss) => ss.service.id !== svc.id)
+        : [...prev, { service: svc, member }];
+    });
+  };
 
-  const handleServiceSelect = (svc: Service, member?: ClinicMember) => {
-    // Se wizard ativo → mostra dialog de conflito
-    if (phase.tag === "data" || phase.tag === "hora") {
-      setPendingService({ service: svc, member });
-      return;
-    }
+  const handleContinueToDate = () => {
+    if (selectedServices.length === 0) return;
     setSelectedSlot(null);
     setModalidadeEscolhida("presencial");
-    setPhase({ tag: "data", service: svc, member });
-  };
-
-  const handleTrocarServico = () => {
-    if (!pendingService) return;
-    setSelectedSlot(null);
-    setModalidadeEscolhida("presencial");
-    setPhase({ tag: "data", service: pendingService.service, member: pendingService.member });
-    setPendingService(null);
-  };
-
-  const handleQueueServico = () => {
-    if (!pendingService) return;
-    setServiceQueue((prev) => [...prev, pendingService]);
-    setPendingService(null);
-  };
-
-  const handleAddToCart = () => {
-    if (phase.tag !== "hora" || !selectedSlot) return;
-    const item: CartItem = {
-      id: crypto.randomUUID(),
-      service: phase.service,
-      member: phase.member,
-      date: phase.date,
-      slot: selectedSlot,
-    };
-    setCart((prev) => [...prev, item]);
-    setSelectedSlot(null);
-    bookingMutation.reset();
-
-    const next = serviceQueue[0];
-    if (next) {
-      setServiceQueue((prev) => prev.slice(1));
-      setPhase({ tag: "data", service: next.service, member: next.member });
-    } else {
-      setPhase({ tag: "idle" });
-    }
-  };
-
-  const handleRemoveFromCart = (id: string) => {
-    setCart((prev) => prev.filter((i) => i.id !== id));
+    setPhase({ tag: "data", services: selectedServices });
   };
 
   return (
@@ -592,80 +475,38 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
         )}
       </div>
 
-      {/* ── Booking Section (cascata inline) ───────────────────────────── */}
+      {/* ── Booking Section ──────────────────────────────────────────── */}
       <section id="booking" className="mx-auto max-w-4xl px-4 lg:px-8">
-        {/* Success screen (full width) */}
         {phase.tag === "confirmado" && (
-          <SuccessScreen
-            phase={phase}
-            professional={professional}
-            onReset={handleReset}
-            brand={brand}
-          />
+          <SuccessScreen phase={phase} professional={professional} onReset={handleReset} brand={brand} />
         )}
 
-        {/* Payment method selection — serviço único */}
-        {phase.tag === "pagamento" && (
-          <PaymentMethodScreen
-            professionalNome={phase.member?.nomeCompleto ?? professional.nomeCompleto}
-            serviceNome={phase.service.nome}
-            valor={Number(phase.service.preco)}
-            dataLabel={`${phase.date.toLocaleDateString("pt-BR", {
-              day: "2-digit",
-              month: "long",
-            })} às ${phase.slot}`}
-            metodos={phase.metodos}
-            onlinePending={mpMutation.isPending}
-            cashPending={cashMutation.isPending}
-            onPickOnline={(metodo) =>
-              mpMutation.mutate({ appointmentId: phase.appointmentId, metodo })
-            }
-            onPickCash={() => cashMutation.mutate(phase.appointmentId)}
-            onBack={handleReset}
-          />
-        )}
+        {phase.tag === "pagamento" && (() => {
+          const total = phase.services.reduce((s, ss) => s + Number(ss.service.preco), 0);
+          const serviceLabel = phase.services.length === 1
+            ? phase.services[0].service.nome
+            : `${phase.services.length} serviços`;
+          const isSingle = phase.appointmentIds.length === 1;
+          return (
+            <PaymentMethodScreen
+              professionalNome={professional.nomeCompleto}
+              serviceNome={serviceLabel}
+              valor={total}
+              dataLabel={`${phase.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "long" })} às ${phase.slot}`}
+              metodos={phase.metodos}
+              onlinePending={isSingle ? mpMutation.isPending : cartMPMutation.isPending}
+              cashPending={cashMutation.isPending}
+              onPickOnline={(metodo) =>
+                isSingle
+                  ? mpMutation.mutate({ appointmentId: phase.appointmentIds[0], metodo })
+                  : cartMPMutation.mutate({ appointmentIds: phase.appointmentIds, metodo })
+              }
+              onPickCash={() => cashMutation.mutate(phase.appointmentIds)}
+              onBack={handleReset}
+            />
+          );
+        })()}
 
-        {/* Payment method selection — carrinho */}
-        {phase.tag === "cartPagamento" && (
-          <PaymentMethodScreen
-            professionalNome={professional.nomeCompleto}
-            serviceNome={`${phase.appointmentIds.length} serviço${phase.appointmentIds.length !== 1 ? "s" : ""}`}
-            valor={phase.total}
-            dataLabel="Múltiplos agendamentos"
-            metodos={phase.metodos}
-            onlinePending={cartMPMutation.isPending}
-            cashPending={cartCashMutation.isPending}
-            onPickOnline={(metodo) =>
-              cartMPMutation.mutate({ appointmentIds: phase.appointmentIds, metodo })
-            }
-            onPickCash={() => cartCashMutation.mutate(phase.appointmentIds)}
-            onBack={() => {
-              setPhase({ tag: "idle" });
-              cartBookingsMutation.reset();
-            }}
-          />
-        )}
-
-        {/* Confirmação do carrinho */}
-        {phase.tag === "cartConfirmado" && (
-          <div className="rounded-2xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
-              <CheckCircle2 className="h-8 w-8 text-emerald-600" />
-            </div>
-            <h2 className="text-xl font-black text-slate-900">Agendamentos confirmados!</h2>
-            <p className="mt-2 text-sm text-slate-500">
-              Todos os seus serviços foram agendados com sucesso.
-            </p>
-            <button
-              onClick={handleReset}
-              className="mt-6 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
-            >
-              Voltar ao início
-            </button>
-          </div>
-        )}
-
-        {/* Clinic: step 1 — choose professional */}
         {isClinic && phase.tag === "idle" && (
           <ClinicTeamSection
             professional={professional}
@@ -675,152 +516,79 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
           />
         )}
 
-        {/* All phases except confirmado, pagamento and clinic idle: 2-col grid */}
-        {phase.tag !== "confirmado" &&
-          phase.tag !== "pagamento" &&
-          !(isClinic && phase.tag === "idle") && (
-            <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
-              {/* LEFT: wizard steps */}
-              <div>
-                {/* Clinic: step 2 — choose service for member */}
-                {isClinic && phase.tag === "servicos" && (
-                  <ClinicMemberServicesSection
-                    member={phase.member}
-                    brand={brand}
-                    colors={colors}
-                    onBack={() => setPhase({ tag: "idle" })}
-                    onSelect={(svc) => handleServiceSelect(svc, phase.member)}
-                  />
-                )}
-
-                {/* Individual: step 1 — choose service */}
-                {!isClinic && phase.tag === "idle" && (
-                  <ServicesSection
-                    professional={professional}
-                    brand={brand}
-                    colors={colors}
-                    onSelect={(svc) => handleServiceSelect(svc)}
-                  />
-                )}
-
-                {/* Step 2: date picker */}
-                {phase.tag === "data" && (
-                  <>
-                    <StepDate
-                      professionalId={phase.member?.id ?? professional.id}
-                      service={phase.service}
-                      brand={brand}
-                      onBack={() =>
-                        isClinic && phase.member
-                          ? setPhase({ tag: "servicos", member: phase.member })
-                          : setPhase({ tag: "idle" })
-                      }
-                      onNext={(date) =>
-                        setPhase({ tag: "hora", service: phase.service, date, member: phase.member })
-                      }
-                    />
-                    <AddOutroServicoBotao
-                      professional={professional}
-                      brand={brand}
-                      colors={colors}
-                      serviceQueue={serviceQueue}
-                      onSelect={(svc, member) => handleServiceSelect(svc, member)}
-                    />
-                  </>
-                )}
-
-                {/* Step 3: time slots */}
-                {phase.tag === "hora" && (
-                  <>
-                    <StepTime
-                      professionalId={phase.member?.id ?? professional.id}
-                      service={phase.service}
-                      date={phase.date}
-                      selectedSlot={selectedSlot}
-                      brand={brand}
-                      onBack={() =>
-                        setPhase({ tag: "data", service: phase.service, member: phase.member })
-                      }
-                      onSelectSlot={(slot) => setSelectedSlot(slot)}
-                      onAddToCart={selectedSlot ? handleAddToCart : undefined}
-                    />
-                    <AddOutroServicoBotao
-                      professional={professional}
-                      brand={brand}
-                      colors={colors}
-                      serviceQueue={serviceQueue}
-                      onSelect={(svc, member) => handleServiceSelect(svc, member)}
-                    />
-                  </>
-                )}
-              </div>
-
-              {/* RIGHT: sticky summary panel */}
-              <div className="lg:sticky lg:top-6 space-y-4">
-                {/* Carrinho (quando tem itens e wizard ativo) */}
-                {cart.length > 0 && phase.tag !== "idle" && (
-                  <CartPanel
-                    cart={cart}
-                    brand={brand}
-                    onRemove={handleRemoveFromCart}
-                  />
-                )}
-                <SummaryPanel
-                  phase={phase}
-                  selectedSlot={selectedSlot}
-                  professional={professional}
-                  member={
-                    phase.tag === "servicos" || phase.tag === "data" || phase.tag === "hora"
-                      ? phase.member
-                      : undefined
-                  }
+        {phase.tag !== "confirmado" && phase.tag !== "pagamento" && !(isClinic && phase.tag === "idle") && (
+          <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
+            <div>
+              {isClinic && phase.tag === "servicos" && (
+                <ClinicMemberServicesSection
+                  member={phase.member}
                   brand={brand}
-                  nome={nome}
-                  setNome={setNome}
-                  email={email}
-                  setEmail={setEmail}
-                  telefone={telefone}
-                  setTelefone={setTelefone}
-                  modalidade={modalidadeEscolhida}
-                  setModalidade={setModalidadeEscolhida}
-                  canConfirm={canConfirm}
-                  isConfirming={isConfirming}
-                  onConfirm={handleConfirm}
-                  onAddToCart={selectedSlot && phase.tag === "hora" ? handleAddToCart : undefined}
-                  cart={cart}
-                  canCheckoutCart={
-                    cart.length > 0 &&
-                    phase.tag === "idle" &&
-                    nome.trim().length >= 2 &&
-                    telefone.trim().length >= 8
-                  }
-                  isCheckingOutCart={cartBookingsMutation.isPending}
-                  onCheckoutCart={() => cartBookingsMutation.mutate()}
-                  onRemoveFromCart={handleRemoveFromCart}
-                  error={
-                    bookingMutation.error instanceof Error
-                      ? bookingMutation.error.message
-                      : cartBookingsMutation.error instanceof Error
-                        ? cartBookingsMutation.error.message
-                        : undefined
-                  }
+                  colors={colors}
+                  onBack={() => setPhase({ tag: "idle" })}
+                  onSelect={(svc) => {
+                    setSelectedSlot(null);
+                    setPhase({ tag: "data", services: [{ service: svc, member: phase.member }] });
+                  }}
                 />
-              </div>
-            </div>
-          )}
-      </section>
+              )}
 
-      {/* Dialog: trocar serviço atual ou adicionar à fila */}
-      {pendingService && (phase.tag === "data" || phase.tag === "hora") && (
-        <PendingServiceDialog
-          currentServiceNome={phase.service.nome}
-          newService={pendingService.service}
-          queue={serviceQueue}
-          onTrocar={handleTrocarServico}
-          onAddToQueue={handleQueueServico}
-          onClose={() => setPendingService(null)}
-        />
-      )}
+              {!isClinic && phase.tag === "idle" && (
+                <ServicesSection
+                  professional={professional}
+                  brand={brand}
+                  colors={colors}
+                  selectedServices={selectedServices}
+                  onToggle={(svc) => handleToggleService(svc)}
+                  onContinue={handleContinueToDate}
+                />
+              )}
+
+              {phase.tag === "data" && (
+                <StepDate
+                  professionalId={phase.services[0]?.member?.id ?? professional.id}
+                  services={phase.services}
+                  brand={brand}
+                  onBack={() => setPhase({ tag: "idle" })}
+                  onNext={(date) => setPhase({ tag: "hora", services: phase.services, date })}
+                />
+              )}
+
+              {phase.tag === "hora" && (
+                <StepTime
+                  professionalId={phase.services[0]?.member?.id ?? professional.id}
+                  services={phase.services}
+                  date={phase.date}
+                  selectedSlot={selectedSlot}
+                  brand={brand}
+                  onBack={() => setPhase({ tag: "data", services: phase.services })}
+                  onSelectSlot={(slot) => setSelectedSlot(slot)}
+                />
+              )}
+            </div>
+
+            <div className="lg:sticky lg:top-6">
+              <SummaryPanel
+                phase={phase}
+                selectedSlot={selectedSlot}
+                professional={professional}
+                brand={brand}
+                nome={nome}
+                setNome={setNome}
+                email={email}
+                setEmail={setEmail}
+                telefone={telefone}
+                setTelefone={setTelefone}
+                modalidade={modalidadeEscolhida}
+                setModalidade={setModalidadeEscolhida}
+                canConfirm={canConfirm}
+                isConfirming={isConfirming}
+                onConfirm={handleConfirm}
+                error={bookingMutation.error instanceof Error ? bookingMutation.error.message : undefined}
+              />
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* Footer */}
       <footer className="mt-16 border-t border-slate-100 py-8 text-center">
@@ -943,24 +711,28 @@ function ServicesSection({
   professional,
   brand,
   colors,
-  onSelect,
+  selectedServices,
+  onToggle,
+  onContinue,
 }: {
   professional: ProfessionalPublic;
   brand: string;
   colors: ColorPalette;
-  onSelect: (s: Service) => void;
+  selectedServices: SelectedService[];
+  onToggle: (s: Service) => void;
+  onContinue: () => void;
 }) {
+  const total = selectedServices.reduce((s, ss) => s + Number(ss.service.preco), 0);
+
   return (
     <div id="servicos">
       <div className="flex items-start gap-3 mb-6">
-        <span
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black text-white shadow-sm ${colors.badge}`}
-        >
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black text-white shadow-sm ${colors.badge}`}>
           01
         </span>
         <div>
-          <h2 className="text-base font-bold text-slate-900">Escolha a especialidade</h2>
-          <p className="text-xs text-slate-400 mt-0.5">Comece selecionando o cuidado desejado</p>
+          <h2 className="text-base font-bold text-slate-900">Escolha os serviços</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Selecione um ou mais serviços desejados</p>
         </div>
       </div>
 
@@ -971,8 +743,32 @@ function ServicesSection({
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {professional.services.map((svc, idx) => (
-            <ServiceCard key={svc.id} svc={svc} idx={idx} brand={brand} onSelect={onSelect} />
+            <ServiceCard
+              key={svc.id}
+              svc={svc}
+              idx={idx}
+              brand={brand}
+              isSelected={selectedServices.some((ss) => ss.service.id === svc.id)}
+              onSelect={onToggle}
+            />
           ))}
+        </div>
+      )}
+
+      {selectedServices.length > 0 && (
+        <div className="mt-4 rounded-2xl bg-slate-900 text-white p-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs text-slate-400">
+              {selectedServices.length} serviço{selectedServices.length !== 1 ? "s" : ""} selecionado{selectedServices.length !== 1 ? "s" : ""}
+            </p>
+            <p className="text-lg font-black mt-0.5">{fmt(total)}</p>
+          </div>
+          <button
+            onClick={onContinue}
+            className="shrink-0 rounded-xl bg-white text-slate-900 px-4 py-2.5 text-sm font-bold hover:bg-slate-100 transition flex items-center gap-1.5"
+          >
+            Continuar <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
       )}
     </div>
@@ -983,11 +779,13 @@ function ServiceCard({
   svc,
   idx,
   brand,
+  isSelected = false,
   onSelect,
 }: {
   svc: Service;
   idx: number;
   brand: string;
+  isSelected?: boolean;
   onSelect: (s: Service) => void;
 }) {
   const { Icon, bg, color } = ICON_PALETTE[idx % ICON_PALETTE.length];
@@ -995,8 +793,19 @@ function ServiceCard({
   return (
     <button
       onClick={() => onSelect(svc)}
-      className="group flex flex-col text-left bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-lg hover:border-slate-200 transition-all duration-200"
+      className="relative group flex flex-col text-left bg-white rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all duration-200"
+      style={isSelected
+        ? { border: `2px solid ${brand}`, boxShadow: `0 0 0 3px ${brand}22` }
+        : { border: "1px solid #f1f5f9" }}
     >
+      {isSelected && (
+        <div
+          className="absolute top-2 right-2 h-5 w-5 rounded-full grid place-items-center"
+          style={{ background: brand }}
+        >
+          <Check className="h-3 w-3 text-white" />
+        </div>
+      )}
       <div
         className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl transition group-hover:scale-105"
         style={{ background: bg }}
@@ -1028,13 +837,13 @@ function ServiceCard({
 
 function StepDate({
   professionalId,
-  service,
+  services,
   brand,
   onBack,
   onNext,
 }: {
   professionalId: string;
-  service: Service;
+  services: SelectedService[];
   brand: string;
   onBack: () => void;
   onNext: (date: Date) => void;
@@ -1091,7 +900,9 @@ function StepDate({
         <div>
           <h2 className="text-base font-bold text-slate-900">Escolha a data</h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Serviço: <strong className="text-slate-600">{service.nome}</strong>
+            {services.length === 1
+              ? <><strong className="text-slate-600">{services[0].service.nome}</strong></>
+              : <>{services.length} serviços selecionados</>}
           </p>
         </div>
       </div>
@@ -1167,28 +978,28 @@ function StepDate({
 
 function StepTime({
   professionalId,
-  service,
+  services,
   date,
   selectedSlot,
   brand,
   onBack,
   onSelectSlot,
-  onAddToCart,
 }: {
   professionalId: string;
-  service: Service;
+  services: SelectedService[];
   date: Date;
   selectedSlot: string | null;
   brand: string;
   onBack: () => void;
   onSelectSlot: (slot: string) => void;
-  onAddToCart?: () => void;
 }) {
+  const totalDuration = services.reduce((s, ss) => s + ss.service.duracaoMinutos, 0);
+
   const { data: slots = [], isFetching } = useQuery({
-    queryKey: ["slots", professionalId, toDateStr(date)],
+    queryKey: ["slots", professionalId, toDateStr(date), totalDuration],
     queryFn: () =>
       fetchAvailableSlots({
-        data: { professionalId, dateStr: toDateStr(date), duracaoMinutos: service.duracaoMinutos },
+        data: { professionalId, dateStr: toDateStr(date), duracaoMinutos: totalDuration },
       }),
   });
 
@@ -1203,7 +1014,10 @@ function StepTime({
         </span>
         <div>
           <h2 className="text-base font-bold text-slate-900">Escolha o horário</h2>
-          <p className="text-xs text-slate-400 mt-0.5">{fmtDate(date)}</p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {fmtDate(date)}
+            {services.length > 1 && ` · ${totalDuration} min no total`}
+          </p>
         </div>
       </div>
 
@@ -1243,20 +1057,10 @@ function StepTime({
               ))}
             </div>
             {selectedSlot && (
-              <>
-                <p className="mt-4 text-center text-xs text-slate-500">
-                  Horário <strong>{selectedSlot}</strong> selecionado. Preencha seus dados ao lado
-                  para confirmar.
-                </p>
-                {onAddToCart && (
-                  <button
-                    onClick={onAddToCart}
-                    className="mt-2 w-full text-xs text-center font-medium py-2 rounded-xl border border-dashed border-teal-300 text-teal-600 hover:bg-teal-50 transition"
-                  >
-                    + Adicionar ao carrinho e escolher mais serviços
-                  </button>
-                )}
-              </>
+              <p className="mt-4 text-center text-xs text-slate-500">
+                Horário <strong>{selectedSlot}</strong> selecionado. Preencha seus dados ao lado
+                para confirmar.
+              </p>
             )}
           </>
         )}
@@ -1271,7 +1075,6 @@ function SummaryPanel({
   phase,
   selectedSlot,
   professional,
-  member,
   brand,
   nome,
   setNome,
@@ -1284,18 +1087,11 @@ function SummaryPanel({
   canConfirm,
   isConfirming,
   onConfirm,
-  onAddToCart,
-  cart,
-  canCheckoutCart,
-  isCheckingOutCart,
-  onCheckoutCart,
-  onRemoveFromCart,
   error,
 }: {
   phase: Phase;
   selectedSlot: string | null;
   professional: ProfessionalPublic;
-  member?: ClinicMember;
   brand: string;
   nome: string;
   setNome: (v: string) => void;
@@ -1308,58 +1104,50 @@ function SummaryPanel({
   canConfirm: boolean;
   isConfirming: boolean;
   onConfirm: () => void;
-  onAddToCart?: () => void;
-  cart: CartItem[];
-  canCheckoutCart: boolean;
-  isCheckingOutCart: boolean;
-  onCheckoutCart: () => void;
-  onRemoveFromCart: (id: string) => void;
   error?: string;
 }) {
-  const service =
-    phase.tag === "data" || phase.tag === "hora" || phase.tag === "confirmado"
-      ? phase.service
-      : null;
-  // Modalidade efetiva e link de Meet a exibir
-  const efetiva = service ? resolveModalidade(service, modalidade) : "presencial";
-  const meetLink = member?.meetLink ?? professional.meetLink;
-  const virtualInfo = member?.atendimentoVirtualInfo ?? professional.atendimentoVirtualInfo;
-  const date = phase.tag === "hora" || phase.tag === "confirmado" ? phase.date : null;
-  const slot = phase.tag === "hora" ? selectedSlot : phase.tag === "confirmado" ? phase.slot : null;
-
-  const profName = member?.nomeCompleto ?? professional.nomeCompleto;
+  const services =
+    phase.tag === "data" || phase.tag === "hora" ? phase.services : [];
+  const firstSvc = services[0]?.service ?? null;
+  const date = phase.tag === "hora" ? phase.date : null;
+  const slot = phase.tag === "hora" ? selectedSlot : null;
+  const total = services.reduce((s, ss) => s + Number(ss.service.preco), 0);
+  const efetiva = firstSvc ? resolveModalidade(firstSvc, modalidade) : "presencial";
+  const virtualInfo = professional.atendimentoVirtualInfo;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      {/* Header */}
       <div className="px-6 pt-5 pb-4 border-b border-slate-100">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">
-          SUA RESERVA
-        </p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">SUA RESERVA</p>
         <h3 className="text-base font-bold text-slate-900">Resumo do agendamento</h3>
       </div>
 
-      {/* Summary rows */}
       <div className="px-6 py-4 space-y-3 border-b border-slate-100">
-        <SummaryRow
-          label="Especialidade"
-          value={service ? (member?.especialidade ?? professional.especialidade) : undefined}
-        />
-        <SummaryRow label="Serviço" value={service?.nome} />
-        <SummaryRow label="Profissional" value={profName} />
+        <SummaryRow label="Profissional" value={professional.nomeCompleto} />
         <SummaryRow
           label="Data e hora"
-          value={
-            date && slot
-              ? `${date.toLocaleDateString("pt-BR")} · ${slot}`
-              : date
-                ? date.toLocaleDateString("pt-BR")
-                : undefined
-          }
+          value={date && slot ? `${date.toLocaleDateString("pt-BR")} · ${slot}` : date ? date.toLocaleDateString("pt-BR") : undefined}
         />
 
-        {/* Modalidade — seletor quando o serviço aceita ambos */}
-        {service && service.modalidade === "ambos" && (
+        {/* Lista de serviços selecionados */}
+        {services.length > 0 && (
+          <div>
+            <p className="text-xs text-slate-400 mb-1.5">
+              {services.length === 1 ? "Serviço" : `Serviços (${services.length})`}
+            </p>
+            <ul className="space-y-1">
+              {services.map((ss) => (
+                <li key={ss.service.id} className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-slate-800 truncate">{ss.service.nome}</span>
+                  <span className="text-xs text-slate-500 shrink-0">{fmt(ss.service.preco)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Modalidade — seletor quando o primeiro serviço aceita ambos */}
+        {firstSvc && firstSvc.modalidade === "ambos" && services.length === 1 && (
           <div>
             <p className="text-xs text-slate-400 mb-1.5">Tipo de atendimento</p>
             <div className="grid grid-cols-2 gap-2">
@@ -1368,11 +1156,7 @@ function SummaryPanel({
                   key={m}
                   type="button"
                   onClick={() => setModalidade(m)}
-                  className={`rounded-xl border py-2 text-xs font-semibold transition ${
-                    efetiva === m
-                      ? "border-transparent text-white"
-                      : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                  }`}
+                  className={`rounded-xl border py-2 text-xs font-semibold transition ${efetiva === m ? "border-transparent text-white" : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"}`}
                   style={efetiva === m ? { background: brand } : undefined}
                 >
                   {m === "presencial" ? "🏥 Presencial" : "💻 Virtual"}
@@ -1381,178 +1165,73 @@ function SummaryPanel({
             </div>
           </div>
         )}
-
-        {/* Modalidade fixa (serviço só presencial ou só virtual) */}
-        {service && service.modalidade !== "ambos" && (
-          <SummaryRow label="Atendimento" value={MOD_LABEL[service.modalidade]} />
+        {firstSvc && firstSvc.modalidade !== "ambos" && services.length === 1 && (
+          <SummaryRow label="Atendimento" value={MOD_LABEL[firstSvc.modalidade]} />
         )}
-
-        {/* Como funciona o atendimento virtual */}
-        {service && efetiva === "online" && virtualInfo && (
+        {firstSvc && efetiva === "online" && virtualInfo && (
           <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
             <p className="text-[11px] text-slate-500 leading-relaxed">{virtualInfo}</p>
           </div>
         )}
       </div>
 
-      {/* Total */}
       <div className="mx-5 my-4 rounded-xl px-4 py-3" style={{ backgroundColor: `${brand}18` }}>
         <div className="flex items-center justify-between">
-          <span
-            className="text-[10px] font-bold uppercase tracking-widest"
-            style={{ color: brand }}
-          >
+          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: brand }}>
             VALOR TOTAL
           </span>
-          {service ? (
-            <span className="text-xl font-black text-slate-900">{fmt(service.preco)}</span>
+          {services.length > 0 ? (
+            <span className="text-xl font-black text-slate-900">{fmt(total)}</span>
           ) : (
             <span className="text-sm font-bold text-slate-300">——</span>
           )}
         </div>
       </div>
 
-      {/* Patient inputs */}
       <div className="px-5 space-y-3 pb-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-            NOME COMPLETO
-          </p>
-          <input
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            placeholder="Como está no RG"
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition"
-          />
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">NOME COMPLETO</p>
+          <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Como está no RG" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition" />
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-            CELULAR / WHATSAPP
-          </p>
-          <input
-            value={telefone}
-            onChange={(e) => setTelefone(e.target.value)}
-            placeholder="(11) 99999-9999"
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition"
-          />
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">CELULAR / WHATSAPP</p>
+          <input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(11) 99999-9999" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition" />
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-            E-MAIL <span className="normal-case font-normal text-slate-300">(opcional)</span>
-          </p>
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="para envio de confirmação"
-            type="email"
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition"
-          />
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">E-MAIL <span className="normal-case font-normal text-slate-300">(opcional)</span></p>
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="para envio de confirmação" type="email" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition" />
         </div>
       </div>
 
-      {/* Itens no carrinho (compacto, quando phase === idle) */}
-      {cart.length > 0 && phase.tag === "idle" && (
-        <div className="mx-5 mb-4 rounded-xl border border-teal-100 bg-teal-50/60 p-3">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-teal-600 mb-2">
-            Carrinho ({cart.length})
-          </p>
-          <ul className="space-y-1.5">
-            {cart.map((item) => (
-              <li key={item.id} className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-800 truncate">{item.service.nome}</p>
-                  <p className="text-[10px] text-slate-500">
-                    {item.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} · {item.slot}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs font-bold text-slate-700">{fmt(item.service.preco)}</span>
-                  <button
-                    onClick={() => onRemoveFromCart(item.id)}
-                    className="h-5 w-5 grid place-items-center rounded-full hover:bg-rose-100 text-slate-400 hover:text-rose-500 transition"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-2 pt-2 border-t border-teal-200 flex justify-between">
-            <span className="text-xs font-bold text-slate-700">Total</span>
-            <span className="text-xs font-bold text-slate-900">
-              {fmt(cart.reduce((s, i) => s + Number(i.service.preco), 0))}
-            </span>
-          </div>
-        </div>
-      )}
-
       {error && (
-        <p className="mx-5 mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">
-          {error}
-        </p>
+        <p className="mx-5 mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">{error}</p>
       )}
 
       <div className="px-5 pb-6 space-y-2">
-        {/* Botão principal: confirmar serviço único OU finalizar carrinho */}
-        {cart.length > 0 && phase.tag === "idle" ? (
-          <button
-            disabled={!canCheckoutCart || isCheckingOutCart}
-            onClick={onCheckoutCart}
-            className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            style={{ background: brand }}
-          >
-            {isCheckingOutCart ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Criando agendamentos...
-              </>
-            ) : (
-              <>
-                <CreditCard className="h-4 w-4" />
-                Finalizar {cart.length} serviço{cart.length !== 1 ? "s" : ""} →
-              </>
-            )}
-          </button>
-        ) : (
-          <button
-            disabled={!canConfirm || isConfirming}
-            onClick={onConfirm}
-            className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: brand }}
-          >
-            {isConfirming ? (
-              <span className="flex items-center justify-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" /> Confirmando...
-              </span>
-            ) : professional.mpAccountAtivo ? (
-              <span className="flex items-center justify-center gap-2">
-                <CreditCard className="h-4 w-4" /> Ir para pagamento →
-              </span>
-            ) : (
-              "Confirmar agendamento →"
-            )}
-          </button>
-        )}
+        <button
+          disabled={!canConfirm || isConfirming}
+          onClick={onConfirm}
+          className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ background: brand }}
+        >
+          {isConfirming ? (
+            <span className="flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Confirmando...</span>
+          ) : professional.mpAccountAtivo ? (
+            <span className="flex items-center justify-center gap-2"><CreditCard className="h-4 w-4" /> Ir para pagamento →</span>
+          ) : (
+            "Confirmar agendamento →"
+          )}
+        </button>
 
-        {!canConfirm && phase.tag !== "idle" && cart.length === 0 && (
+        {!canConfirm && phase.tag === "hora" && (
           <p className="text-center text-[11px] text-slate-400">
-            {!service
-              ? "Selecione um serviço"
-              : !selectedSlot
-                ? "Selecione data e horário"
-                : "Preencha nome e telefone"}
+            {!selectedSlot ? "Selecione um horário" : "Preencha nome e telefone"}
           </p>
-        )}
-        {cart.length > 0 && phase.tag === "idle" && !canCheckoutCart && (
-          <p className="text-center text-[11px] text-slate-400">Preencha nome e telefone para finalizar</p>
         )}
 
         <div className="mt-4 flex items-center justify-center gap-4 text-slate-400">
-          <span className="flex items-center gap-1 text-[10px]">
-            <Shield className="h-3 w-3" /> Pagamento seguro
-          </span>
-          <span className="flex items-center gap-1 text-[10px]">
-            <CheckCircle2 className="h-3 w-3" /> Confirmação imediata
-          </span>
+          <span className="flex items-center gap-1 text-[10px]"><Shield className="h-3 w-3" /> Pagamento seguro</span>
+          <span className="flex items-center gap-1 text-[10px]"><CheckCircle2 className="h-3 w-3" /> Confirmação imediata</span>
         </div>
       </div>
     </div>
@@ -1576,6 +1255,18 @@ function SummaryRow({ label, value }: { label: string; value?: string }) {
 
 // ─── SuccessScreen ────────────────────────────────────────────────────────────
 
+function computeConsecutiveTimes(startSlot: string, services: SelectedService[]): string[] {
+  const times: string[] = [];
+  let [h, m] = startSlot.split(":").map(Number);
+  for (const ss of services) {
+    times.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+    const totalM = h * 60 + m + ss.service.duracaoMinutos;
+    h = Math.floor(totalM / 60);
+    m = totalM % 60;
+  }
+  return times;
+}
+
 function SuccessScreen({
   phase,
   professional,
@@ -1588,35 +1279,44 @@ function SuccessScreen({
   brand: string;
 }) {
   const whatsappUrl = buildWhatsAppUrl(professional, phase);
+  const times = computeConsecutiveTimes(phase.slot, phase.services);
+  const total = phase.services.reduce((s, ss) => s + Number(ss.service.preco), 0);
 
   return (
     <div className="rounded-2xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
       <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
         <CheckCircle2 className="h-8 w-8 text-emerald-600" />
       </div>
-      <h2 className="text-xl font-black text-slate-900">Agendamento confirmado!</h2>
+      <h2 className="text-xl font-black text-slate-900">
+        {phase.services.length === 1 ? "Agendamento confirmado!" : "Agendamentos confirmados!"}
+      </h2>
       <p className="mt-2 text-sm text-slate-500">
-        Olá, <strong>{phase.nome}</strong>! Sua consulta foi agendada com sucesso.
+        Olá, <strong>{phase.nome}</strong>! {phase.services.length === 1 ? "Sua consulta foi" : "Seus agendamentos foram"} confirmado{phase.services.length !== 1 ? "s" : ""} com sucesso.
       </p>
 
       <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5 text-left space-y-3">
-        <p className="font-bold text-sm text-slate-900">{phase.service.nome}</p>
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2 text-xs text-slate-600">
-            <Calendar className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-            {fmtDate(phase.date)}
-          </div>
-          <div className="flex items-center gap-2 text-xs text-slate-600">
-            <Clock className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-            {phase.slot} · {phase.service.duracaoMinutos} min
-          </div>
-          <div className="flex items-center gap-2 text-xs text-slate-600">
-            <span className="h-3.5 w-3.5 shrink-0 text-slate-400 flex items-center justify-center font-bold text-[10px]">
-              R$
-            </span>
-            {fmt(phase.service.preco)}
-          </div>
+        <div className="flex items-center gap-2 text-xs text-slate-600 mb-3">
+          <Calendar className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+          {fmtDate(phase.date)}
         </div>
+        {phase.services.map((ss, idx) => (
+          <div key={ss.service.id} className="flex items-start justify-between gap-3 pb-2 border-b border-slate-100 last:border-0 last:pb-0">
+            <div>
+              <p className="font-bold text-sm text-slate-900">{ss.service.nome}</p>
+              <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500">
+                <Clock className="h-3 w-3" />
+                {times[idx]} · {ss.service.duracaoMinutos} min
+              </div>
+            </div>
+            <span className="text-sm font-bold text-slate-700 shrink-0">{fmt(ss.service.preco)}</span>
+          </div>
+        ))}
+        {phase.services.length > 1 && (
+          <div className="flex justify-between pt-1">
+            <span className="text-xs font-bold text-slate-500">Total</span>
+            <span className="text-sm font-black text-slate-900">{fmt(total)}</span>
+          </div>
+        )}
       </div>
 
       <div className="mt-5 rounded-xl border border-[#25d366]/30 bg-[#f0fdf4] px-4 py-3 text-left">
@@ -1844,212 +1544,33 @@ function buildWhatsAppUrl(
   professional: ProfessionalPublic,
   phase: Extract<Phase, { tag: "confirmado" }>,
 ): string {
-  const rawPhone = phase.member?.telefoneWhatsapp ?? professional.telefoneWhatsapp;
+  const rawPhone = professional.telefoneWhatsapp;
   const phone = rawPhone?.replace(/\D/g, "");
-  const recipientName = phase.member?.nomeCompleto ?? professional.nomeCompleto;
+  const recipientName = professional.nomeCompleto;
+  const times = computeConsecutiveTimes(phase.slot, phase.services);
+  const total = phase.services.reduce((s, ss) => s + Number(ss.service.preco), 0);
+
+  const servicelines = phase.services
+    .map((ss, idx) => `  • ${ss.service.nome} — ${times[idx]} (${ss.service.duracaoMinutos} min)`)
+    .join("\n");
+
   const msg = [
     `Olá, ${recipientName}! 👋`,
     ``,
-    `Gostaria de *confirmar* meu agendamento:`,
+    `Gostaria de *confirmar* meu(s) agendamento(s):`,
     ``,
-    `📋 *Serviço:* ${phase.service.nome}`,
     `👤 *Paciente:* ${phase.nome}`,
     `📅 *Data:* ${fmtDate(phase.date)}`,
-    `⏰ *Horário:* ${phase.slot}`,
-    `⏱️ *Duração:* ${phase.service.duracaoMinutos} min`,
-    `💰 *Valor:* ${fmt(phase.service.preco)}`,
+    ``,
+    `📋 *Serviços:*`,
+    servicelines,
+    ``,
+    `💰 *Valor total:* ${fmt(total)}`,
     ``,
     `Agendado via CuidandoVC 🩺`,
   ].join("\n");
   const base = phone ? `https://wa.me/${phone}` : `https://wa.me`;
   return `${base}?text=${encodeURIComponent(msg)}`;
-}
-
-// ─── PendingServiceDialog ────────────────────────────────────────────────────
-
-function PendingServiceDialog({
-  currentServiceNome,
-  newService,
-  queue,
-  onTrocar,
-  onAddToQueue,
-  onClose,
-}: {
-  currentServiceNome: string;
-  newService: Service;
-  queue: Array<{ service: Service; member?: ClinicMember }>;
-  onTrocar: () => void;
-  onAddToQueue: () => void;
-  onClose: () => void;
-}) {
-  const alreadyQueued = queue.some((q) => q.service.id === newService.id);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-        <p className="text-xs text-slate-500 mb-0.5">Você está agendando</p>
-        <p className="font-bold text-slate-900 mb-4 truncate">{currentServiceNome}</p>
-
-        <p className="text-xs text-slate-400 mb-3">
-          O que fazer com <strong className="text-slate-700">{newService.nome}</strong>?
-        </p>
-
-        <div className="flex flex-col gap-2">
-          <button
-            onClick={onTrocar}
-            className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-left transition hover:bg-slate-50"
-          >
-            <span className="font-semibold text-slate-800">🔄 Trocar por este serviço</span>
-            <p className="text-[11px] text-slate-400 mt-0.5">Cancela a seleção atual e começa com {newService.nome}</p>
-          </button>
-
-          {!alreadyQueued && (
-            <button
-              onClick={onAddToQueue}
-              className="w-full rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-left transition hover:bg-teal-100"
-            >
-              <span className="font-semibold text-teal-700">+ Adicionar ao carrinho depois</span>
-              <p className="text-[11px] text-teal-500 mt-0.5">
-                Termine o agendamento atual — {newService.nome} será o próximo
-              </p>
-            </button>
-          )}
-
-          <button
-            onClick={onClose}
-            className="w-full text-xs text-center text-slate-400 py-2 hover:text-slate-600 transition"
-          >
-            Cancelar
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── AddOutroServicoBotao ─────────────────────────────────────────────────────
-
-function AddOutroServicoBotao({
-  professional,
-  brand,
-  serviceQueue,
-  onSelect,
-}: {
-  professional: ProfessionalPublic;
-  brand: string;
-  colors: ColorPalette;
-  serviceQueue: Array<{ service: Service; member?: ClinicMember }>;
-  onSelect: (svc: Service, member?: ClinicMember) => void;
-}) {
-  const [open, setOpen] = useState(false);
-
-  if (professional.services.length === 0) return null;
-
-  return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2.5 rounded-xl border border-dashed border-slate-200 text-slate-400 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50/50 transition"
-      >
-        <ShoppingCart className="h-3.5 w-3.5" />
-        Adicionar outro serviço ao carrinho
-        {serviceQueue.length > 0 && (
-          <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-teal-100 text-teal-600 font-bold text-[10px]">
-            {serviceQueue.length}
-          </span>
-        )}
-      </button>
-
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
-          <div className="relative bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <p className="font-bold text-slate-900">Escolher outro serviço</p>
-              <button
-                onClick={() => setOpen(false)}
-                className="h-7 w-7 grid place-items-center rounded-lg hover:bg-slate-100 text-slate-400"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {professional.services.map((svc, idx) => (
-                <ServiceCard
-                  key={svc.id}
-                  svc={svc}
-                  idx={idx}
-                  brand={brand}
-                  onSelect={(s) => {
-                    onSelect(s);
-                    setOpen(false);
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-// ─── CartPanel ────────────────────────────────────────────────────────────────
-
-function CartPanel({
-  cart,
-  onRemove,
-}: {
-  cart: CartItem[];
-  brand: string;
-  onRemove: (id: string) => void;
-}) {
-  if (cart.length === 0) return null;
-
-  const total = cart.reduce((s, i) => s + Number(i.service.preco), 0);
-
-  return (
-    <div className="rounded-2xl border border-teal-200 bg-teal-50/50 p-4 shadow-sm">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-teal-600 mb-3 flex items-center gap-1.5">
-        <ShoppingCart className="h-3 w-3" />
-        No carrinho ({cart.length})
-      </p>
-      <ul className="space-y-2">
-        {cart.map((item) => (
-          <li
-            key={item.id}
-            className="flex items-start gap-2 bg-white rounded-xl px-3 py-2 border border-teal-100"
-          >
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-slate-800 truncate">{item.service.nome}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">
-                {item.date.toLocaleDateString("pt-BR", {
-                  weekday: "short",
-                  day: "2-digit",
-                  month: "short",
-                })}{" "}
-                · {item.slot}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-xs font-bold text-slate-700">{fmt(item.service.preco)}</span>
-              <button
-                onClick={() => onRemove(item.id)}
-                className="h-5 w-5 grid place-items-center rounded-full hover:bg-rose-100 text-slate-400 hover:text-rose-500 transition"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
-      <div className="mt-3 pt-2 border-t border-teal-200 flex justify-between items-center">
-        <span className="text-xs text-slate-500">Total parcial</span>
-        <span className="text-sm font-black text-slate-900">{fmt(total)}</span>
-      </div>
-    </div>
-  );
 }
 
 // ─── Not-found ────────────────────────────────────────────────────────────────
