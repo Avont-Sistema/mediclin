@@ -92,6 +92,7 @@ type Phase =
       appointmentIds: string[];
       metodos: string[];
     }
+  | { tag: "aguardando"; appointmentIds: string[] }
   | {
       tag: "confirmado";
       services: SelectedService[];
@@ -285,48 +286,122 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
 
   const isClinic = professional.plano === "clinic" && (professional.members?.length ?? 0) > 0;
 
-  // Detecta redirect de volta do MP após pagamento aprovado e reconstrói a tela de sucesso.
+  // Detecta redirect de volta do MP após pagamento e reconstrói a tela correta.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    const status = params.get("collection_status") ?? params.get("status");
+    const effectiveStatus = params.get("collection_status") ?? params.get("status");
     const externalRef = params.get("external_reference");
-    if (status !== "approved" || !externalRef) return;
+    const bookingParam = params.get("booking");
 
-    // Limpa a URL imediatamente para não repetir no refresh
-    window.history.replaceState({}, "", window.location.pathname);
+    function idsFromRef(ref: string): string[] {
+      return ref.startsWith("cart:") ? ref.slice(5).split("|").filter(Boolean) : [ref];
+    }
 
-    const ids = externalRef.startsWith("cart:")
-      ? externalRef.slice(5).split("|").filter(Boolean)
-      : [externalRef];
-    if (ids.length === 0) return;
-
-    fetchAppointmentsPublic({ data: { ids } })
-      .then((appts) => {
-        if (!appts || appts.length === 0) return;
-        const first = appts[0];
-        const inicio = new Date(first.inicio);
-        const slot = `${String(inicio.getHours()).padStart(2, "0")}:${String(inicio.getMinutes()).padStart(2, "0")}`;
-        setPhase({
-          tag: "confirmado",
-          services: appts.map((a) => ({ service: a.service })),
-          date: inicio,
-          slot,
-          nome: first.patient.nome,
-          meetLink: first.meetLink ?? null,
-          modalidade: (first.modalidade as "presencial" | "online") ?? "presencial",
-        });
-      })
-      .catch(() => {
-        // Falha silenciosa — paciente vê a página normal sem tela de sucesso
+    function resolveFromAppts(appts: Awaited<ReturnType<typeof fetchAppointmentsPublic>>) {
+      if (!appts || appts.length === 0) return false;
+      const first = appts[0];
+      const inicio = new Date(first.inicio);
+      const slot = `${String(inicio.getHours()).padStart(2, "0")}:${String(inicio.getMinutes()).padStart(2, "0")}`;
+      setPhase({
+        tag: "confirmado",
+        services: appts.map((a) => ({ service: a.service })),
+        date: inicio,
+        slot,
+        nome: first.patient.nome,
+        meetLink: first.meetLink ?? null,
+        modalidade: (first.modalidade as "presencial" | "online") ?? "presencial",
       });
+      sessionStorage.removeItem("mp_pending_ids");
+      return true;
+    }
+
+    // Limpa a URL para não repetir no refresh
+    const cleanUrl = () => window.history.replaceState({}, "", window.location.pathname);
+
+    // Cenário 1: MP aprovou (cartão crédito/débito aprovado na hora)
+    if (effectiveStatus === "approved" && externalRef) {
+      cleanUrl();
+      const ids = idsFromRef(externalRef);
+      if (ids.length > 0) {
+        fetchAppointmentsPublic({ data: { ids } })
+          .then((appts) => { if (!resolveFromAppts(appts)) setBookingSuccess(true); })
+          .catch(() => setBookingSuccess(true));
+      }
+      return;
+    }
+
+    // Cenário 2: MP redirecionou com status pendente (PIX aguardando confirmação)
+    if (effectiveStatus === "pending" || bookingParam === "pending") {
+      cleanUrl();
+      const ids = externalRef ? idsFromRef(externalRef) : (() => {
+        try { return JSON.parse(sessionStorage.getItem("mp_pending_ids") ?? "[]") as string[]; }
+        catch { return [] as string[]; }
+      })();
+      if (ids.length > 0) {
+        setPhase({ tag: "aguardando", appointmentIds: ids });
+      }
+      return;
+    }
+
+    // Cenário 3: Usuário voltou sem params de URL mas tem IDs salvos (fechou MP e voltou)
+    const savedIds = sessionStorage.getItem("mp_pending_ids");
+    if (savedIds) {
+      try {
+        const ids = JSON.parse(savedIds) as string[];
+        if (ids.length > 0) setPhase({ tag: "aguardando", appointmentIds: ids });
+      } catch {
+        sessionStorage.removeItem("mp_pending_ids");
+      }
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Polling para confirmar pagamento enquanto está na tela "aguardando"
+  useEffect(() => {
+    if (phase.tag !== "aguardando") return;
+    const ids = phase.appointmentIds;
+    let cancelled = false;
+
+    const poll = async () => {
+      if (cancelled) return;
+      try {
+        const appts = await fetchAppointmentsPublic({ data: { ids } });
+        if (cancelled || !appts || appts.length === 0) return;
+        const allConfirmed = appts.every((a) => a.status === "confirmado");
+        if (allConfirmed) {
+          sessionStorage.removeItem("mp_pending_ids");
+          const first = appts[0];
+          const inicio = new Date(first.inicio);
+          const slot = `${String(inicio.getHours()).padStart(2, "0")}:${String(inicio.getMinutes()).padStart(2, "0")}`;
+          setPhase({
+            tag: "confirmado",
+            services: appts.map((a) => ({ service: a.service })),
+            date: inicio,
+            slot,
+            nome: first.patient.nome,
+            meetLink: first.meetLink ?? null,
+            modalidade: (first.modalidade as "presencial" | "online") ?? "presencial",
+          });
+        }
+      } catch {
+        // ignora erros de polling
+      }
+    };
+
+    poll();
+    const interval = setInterval(poll, 4000);
+    return () => { cancelled = true; clearInterval(interval); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase.tag]);
 
   const mpMutation = useMutation({
     mutationFn: (vars: { appointmentId: string; metodo: "credito" | "debito" | "pix" }) =>
       createMPPreference({ data: vars }),
-    onSuccess: ({ url }) => { window.location.href = url; },
+    onSuccess: ({ url }, variables) => {
+      sessionStorage.setItem("mp_pending_ids", JSON.stringify([variables.appointmentId]));
+      window.location.href = url;
+    },
     onError: (err) => {
       toast.error(msgFromError(err, "Erro ao processar pagamento. Tente novamente."));
     },
@@ -335,7 +410,10 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
   const cartMPMutation = useMutation({
     mutationFn: (vars: { appointmentIds: string[]; metodo: "credito" | "debito" | "pix" }) =>
       createCartMPPreference({ data: vars }),
-    onSuccess: ({ url }) => { window.location.href = url; },
+    onSuccess: ({ url }, variables) => {
+      sessionStorage.setItem("mp_pending_ids", JSON.stringify(variables.appointmentIds));
+      window.location.href = url;
+    },
     onError: (err) => {
       toast.error(msgFromError(err, "Erro ao processar pagamento. Tente novamente."));
     },
@@ -429,6 +507,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
   };
 
   const handleReset = () => {
+    sessionStorage.removeItem("mp_pending_ids");
     setPhase({ tag: "idle" });
     setSelectedSlot(null);
     setNome("");
@@ -541,6 +620,10 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
           <SuccessScreen phase={phase} professional={professional} onReset={handleReset} brand={brand} />
         )}
 
+        {phase.tag === "aguardando" && (
+          <AguardandoScreen onReset={handleReset} brand={brand} />
+        )}
+
         {phase.tag === "pagamento" && (() => {
           const total = phase.services.reduce((s, ss) => s + Number(ss.service.preco), 0);
           const serviceLabel = phase.services.length === 1
@@ -576,7 +659,7 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
           />
         )}
 
-        {phase.tag !== "confirmado" && phase.tag !== "pagamento" && !(isClinic && phase.tag === "idle") && (
+        {phase.tag !== "confirmado" && phase.tag !== "aguardando" && phase.tag !== "pagamento" && !(isClinic && phase.tag === "idle") && (
           <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
             <div>
               {isClinic && phase.tag === "servicos" && (
@@ -1309,6 +1392,45 @@ function SummaryRow({ label, value }: { label: string; value?: string }) {
       ) : (
         <span className="text-xs font-bold text-slate-200">——</span>
       )}
+    </div>
+  );
+}
+
+// ─── AguardandoScreen ─────────────────────────────────────────────────────────
+
+function AguardandoScreen({
+  onReset,
+  brand,
+}: {
+  onReset: () => void;
+  brand: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-white p-8 text-center shadow-sm">
+      <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50">
+        <Loader2 className="h-8 w-8 text-amber-500 animate-spin" />
+      </div>
+      <h2 className="text-xl font-black text-slate-900">Aguardando confirmação</h2>
+      <p className="mt-2 text-sm text-slate-500">
+        Seu pagamento está sendo processado. Esta página atualiza automaticamente quando
+        confirmado — não é necessário fazer nada.
+      </p>
+
+      <div className="mt-6 rounded-xl border border-amber-100 bg-amber-50 px-5 py-4 text-left">
+        <p className="text-xs font-semibold text-amber-800 mb-1">Se pagou via PIX:</p>
+        <p className="text-[11px] text-amber-700 leading-snug">
+          Após realizar o pagamento no seu banco, a confirmação pode levar alguns segundos.
+          Mantenha esta página aberta.
+        </p>
+      </div>
+
+      <button
+        onClick={onReset}
+        className="mt-6 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-50 transition"
+        style={{ borderColor: `${brand}40` }}
+      >
+        Voltar ao início
+      </button>
     </div>
   );
 }
