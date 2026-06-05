@@ -1,8 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { desc, eq, sql as dsql } from "drizzle-orm";
-import { getAuth } from "@clerk/tanstack-start/server";
-import { getWebRequest } from "vinxi/http";
+import { requireAdmin } from "./admin-auth";
 import { db } from "../db";
 import {
   plans,
@@ -17,12 +16,10 @@ import {
   subscriptions,
 } from "../db/schema";
 
-// ─── Guard (centralizado; gating por ADMIN_CLERK_IDS pendente) ────────────────
+// ─── Guard (centralizado em admin-auth.ts; gating por ADMIN_CLERK_IDS) ────────
 
 async function requireAdminAccess(): Promise<string> {
-  const auth = await getAuth(getWebRequest());
-  if (!auth.userId) throw new Error("Não autenticado");
-  return auth.userId;
+  return requireAdmin();
 }
 
 async function logAudit(actorClerkId: string, acao: string, entidade: string, detalhe?: string) {

@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, isNotNull } from "drizzle-orm";
 import { db } from "../db";
 import { appointments, payments, plans, subscriptions, professionals } from "../db/schema";
 import { sendBookingConfirmation, sendNewBookingNotification } from "../lib/email";
@@ -38,6 +38,37 @@ async function fetchMP<T>(path: string, accessToken: string): Promise<T | null> 
     console.error(`[MP webhook] Erro de rede ao buscar ${path}:`, err);
     return null;
   }
+}
+
+// Pagamentos de consulta são criados na conta do MÉDICO (seller), então o token
+// da plataforma pode não conseguir lê-los. Tenta a plataforma primeiro (assinaturas)
+// e, se falhar, itera os tokens dos médicos conectados até encontrar o pagamento.
+async function fetchPaymentAnyAccount(
+  paymentId: string,
+  platformToken: string,
+): Promise<MPPayment | null> {
+  const viaPlatform = await fetchMP<MPPayment>(`/v1/payments/${paymentId}`, platformToken);
+  if (viaPlatform) return viaPlatform;
+
+  const sellers = await db.query.professionals.findMany({
+    where: isNotNull(professionals.mpAccessToken),
+    columns: { mpAccessToken: true },
+  });
+
+  // Tokens únicos (vários médicos podem compartilhar o mesmo, em testes)
+  const tokens = Array.from(
+    new Set(sellers.map((s) => s.mpAccessToken).filter((t): t is string => !!t)),
+  );
+
+  for (const token of tokens) {
+    const found = await fetchMP<MPPayment>(`/v1/payments/${paymentId}`, token);
+    if (found) {
+      console.log(`[MP webhook] Pagamento ${paymentId} encontrado via token do médico`);
+      return found;
+    }
+  }
+
+  return null;
 }
 
 // ─── Validação de assinatura (x-signature) ───────────────────────────────────
@@ -99,13 +130,16 @@ export async function handleMPWebhook(request: Request): Promise<Response> {
 
   if (type === "payment") {
     console.log(`[MP webhook] Processando pagamento ${resourceId}`);
-    const payment = await fetchMP<MPPayment>(`/v1/payments/${resourceId}`, accessToken);
+    // Tenta plataforma e, se necessário, os tokens dos médicos (pagamento na conta do seller).
+    const payment = await fetchPaymentAnyAccount(resourceId, accessToken);
     if (!payment) {
-      console.error(`[MP webhook] Não conseguiu buscar pagamento ${resourceId}`);
+      console.error(`[MP webhook] Não conseguiu buscar pagamento ${resourceId} em nenhuma conta`);
       return new Response("OK", { status: 200 });
     }
 
-    console.log(`[MP webhook] Status do pagamento: ${payment.status}, external_reference: ${payment.external_reference}`);
+    console.log(
+      `[MP webhook] Status do pagamento: ${payment.status}, external_reference: ${payment.external_reference}`,
+    );
 
     if (payment.status === "approved" && payment.external_reference) {
       const ref = payment.external_reference;

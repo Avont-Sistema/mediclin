@@ -51,6 +51,22 @@ function getSellerClient(accessToken: string): MercadoPagoConfig {
   return new MercadoPagoConfig({ accessToken });
 }
 
+// ─── Auth helper ─────────────────────────────────────────────────────────────
+// Resolve o ID do profissional da sessão autenticada. Nunca confiar em
+// professionalId vindo do cliente para autorização (multi-tenancy).
+
+async function getAuthProfId(): Promise<string> {
+  const auth = await getAuth(getWebRequest());
+  if (!auth.userId) throw new Error("Não autenticado");
+  const user = await db.query.users.findFirst({
+    where: eq(users.clerkId, auth.userId),
+    with: { professional: true },
+  });
+  const profId = user?.professional?.id;
+  if (!profId) throw new Error("Profissional não encontrado");
+  return profId;
+}
+
 // ─── Criar preferência de pagamento (consulta do paciente) ───────────────────
 
 export const createMPPreference = createServerFn({ method: "POST" })
@@ -111,7 +127,9 @@ export const createMPPreference = createServerFn({ method: "POST" })
     });
 
     if (!result.init_point) {
-      throw new Error("Mercado Pago não retornou URL de checkout. Tente novamente ou contate o suporte.");
+      throw new Error(
+        "Mercado Pago não retornou URL de checkout. Tente novamente ou contate o suporte.",
+      );
     }
 
     // Persiste o preference ID no agendamento
@@ -126,8 +144,11 @@ export const createMPPreference = createServerFn({ method: "POST" })
 // ─── Gerar link OAuth para o médico conectar conta MP ────────────────────────
 
 export const createMPOAuthLink = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ professionalId: z.string(), redirectPath: z.string().optional() }))
+  .inputValidator(z.object({ redirectPath: z.string().optional() }))
   .handler(async ({ data }) => {
+    // Profissional vem da sessão — nunca do cliente (evita iniciar OAuth para outro tenant).
+    const professionalId = await getAuthProfId();
+
     const { appId } = await getMPAppCredentials();
     if (!appId) throw new Error("Client ID do Mercado Pago não configurado (Admin → Integrações).");
 
@@ -135,7 +156,7 @@ export const createMPOAuthLink = createServerFn({ method: "POST" })
     const path = data.redirectPath ?? "/dashboard";
     const redirectUri = encodeURIComponent(`${origin}${path}`);
 
-    const url = `https://auth.mercadopago.com.br/authorization?client_id=${appId}&response_type=code&platform_id=mp&state=${data.professionalId}&redirect_uri=${redirectUri}`;
+    const url = `https://auth.mercadopago.com.br/authorization?client_id=${appId}&response_type=code&platform_id=mp&state=${professionalId}&redirect_uri=${redirectUri}`;
 
     return { url };
   });
@@ -143,10 +164,12 @@ export const createMPOAuthLink = createServerFn({ method: "POST" })
 // ─── Trocar código OAuth pelo access_token do médico ─────────────────────────
 
 export const activateMPAccount = createServerFn({ method: "POST" })
-  .inputValidator(
-    z.object({ code: z.string(), professionalId: z.string(), redirectPath: z.string().optional() }),
-  )
+  .inputValidator(z.object({ code: z.string(), redirectPath: z.string().optional() }))
   .handler(async ({ data }) => {
+    // Profissional vem da sessão — nunca do cliente. Impede que um médico grave
+    // o seu access_token (ou sobrescreva) no registro de outro médico.
+    const professionalId = await getAuthProfId();
+
     const { appId: clientId, appSecret: clientSecret } = await getMPAppCredentials();
     if (!clientId || !clientSecret)
       throw new Error("Client ID/Secret do Mercado Pago não configurados (Admin → Integrações).");
@@ -180,44 +203,41 @@ export const activateMPAccount = createServerFn({ method: "POST" })
         mpAccessToken: result.access_token,
         mpAccountAtivo: true,
       })
-      .where(eq(professionals.id, data.professionalId));
+      .where(eq(professionals.id, professionalId));
 
     return { active: true };
   });
 
 // ─── Verificar se conta MP está ativa (após retorno do OAuth) ─────────────────
 
-export const checkMPAccountStatus = createServerFn({ method: "POST" })
-  .inputValidator(z.object({ professionalId: z.string() }))
-  .handler(async ({ data }) => {
-    const auth = await getAuth(getWebRequest());
-    if (!auth.userId) throw new Error("Não autenticado");
+export const checkMPAccountStatus = createServerFn({ method: "POST" }).handler(async () => {
+  // Profissional vem da sessão — não lê status de outro tenant.
+  const professionalId = await getAuthProfId();
 
-    const prof = await db.query.professionals.findFirst({
-      where: eq(professionals.id, data.professionalId),
-    });
-
-    // Verifica se o access_token consegue listar payments (conta ativa)
-    if (prof?.mpAccessToken) {
-      try {
-        const client = new MercadoPagoConfig({ accessToken: prof.mpAccessToken });
-        const res = await fetch("https://api.mercadopago.com/users/me", {
-          headers: { Authorization: `Bearer ${prof.mpAccessToken}` },
-        });
-        if (res.ok) {
-          await db
-            .update(professionals)
-            .set({ mpAccountAtivo: true })
-            .where(eq(professionals.id, data.professionalId));
-          return { active: true };
-        }
-      } catch {
-        // access_token inválido, não atualiza
-      }
-    }
-
-    return { active: prof?.mpAccountAtivo ?? false };
+  const prof = await db.query.professionals.findFirst({
+    where: eq(professionals.id, professionalId),
   });
+
+  // Verifica se o access_token consegue listar payments (conta ativa)
+  if (prof?.mpAccessToken) {
+    try {
+      const res = await fetch("https://api.mercadopago.com/users/me", {
+        headers: { Authorization: `Bearer ${prof.mpAccessToken}` },
+      });
+      if (res.ok) {
+        await db
+          .update(professionals)
+          .set({ mpAccountAtivo: true })
+          .where(eq(professionals.id, professionalId));
+        return { active: true };
+      }
+    } catch {
+      // access_token inválido, não atualiza
+    }
+  }
+
+  return { active: prof?.mpAccountAtivo ?? false };
+});
 
 // ─── Preferência combinada para múltiplos agendamentos (carrinho) ────────────
 
@@ -274,8 +294,7 @@ export const createCartMPPreference = createServerFn({ method: "POST" })
       },
     });
 
-    if (!result.init_point)
-      throw new Error("Mercado Pago não retornou URL de checkout.");
+    if (!result.init_point) throw new Error("Mercado Pago não retornou URL de checkout.");
 
     await db
       .update(appointments)

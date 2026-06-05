@@ -5,13 +5,7 @@ import { getAuth } from "@clerk/tanstack-start/server";
 import { getWebRequest } from "vinxi/http";
 import { db } from "../db";
 import { supportConfig, supportTickets, supportMessages, users, professionals } from "../db/schema";
-
-// ─── Admin check ──────────────────────────────────────────────────────────────
-
-function isAdminClerkId(clerkId: string): boolean {
-  const ids = (process.env.ADMIN_CLERK_IDS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  return ids.includes(clerkId);
-}
+import { isAdminClerkId, requireAdmin } from "./admin-auth";
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
@@ -25,13 +19,6 @@ async function requireProfessionalId(): Promise<string> {
   const profId = user?.professional?.id;
   if (!profId) throw new Error("Profissional não encontrado");
   return profId;
-}
-
-async function requireAdmin(): Promise<string> {
-  const auth = await getAuth(getWebRequest());
-  if (!auth.userId) throw new Error("Não autenticado");
-  if (!isAdminClerkId(auth.userId)) throw new Error("Acesso negado");
-  return auth.userId;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -205,14 +192,12 @@ export const fetchTicketMessages = createServerFn({ method: "GET" })
       orderBy: [desc(supportMessages.criadoEm)],
     });
 
-    return msgs
-      .reverse()
-      .map((m) => ({
-        id: m.id,
-        autorRole: m.autorRole as "professional" | "admin",
-        conteudo: m.conteudo,
-        criadoEm: m.criadoEm,
-      }));
+    return msgs.reverse().map((m) => ({
+      id: m.id,
+      autorRole: m.autorRole as "professional" | "admin",
+      conteudo: m.conteudo,
+      criadoEm: m.criadoEm,
+    }));
   });
 
 // ─── sendMessage ──────────────────────────────────────────────────────────────

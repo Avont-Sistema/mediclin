@@ -1,6 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getAuth } from "@clerk/tanstack-start/server";
-import { getWebRequest } from "vinxi/http";
 import { countDistinct, eq } from "drizzle-orm";
 import { db } from "../db";
 import {
@@ -12,13 +10,12 @@ import {
   professionalCards,
   appointments,
 } from "../db/schema";
+import { requireAdmin } from "./admin-auth";
 
-// ─── Guard (mesmo padrão do admin: hoje só exige login) ───────────────────────
+// ─── Guard (centralizado em admin-auth.ts; gating por ADMIN_CLERK_IDS) ────────
 
 async function requireAdminAccess(): Promise<string> {
-  const auth = await getAuth(getWebRequest());
-  if (!auth.userId) throw new Error("Não autenticado");
-  return auth.userId;
+  return requireAdmin();
 }
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────

@@ -1,17 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { getAuth } from "@clerk/tanstack-start/server";
-import { getWebRequest } from "vinxi/http";
 import { db } from "../db";
 import { integrationConfig } from "../db/schema";
+import { requireAdmin } from "./admin-auth";
 
 // ─── Guard ──────────────────────────────────────────────────────────────────
-// Gating por ADMIN_CLERK_IDS pendente (mesmo padrão de saas-admin.ts).
+// Autorização centralizada em admin-auth.ts (gating por ADMIN_CLERK_IDS).
 
 async function requireAdminAccess(): Promise<string> {
-  const auth = await getAuth(getWebRequest());
-  if (!auth.userId) throw new Error("Não autenticado");
-  return auth.userId;
+  return requireAdmin();
 }
 
 // ─── Singleton row ────────────────────────────────────────────────────────────

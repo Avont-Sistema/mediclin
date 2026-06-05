@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getAuth } from "@clerk/tanstack-start/server";
-import { getWebRequest } from "vinxi/http";
 import { z } from "zod";
+import { requireAdmin } from "./admin-auth";
 import { and, count, eq, gte, sql as dsql } from "drizzle-orm";
 import { db } from "../db";
 import {
@@ -18,17 +17,10 @@ import {
 } from "../db/schema";
 
 // ─── Guard ──────────────────────────────────────────────────────────────────
-// Ponto único de autorização do admin. Hoje só exige login (gating de admin
-// pendente — ver ADMIN_CLERK_IDS). Para travar de verdade no futuro, troque o
-// corpo desta função por uma checagem de isAdminClerkId(auth.userId).
+// Autorização do admin centralizada em admin-auth.ts (gating por ADMIN_CLERK_IDS).
 
 async function requireAdminAccess(): Promise<string> {
-  const auth = await getAuth(getWebRequest());
-  if (!auth.userId) throw new Error("Não autenticado");
-  // TODO(segurança): habilitar gating quando ADMIN_CLERK_IDS estiver no Vercel:
-  //   const ids = (process.env.ADMIN_CLERK_IDS ?? "").split(",").map(s => s.trim());
-  //   if (!ids.includes(auth.userId)) throw new Error("Acesso negado");
-  return auth.userId;
+  return requireAdmin();
 }
 
 // ─── fetchAdminOverview ───────────────────────────────────────────────────────
@@ -256,8 +248,7 @@ export const updatePlanPrice = createServerFn({ method: "POST" })
 // ─── runSeed ──────────────────────────────────────────────────────────────────
 
 export const runSeed = createServerFn({ method: "POST" }).handler(async () => {
-  const auth = await getAuth(getWebRequest());
-  if (!auth.userId) throw new Error("Não autenticado");
+  await requireAdminAccess();
 
   // Idempotent: skip if seed users already exist
   const existing = await db.query.users.findFirst({

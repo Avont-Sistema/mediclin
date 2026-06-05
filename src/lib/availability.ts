@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { and, asc, eq, gte, inArray, lt, lte, not } from "drizzle-orm";
+import { and, asc, eq, gt, gte, inArray, lt, lte, not } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db";
 import {
@@ -41,6 +41,48 @@ function timeToMinutes(t: string) {
 
 function minutesToTime(min: number) {
   return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+}
+
+// ─── Validação de booking (server-side, anti double-booking) ──────────────────
+// Toda criação de agendamento público DEVE passar por aqui. Garante que:
+//  1. O serviço pertence ao profissional (e usa a duração real do DB, não do cliente).
+//  2. A data não está bloqueada (folga).
+//  3. Não há conflito de horário com outro agendamento ativo.
+// Retorna o serviço validado (com a duração correta).
+
+async function assertSlotBookable(
+  professionalId: string,
+  serviceId: string,
+  inicio: Date,
+  fim: Date,
+): Promise<void> {
+  // 1. Serviço pertence ao profissional
+  const svc = await db.query.services.findFirst({
+    where: and(eq(services.id, serviceId), eq(services.professionalId, professionalId)),
+  });
+  if (!svc) throw new Error("Serviço indisponível para este profissional.");
+
+  // 2. Não pode cair em dia de folga (bloco que cobre o início)
+  const block = await db.query.availabilityBlocks.findFirst({
+    where: and(
+      eq(availabilityBlocks.professionalId, professionalId),
+      lte(availabilityBlocks.inicio, inicio),
+      gte(availabilityBlocks.fim, inicio),
+    ),
+  });
+  if (block) throw new Error("Este horário não está mais disponível (folga).");
+
+  // 3. Conflito com agendamento ativo: existente.inicio < novoFim && existente.fim > novoInicio
+  const conflict = await db.query.appointments.findFirst({
+    where: and(
+      eq(appointments.professionalId, professionalId),
+      lt(appointments.inicio, fim),
+      gt(appointments.fim, inicio),
+      not(eq(appointments.status, "cancelado")),
+      not(eq(appointments.status, "no_show")),
+    ),
+  });
+  if (conflict) throw new Error("Este horário acabou de ser reservado. Escolha outro.");
 }
 
 // ─── fetchProfessionalBySlug ───────────────────────────────────────────────────
@@ -189,6 +231,9 @@ export const createBooking = createServerFn({ method: "POST" })
     const inicio = new Date(y, mo - 1, d, h, m, 0);
     const fim = new Date(inicio.getTime() + duracaoMinutos * 60_000);
 
+    // Validação server-side: serviço do profissional, sem folga, sem conflito de horário.
+    await assertSlotBookable(professionalId, serviceId, inicio, fim);
+
     // Para atendimento virtual, copia o link do Meet do profissional no agendamento
     let meetLink: string | null = null;
     if (modalidade === "online") {
@@ -287,6 +332,9 @@ export const createConsecutiveBookings = createServerFn({ method: "POST" })
     for (const svc of services) {
       const inicio = new Date(y, mo - 1, d, curH, curM, 0);
       const fim = new Date(inicio.getTime() + svc.duracaoMinutos * 60_000);
+
+      // Valida cada agendamento: serviço do profissional, sem folga, sem conflito.
+      await assertSlotBookable(professionalId, svc.serviceId, inicio, fim);
 
       const [appt] = await db
         .insert(appointments)

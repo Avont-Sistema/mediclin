@@ -1265,27 +1265,27 @@ function MPConnectBanner() {
   });
 
   const activateMutation = useMutation({
-    mutationFn: ({ code, professionalId }: { code: string; professionalId: string }) =>
-      activateMPAccount({ data: { code, professionalId } }),
+    mutationFn: ({ code }: { code: string }) => activateMPAccount({ data: { code } }),
     onSuccess: () => refetch(),
   });
 
   const connectMutation = useMutation({
-    mutationFn: (professionalId: string) => createMPOAuthLink({ data: { professionalId } }),
+    mutationFn: () => createMPOAuthLink({ data: {} }),
     onSuccess: (result) => {
       window.location.href = result.url;
     },
   });
 
   // Após retorno do OAuth do Mercado Pago: ?code=xxx&state=professionalId
+  // (o professionalId é resolvido da sessão no servidor — não confiamos no state)
   const activateMutate = activateMutation.mutate;
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
-    const state = params.get("state"); // professionalId
+    const state = params.get("state");
     if (code && state) {
-      activateMutate({ code, professionalId: state });
+      activateMutate({ code });
       window.history.replaceState({}, "", "/dashboard");
     }
   }, [activateMutate]);
@@ -1307,7 +1307,7 @@ function MPConnectBanner() {
       </div>
       <button
         disabled={connectMutation.isPending || activateMutation.isPending}
-        onClick={() => connectMutation.mutate(professional.id)}
+        onClick={() => connectMutation.mutate()}
         className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white transition"
       >
         <ExternalLink className="h-4 w-4" />
