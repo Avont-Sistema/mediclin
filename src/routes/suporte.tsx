@@ -5,9 +5,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   LifeBuoy,
   BookOpen,
-  MessageCircle,
-  Mail,
-  ExternalLink,
   Link as LinkIcon,
   ChevronDown,
   ChevronUp,
@@ -185,7 +182,7 @@ function SuportePage() {
 type MainTab = "ajuda" | "tickets";
 
 function SuporteContent() {
-  const { prof: professional, cfg: loaderCfg } = Route.useLoaderData() as {
+  const { prof: professional } = Route.useLoaderData() as {
     prof: Awaited<ReturnType<typeof fetchCurrentProfessional>>;
     cfg: Awaited<ReturnType<typeof fetchSupportConfig>>;
   };
@@ -194,21 +191,6 @@ function SuporteContent() {
 
   const slug = professional?.slug ?? "";
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-
-  // Use loader data as initial data, query keeps it fresh
-  const { data: cfg } = useQuery({
-    queryKey: ["supportConfig"],
-    queryFn: () => fetchSupportConfig(),
-    initialData: loaderCfg,
-    staleTime: 60_000,
-  });
-
-  const waPhone = (cfg?.whatsapp ?? "").replace(/\D/g, "");
-  const waMsg = encodeURIComponent(
-    cfg?.whatsappMessage ?? "Olá, preciso de ajuda com o CuidandoVC",
-  );
-  const waHref = waPhone ? `https://wa.me/${waPhone}?text=${waMsg}` : null;
-  const mailHref = cfg?.email ? `mailto:${cfg.email}` : null;
 
   return (
     <DashboardLayout>
@@ -288,93 +270,22 @@ function SuporteContent() {
               </div>
             </div>
 
-            {/* Contato dinâmico */}
+            {/* Contato — chat interno de suporte */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5">
               <div className="flex items-center gap-2 mb-1">
                 <LifeBuoy className="h-4 w-4 text-slate-600" />
                 <h3 className="text-sm font-semibold text-slate-800">Fale com a equipe</h3>
               </div>
               <p className="text-xs text-slate-500 mb-4">
-                Respondemos em até 24h em dias úteis. Prefira o WhatsApp para respostas mais
-                rápidas.
+                Abra um chamado e converse diretamente com a nossa equipe de suporte pelo chat.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {waHref ? (
-                  <a
-                    href={waHref}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 px-4 py-3.5 transition group"
-                  >
-                    <div className="h-9 w-9 shrink-0 rounded-xl bg-emerald-500 grid place-items-center">
-                      <MessageCircle className="h-4 w-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-emerald-900">WhatsApp</p>
-                      <p className="text-xs text-emerald-700">Suporte via mensagem</p>
-                    </div>
-                    <ExternalLink className="h-3.5 w-3.5 text-emerald-500 ml-auto opacity-0 group-hover:opacity-100 transition" />
-                  </a>
-                ) : (
-                  <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3.5 opacity-50">
-                    <div className="h-9 w-9 shrink-0 rounded-xl bg-slate-300 grid place-items-center">
-                      <MessageCircle className="h-4 w-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-600">WhatsApp</p>
-                      <p className="text-xs text-slate-400">Não configurado</p>
-                    </div>
-                  </div>
-                )}
-
-                {mailHref ? (
-                  <a
-                    href={mailHref}
-                    className="flex items-center gap-3 rounded-xl border border-sky-200 bg-sky-50 hover:bg-sky-100 px-4 py-3.5 transition group"
-                  >
-                    <div className="h-9 w-9 shrink-0 rounded-xl bg-sky-500 grid place-items-center">
-                      <Mail className="h-4 w-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-sky-900">E-mail</p>
-                      <p className="text-xs text-sky-700">{cfg?.email}</p>
-                    </div>
-                    <ExternalLink className="h-3.5 w-3.5 text-sky-500 ml-auto opacity-0 group-hover:opacity-100 transition" />
-                  </a>
-                ) : (
-                  <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3.5 opacity-50">
-                    <div className="h-9 w-9 shrink-0 rounded-xl bg-slate-300 grid place-items-center">
-                      <Mail className="h-4 w-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-600">E-mail</p>
-                      <p className="text-xs text-slate-400">Não configurado</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-slate-100 flex justify-center">
-                <button
-                  onClick={() => setTab("tickets")}
-                  className="inline-flex items-center gap-2 text-xs font-medium text-teal-600 hover:text-teal-800 transition"
-                >
-                  <Ticket className="h-3.5 w-3.5" />
-                  Abrir chamado de suporte
-                </button>
-              </div>
-
-              <p className="mt-4 text-center text-[11px] text-slate-400">
-                CuidandoVC · versão 1.0 · Desenvolvido por{" "}
-                <a
-                  href="https://avontsistemas.com.br"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-teal-600 hover:underline"
-                >
-                  Avont Sistemas
-                </a>
-              </p>
+              <button
+                onClick={() => setTab("tickets")}
+                className="inline-flex items-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white transition"
+              >
+                <Ticket className="h-4 w-4" />
+                Abrir chamado de suporte
+              </button>
             </div>
           </>
         )}

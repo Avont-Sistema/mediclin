@@ -53,6 +53,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const profNome = professional?.nomeCompleto ?? "";
   const profEspecialidade = professional?.especialidade ?? "";
   const profRegistro = professional?.registro ?? "";
+  const profFoto = professional?.fotoUrl ?? "";
   const initials = profNome
     .split(" ")
     .filter(Boolean)
@@ -168,9 +169,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* Drawer footer */}
             <div className="p-4 border-t border-slate-100">
               <div className="flex items-center gap-3 p-2 rounded-lg">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-teal-500 to-indigo-600 grid place-items-center text-white font-semibold text-sm shrink-0">
-                  {initials || "DR"}
-                </div>
+                {profFoto ? (
+                  <img
+                    src={profFoto}
+                    alt={profNome}
+                    className="h-10 w-10 rounded-full object-cover shrink-0 ring-1 ring-slate-200"
+                  />
+                ) : (
+                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-teal-500 to-indigo-600 grid place-items-center text-white font-semibold text-sm shrink-0">
+                    {initials || "DR"}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{profNome || "Médico"}</div>
                   <div className="text-xs text-slate-500 truncate">
@@ -210,9 +219,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
           <div className="p-4 border-t border-slate-100">
             <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition group">
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-teal-500 to-indigo-600 grid place-items-center text-white font-semibold text-sm shrink-0">
-                {initials || "DR"}
-              </div>
+              {profFoto ? (
+                <img
+                  src={profFoto}
+                  alt={profNome}
+                  className="h-10 w-10 rounded-full object-cover shrink-0 ring-1 ring-slate-200"
+                />
+              ) : (
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-teal-500 to-indigo-600 grid place-items-center text-white font-semibold text-sm shrink-0">
+                  {initials || "DR"}
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium truncate">{profNome || "Médico"}</div>
                 <div className="text-xs text-slate-500 truncate">
