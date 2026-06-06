@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { DashboardLayout } from "../components/DashboardLayout";
 import { PhotoUpload } from "../components/PhotoUpload";
+import { PublicLinkBox } from "../components/PublicLinkBox";
 import { fetchCurrentProfessional } from "../lib/auth";
 import {
   listCards,
@@ -410,12 +411,15 @@ function PaginaPublicaPage() {
     <DashboardLayout>
       <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
         {/* Page header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">Página Pública</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             Personalize o que seus pacientes veem ao acessar seu link
           </p>
         </div>
+
+        {/* Link público — destaque no topo */}
+        {prof?.slug && <PublicLinkBox slug={prof.slug} className="mb-8" />}
 
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-8 items-start">
           {/* ── LEFT: Editor ──────────────────────────────────────────────── */}

@@ -372,6 +372,35 @@ export const fetchAppointmentsPublic = createServerFn({ method: "GET" })
     return appts.sort((a, b) => a.inicio.getTime() - b.inicio.getTime());
   });
 
+// ─── lookupReturningPatient ───────────────────────────────────────────────────
+// Público. Dado um telefone, retorna o nome do paciente SE ele já tiver um
+// agendamento com ESTE profissional (relação prévia). Usado no checkout da
+// página pública para reconhecer pacientes recorrentes e preencher o nome.
+// Privacidade: só revela o nome quando há vínculo com o próprio médico.
+
+export const lookupReturningPatient = createServerFn({ method: "GET" })
+  .inputValidator(
+    z.object({
+      professionalId: z.string().uuid(),
+      telefone: z.string().min(8).max(20),
+    }),
+  )
+  .handler(async ({ data }): Promise<{ nome: string } | null> => {
+    const digits = data.telefone.replace(/\D/g, "");
+    if (digits.length < 8) return null;
+
+    // Telefone é armazenado em formato livre; normalizamos no app. Varremos os
+    // agendamentos recentes deste profissional e comparamos só os dígitos.
+    const rows = await db.query.appointments.findMany({
+      where: eq(appointments.professionalId, data.professionalId),
+      with: { patient: true },
+      orderBy: (t, { desc }) => [desc(t.criadoEm)],
+      limit: 500,
+    });
+    const match = rows.find((r) => (r.patient.telefone ?? "").replace(/\D/g, "") === digits);
+    return match ? { nome: match.patient.nome } : null;
+  });
+
 // ─── confirmCashBooking ─────────────────────────────────────────────────────────
 // Paciente escolheu pagar em dinheiro (presencial): confirma o agendamento sem
 // passar pelo Mercado Pago. Só promove de "aguardando_pagamento" → "confirmado".

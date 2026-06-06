@@ -9,7 +9,6 @@ import {
   Mail,
   ExternalLink,
   Link as LinkIcon,
-  Check,
   ChevronDown,
   ChevronUp,
   ChevronLeft,
@@ -32,7 +31,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { DashboardLayout } from "../components/DashboardLayout";
-import { buildPublicUrl } from "../lib/subdomain";
+import { PublicLinkBox } from "../components/PublicLinkBox";
 import { fetchCurrentProfessional } from "../lib/auth";
 import {
   fetchSupportConfig,
@@ -194,8 +193,6 @@ function SuporteContent() {
   const [tab, setTab] = useState<MainTab>("ajuda");
 
   const slug = professional?.slug ?? "";
-  const publicUrl = buildPublicUrl(slug);
-  const [copied, setCopied] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   // Use loader data as initial data, query keeps it fresh
@@ -207,15 +204,11 @@ function SuporteContent() {
   });
 
   const waPhone = (cfg?.whatsapp ?? "").replace(/\D/g, "");
-  const waMsg = encodeURIComponent(cfg?.whatsappMessage ?? "Olá, preciso de ajuda com o CuidandoVC");
+  const waMsg = encodeURIComponent(
+    cfg?.whatsappMessage ?? "Olá, preciso de ajuda com o CuidandoVC",
+  );
   const waHref = waPhone ? `https://wa.me/${waPhone}?text=${waMsg}` : null;
   const mailHref = cfg?.email ? `mailto:${cfg.email}` : null;
-
-  const copyLink = () => {
-    navigator.clipboard.writeText(publicUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <DashboardLayout>
@@ -260,42 +253,7 @@ function SuporteContent() {
         {tab === "ajuda" && (
           <>
             {/* Seu link público */}
-            {slug && (
-              <div className="rounded-2xl border border-teal-200 bg-teal-50/60 p-5">
-                <div className="flex items-center gap-2 mb-1">
-                  <LinkIcon className="h-4 w-4 text-teal-600" />
-                  <h3 className="text-sm font-semibold text-teal-900">Seu link público</h3>
-                </div>
-                <p className="text-xs text-teal-700 mb-3">
-                  Este é o link para colocar na bio do Instagram.
-                </p>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <code className="flex-1 min-w-0 truncate rounded-lg border border-teal-200 bg-white px-3 py-2 text-xs text-teal-800 font-mono">
-                    {publicUrl}
-                  </code>
-                  <button
-                    onClick={copyLink}
-                    className="shrink-0 flex items-center gap-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 px-3 py-2 text-xs font-semibold text-white transition"
-                  >
-                    {copied ? (
-                      <Check className="h-3.5 w-3.5" />
-                    ) : (
-                      <LinkIcon className="h-3.5 w-3.5" />
-                    )}
-                    {copied ? "Copiado!" : "Copiar"}
-                  </button>
-                  <a
-                    href={publicUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="shrink-0 flex items-center gap-1.5 rounded-lg border border-teal-200 bg-white hover:bg-teal-50 px-3 py-2 text-xs font-medium text-teal-700 transition"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Abrir
-                  </a>
-                </div>
-              </div>
-            )}
+            <PublicLinkBox slug={slug} />
 
             {/* Tutorial */}
             <PhoneTutorial />
@@ -493,7 +451,9 @@ function TicketsSection() {
         <div className="rounded-2xl border border-dashed border-slate-200 p-12 text-center">
           <Ticket className="h-10 w-10 text-slate-300 mx-auto mb-3" />
           <p className="text-sm font-medium text-slate-600">Nenhum chamado aberto</p>
-          <p className="text-xs text-slate-400 mt-1">Clique em "Novo chamado" para falar com o suporte</p>
+          <p className="text-xs text-slate-400 mt-1">
+            Clique em "Novo chamado" para falar com o suporte
+          </p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -511,7 +471,10 @@ function TicketsSection() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-semibold text-slate-900 truncate">{t.titulo}</p>
                       {!t.lidoAdmin && t.status !== "fechado" && (
-                        <span className="shrink-0 h-2 w-2 rounded-full bg-teal-500" title="Resposta pendente" />
+                        <span
+                          className="shrink-0 h-2 w-2 rounded-full bg-teal-500"
+                          title="Resposta pendente"
+                        />
                       )}
                     </div>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -526,7 +489,9 @@ function TicketsSection() {
                           {CATEGORIA_LABEL[t.categoria] ?? t.categoria}
                         </span>
                       )}
-                      <span className="text-[10px] text-slate-400">{formatRelative(t.criadoEm)}</span>
+                      <span className="text-[10px] text-slate-400">
+                        {formatRelative(t.criadoEm)}
+                      </span>
                     </div>
                     {t.lastMessage && (
                       <p className="text-xs text-slate-500 mt-1.5 truncate">{t.lastMessage}</p>
@@ -558,8 +523,7 @@ function NewTicketForm({
   const [mensagem, setMensagem] = useState("");
 
   const mutation = useMutation({
-    mutationFn: () =>
-      createTicket({ data: { titulo, categoria, prioridade, mensagem } }),
+    mutationFn: () => createTicket({ data: { titulo, categoria, prioridade, mensagem } }),
     onSuccess: (result) => onCreated(result.ticketId),
   });
 
@@ -752,9 +716,7 @@ function TicketChat({
           ) : messages.length === 0 ? (
             <p className="text-xs text-slate-400 text-center py-8">Nenhuma mensagem ainda</p>
           ) : (
-            messages.map((msg) => (
-              <MessageBubble key={msg.id} msg={msg} />
-            ))
+            messages.map((msg) => <MessageBubble key={msg.id} msg={msg} />)
           )}
           <div ref={bottomRef} />
         </div>
@@ -910,7 +872,10 @@ function PhoneTutorial() {
               {TUTORIAL_PHASES.map((p, i) => (
                 <button
                   key={p.id}
-                  onClick={() => { setPlaying(false); setIdx(i); }}
+                  onClick={() => {
+                    setPlaying(false);
+                    setIdx(i);
+                  }}
                   className={`h-2 rounded-full transition-all duration-300 ${
                     i === idx ? `w-6 ${p.dot}` : "w-2 bg-slate-200 hover:bg-slate-300"
                   }`}
@@ -986,7 +951,9 @@ function ServicosPhoneScreen() {
       <div className="flex items-center justify-between mb-3 px-0.5">
         <div className="flex items-center gap-1.5">
           <Stethoscope className="h-3 w-3 text-slate-400" />
-          <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide">Serviços</span>
+          <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide">
+            Serviços
+          </span>
         </div>
         <div className="rounded-lg bg-teal-50 border border-teal-200 px-1.5 py-0.5 text-[8px] font-bold text-teal-700">
           + Novo
@@ -997,10 +964,15 @@ function ServicosPhoneScreen() {
         { nome: "Retorno", preco: "R$ 150", min: "30 min" },
         { nome: "Avaliação Online", preco: "R$ 200", min: "45 min" },
       ].map((s, i) => (
-        <div key={i} className="mb-2 rounded-xl border border-slate-100 bg-white px-2.5 py-2 flex items-center gap-2 shadow-sm">
+        <div
+          key={i}
+          className="mb-2 rounded-xl border border-slate-100 bg-white px-2.5 py-2 flex items-center gap-2 shadow-sm"
+        >
           <div className="flex-1 min-w-0">
             <p className="text-[9px] font-bold text-slate-900 truncate">{s.nome}</p>
-            <p className="text-[8px] text-slate-400 mt-0.5">{s.preco} · {s.min}</p>
+            <p className="text-[8px] text-slate-400 mt-0.5">
+              {s.preco} · {s.min}
+            </p>
           </div>
           <div className="relative inline-flex h-3.5 w-6 items-center rounded-full bg-teal-500 shrink-0">
             <span className="inline-block h-2.5 w-2.5 translate-x-3 rounded-full bg-white shadow" />
@@ -1018,29 +990,42 @@ function AgendaPhoneScreen() {
     <div className="px-2.5 pb-4">
       <div className="flex items-center gap-1.5 mb-3 px-0.5">
         <CalendarDays className="h-3 w-3 text-slate-400" />
-        <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide">Disponibilidade</span>
+        <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide">
+          Disponibilidade
+        </span>
       </div>
       <div className="mb-3">
         <p className="text-[8px] text-slate-400 mb-1.5 font-medium">Dias de atendimento</p>
         <div className="flex flex-wrap gap-1">
           {days.map((d, i) => (
-            <div key={d} className={`rounded-lg px-1.5 py-1 text-[8px] font-bold ${active[i] ? "bg-teal-500 text-white" : "bg-slate-100 text-slate-400"}`}>{d}</div>
+            <div
+              key={d}
+              className={`rounded-lg px-1.5 py-1 text-[8px] font-bold ${active[i] ? "bg-teal-500 text-white" : "bg-slate-100 text-slate-400"}`}
+            >
+              {d}
+            </div>
           ))}
         </div>
       </div>
       <div className="mb-3">
         <p className="text-[8px] text-slate-400 mb-1.5 font-medium">Horário de atendimento</p>
         <div className="flex items-center gap-2">
-          <div className="rounded-lg border border-teal-300 bg-white px-2.5 py-1.5 text-[9px] font-black text-slate-800 shadow-sm">08:00</div>
+          <div className="rounded-lg border border-teal-300 bg-white px-2.5 py-1.5 text-[9px] font-black text-slate-800 shadow-sm">
+            08:00
+          </div>
           <div className="flex-1 h-0.5 bg-teal-200 rounded" />
-          <div className="rounded-lg border border-teal-300 bg-white px-2.5 py-1.5 text-[9px] font-black text-slate-800 shadow-sm">18:00</div>
+          <div className="rounded-lg border border-teal-300 bg-white px-2.5 py-1.5 text-[9px] font-black text-slate-800 shadow-sm">
+            18:00
+          </div>
         </div>
       </div>
       <div className="rounded-xl bg-sky-50 border border-sky-100 px-2.5 py-2 flex items-center gap-1.5 mb-3">
         <Clock className="h-2.5 w-2.5 text-sky-500 shrink-0" />
         <p className="text-[8px] text-sky-700 font-semibold">Intervalo: 30 min por consulta</p>
       </div>
-      <button className="w-full rounded-xl bg-teal-600 py-2 text-[9px] font-bold text-white">Salvar disponibilidade</button>
+      <button className="w-full rounded-xl bg-teal-600 py-2 text-[9px] font-bold text-white">
+        Salvar disponibilidade
+      </button>
     </div>
   );
 }
@@ -1050,17 +1035,25 @@ function LinkPhoneScreen() {
     <div className="px-2.5 pb-4">
       <div className="flex items-center gap-1.5 mb-3 px-0.5">
         <Share2 className="h-3 w-3 text-slate-400" />
-        <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide">Link público</span>
+        <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide">
+          Link público
+        </span>
       </div>
       <div className="rounded-xl border border-teal-200 bg-teal-50 p-2.5 mb-3">
         <p className="text-[8px] text-teal-600 font-medium mb-1.5">Seu link de agendamento:</p>
         <div className="flex items-center gap-1.5">
-          <code className="flex-1 text-[8px] font-mono text-teal-800 truncate font-bold">cuidandovc.com.br/dr-joao</code>
-          <div className="shrink-0 rounded-md bg-teal-600 px-1.5 py-0.5 text-[8px] text-white font-bold">Copiar</div>
+          <code className="flex-1 text-[8px] font-mono text-teal-800 truncate font-bold">
+            cuidandovc.com.br/dr-joao
+          </code>
+          <div className="shrink-0 rounded-md bg-teal-600 px-1.5 py-0.5 text-[8px] text-white font-bold">
+            Copiar
+          </div>
         </div>
       </div>
       <div className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
-        <p className="text-[7px] text-slate-400 font-semibold mb-2 uppercase tracking-wide">Exemplo: Bio do Instagram</p>
+        <p className="text-[7px] text-slate-400 font-semibold mb-2 uppercase tracking-wide">
+          Exemplo: Bio do Instagram
+        </p>
         <div className="flex items-center gap-1.5 mb-2">
           <div className="size-8 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-yellow-400 p-0.5 shrink-0">
             <div className="size-full rounded-full bg-white flex items-center justify-center">
@@ -1086,7 +1079,9 @@ function AgendamentoPhoneScreen() {
     <div className="px-2.5 pb-4">
       <div className="flex items-center gap-1.5 mb-3 px-0.5">
         <LayoutDashboard className="h-3 w-3 text-slate-400" />
-        <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide">Dashboard · Hoje</span>
+        <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide">
+          Dashboard · Hoje
+        </span>
       </div>
       <div className="grid grid-cols-2 gap-1.5 mb-3">
         <div className="rounded-xl bg-teal-50 border border-teal-100 p-2 text-center shadow-sm">
@@ -1098,13 +1093,20 @@ function AgendamentoPhoneScreen() {
           <p className="text-[7px] text-slate-500 mt-0.5">este mês</p>
         </div>
       </div>
-      <p className="text-[8px] font-bold text-slate-400 mb-1.5 uppercase tracking-wide">Próximas consultas</p>
+      <p className="text-[8px] font-bold text-slate-400 mb-1.5 uppercase tracking-wide">
+        Próximas consultas
+      </p>
       {[
         { time: "14:00", service: "Consulta Inicial", patient: "Maria Rodrigues" },
         { time: "15:30", service: "Retorno", patient: "Carlos Souza" },
       ].map((a, i) => (
-        <div key={i} className="mb-1.5 rounded-xl border border-slate-100 bg-white px-2 py-1.5 flex items-center gap-2 shadow-sm">
-          <div className="text-[9px] font-black text-teal-600 shrink-0 w-8 leading-none">{a.time}</div>
+        <div
+          key={i}
+          className="mb-1.5 rounded-xl border border-slate-100 bg-white px-2 py-1.5 flex items-center gap-2 shadow-sm"
+        >
+          <div className="text-[9px] font-black text-teal-600 shrink-0 w-8 leading-none">
+            {a.time}
+          </div>
           <div className="flex-1 min-w-0">
             <p className="text-[9px] font-bold text-slate-900 truncate leading-none">{a.service}</p>
             <p className="text-[7px] text-slate-400 mt-0.5 truncate">{a.patient}</p>

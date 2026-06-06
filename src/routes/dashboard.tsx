@@ -16,7 +16,6 @@ import {
   Users,
   DollarSign,
   Activity,
-  Bell,
   Search,
   Video,
   MapPin,
@@ -33,7 +32,6 @@ import {
   Zap,
   AlertTriangle,
   Crown,
-  X,
   MonitorSmartphone,
   Camera,
   Mic,
@@ -56,6 +54,7 @@ import {
 } from "../lib/dashboard";
 import { DashboardLayout } from "../components/DashboardLayout";
 import { NovoAgendamentoModal } from "../components/NovoAgendamentoModal";
+import { NotificationsBell } from "../components/NotificationsBell";
 import { PlanCheckoutModal } from "../components/PlanCheckoutModal";
 import { updateAppointmentStatus } from "../lib/agenda";
 
@@ -266,7 +265,6 @@ function DashboardContent() {
   const router = useRouter();
   // Link da sala virtual do profissional (configurado em Configurações → Perfil)
   const meetLink = data?.professional?.meetLink ?? "";
-  const [showNotifs, setShowNotifs] = useState(false);
   const [showNewAppt, setShowNewAppt] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -356,79 +354,8 @@ function DashboardContent() {
               </div>
             </div>
             <div className="ml-auto flex items-center gap-2">
-              {/* Notifications bell */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowNotifs((v) => !v)}
-                  className="relative h-9 w-9 grid place-items-center rounded-lg hover:bg-slate-100 transition"
-                >
-                  <Bell className="h-4 w-4 text-slate-600" />
-                  {upcomingAppointments.length > 0 && (
-                    <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
-                  )}
-                </button>
-
-                {showNotifs && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowNotifs(false)} />
-                    <div className="absolute right-0 top-11 w-80 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 overflow-hidden">
-                      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">Lembretes</p>
-                          <p className="text-xs text-slate-400">Próximas consultas</p>
-                        </div>
-                        <button
-                          onClick={() => setShowNotifs(false)}
-                          className="h-7 w-7 grid place-items-center rounded-lg hover:bg-slate-100 transition text-slate-400"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                      {upcomingAppointments.length === 0 ? (
-                        <div className="px-4 py-10 text-center">
-                          <Bell className="h-8 w-8 text-slate-200 mx-auto mb-2" />
-                          <p className="text-sm font-medium text-slate-500">Tudo em dia!</p>
-                          <p className="text-xs text-slate-400 mt-0.5">
-                            Nenhuma consulta nos próximos 7 dias.
-                          </p>
-                        </div>
-                      ) : (
-                        <ul className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
-                          {upcomingAppointments.map((a) => (
-                            <li
-                              key={a.id}
-                              className="px-4 py-3 hover:bg-slate-50 transition flex items-center gap-3"
-                            >
-                              <div className="h-8 w-8 rounded-full bg-teal-50 grid place-items-center text-xs font-semibold text-teal-700 shrink-0">
-                                {a.avatar}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-slate-900 truncate">
-                                  {a.patient}
-                                </p>
-                                <p className="text-xs text-slate-500">
-                                  {a.date} · {a.time} · {a.reason}
-                                </p>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      <div className="px-4 py-2 border-t border-slate-100">
-                        <button
-                          onClick={() => {
-                            setShowNotifs(false);
-                            void navigate({ to: "/agenda" });
-                          }}
-                          className="w-full text-xs text-center text-teal-600 hover:text-teal-800 font-medium py-1 transition"
-                        >
-                          Ver agenda completa →
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+              {/* Notifications bell — eventos gerais do consultório */}
+              <NotificationsBell />
 
               {/* Novo agendamento */}
               <button

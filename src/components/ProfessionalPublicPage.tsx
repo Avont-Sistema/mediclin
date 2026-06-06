@@ -46,6 +46,7 @@ import {
   createConsecutiveBookings,
   confirmCashBooking,
   fetchAppointmentsPublic,
+  lookupReturningPatient,
 } from "../lib/availability";
 import { fetchBlockedDates } from "../lib/folga";
 import { createMPPreference, createCartMPPreference } from "../lib/mercadopago";
@@ -286,6 +287,26 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
 
   const isClinic = professional.plano === "clinic" && (professional.members?.length ?? 0) > 0;
 
+  // Reconhece paciente recorrente: ao digitar o telefone, se já houver vínculo
+  // com este profissional, preenche o nome automaticamente (sem sobrescrever o
+  // que o paciente já tiver digitado). Debounce de 600ms.
+  useEffect(() => {
+    const digits = telefone.replace(/\D/g, "");
+    if (digits.length < 10 || nome.trim().length > 0) return;
+    const member = "member" in phase ? phase.member : undefined;
+    const targetId = member?.id ?? professional.id;
+    const handle = setTimeout(() => {
+      lookupReturningPatient({ data: { professionalId: targetId, telefone: digits } })
+        .then((res) => {
+          if (res?.nome) setNome((cur) => (cur.trim().length === 0 ? res.nome : cur));
+        })
+        .catch(() => {
+          /* silencioso — recurso opcional */
+        });
+    }, 600);
+    return () => clearTimeout(handle);
+  }, [telefone, nome, phase, professional.id]);
+
   // Detecta redirect de volta do MP após pagamento e reconstrói a tela correta.
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -325,7 +346,9 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
       const ids = idsFromRef(externalRef);
       if (ids.length > 0) {
         fetchAppointmentsPublic({ data: { ids } })
-          .then((appts) => { if (!resolveFromAppts(appts)) setBookingSuccess(true); })
+          .then((appts) => {
+            if (!resolveFromAppts(appts)) setBookingSuccess(true);
+          })
           .catch(() => setBookingSuccess(true));
       }
       return;
@@ -334,10 +357,15 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
     // Cenário 2: MP redirecionou com status pendente (PIX aguardando confirmação)
     if (effectiveStatus === "pending" || bookingParam === "pending") {
       cleanUrl();
-      const ids = externalRef ? idsFromRef(externalRef) : (() => {
-        try { return JSON.parse(sessionStorage.getItem("mp_pending_ids") ?? "[]") as string[]; }
-        catch { return [] as string[]; }
-      })();
+      const ids = externalRef
+        ? idsFromRef(externalRef)
+        : (() => {
+            try {
+              return JSON.parse(sessionStorage.getItem("mp_pending_ids") ?? "[]") as string[];
+            } catch {
+              return [] as string[];
+            }
+          })();
       if (ids.length > 0) {
         setPhase({ tag: "aguardando", appointmentIds: ids });
       }
@@ -354,7 +382,6 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
         sessionStorage.removeItem("mp_pending_ids");
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Polling para confirmar pagamento enquanto está na tela "aguardando"
@@ -391,8 +418,11 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
 
     poll();
     const interval = setInterval(poll, 4000);
-    return () => { cancelled = true; clearInterval(interval); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase.tag]);
 
   const mpMutation = useMutation({
@@ -421,12 +451,22 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
 
   const cashMutation = useMutation({
     mutationFn: async (appointmentIds: string[]) => {
-      await Promise.all(appointmentIds.map((id) => confirmCashBooking({ data: { appointmentId: id } })));
+      await Promise.all(
+        appointmentIds.map((id) => confirmCashBooking({ data: { appointmentId: id } })),
+      );
     },
     onSuccess: () => {
       setPhase((p) =>
         p.tag === "pagamento"
-          ? { tag: "confirmado", services: p.services, date: p.date, slot: p.slot, nome: p.nome, meetLink: p.meetLink, modalidade: p.modalidade }
+          ? {
+              tag: "confirmado",
+              services: p.services,
+              date: p.date,
+              slot: p.slot,
+              nome: p.nome,
+              meetLink: p.meetLink,
+              modalidade: p.modalidade,
+            }
           : p,
       );
     },
@@ -464,7 +504,8 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
       const firstSvc = phase.services[0].service;
       const firstMember = phase.services[0]?.member;
       const modalidade = resolveModalidade(firstSvc, modalidadeEscolhida);
-      const meetLink = modalidade === "online" ? (firstMember?.meetLink ?? professional.meetLink) : null;
+      const meetLink =
+        modalidade === "online" ? (firstMember?.meetLink ?? professional.meetLink) : null;
       const metodos = (professional.metodosPagamento ?? []).filter(
         (m) => m === "dinheiro" || professional.mpAccountAtivo,
       );
@@ -500,7 +541,8 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
     nome.trim().length >= 2 &&
     telefone.trim().length >= 8;
 
-  const isConfirming = bookingMutation.isPending || mpMutation.isPending || cartMPMutation.isPending;
+  const isConfirming =
+    bookingMutation.isPending || mpMutation.isPending || cartMPMutation.isPending;
 
   const handleConfirm = () => {
     if (canConfirm && !isConfirming) bookingMutation.mutate();
@@ -617,38 +659,43 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
       {/* ── Booking Section ──────────────────────────────────────────── */}
       <section id="booking" className="mx-auto max-w-4xl px-4 lg:px-8">
         {phase.tag === "confirmado" && (
-          <SuccessScreen phase={phase} professional={professional} onReset={handleReset} brand={brand} />
+          <SuccessScreen
+            phase={phase}
+            professional={professional}
+            onReset={handleReset}
+            brand={brand}
+          />
         )}
 
-        {phase.tag === "aguardando" && (
-          <AguardandoScreen onReset={handleReset} brand={brand} />
-        )}
+        {phase.tag === "aguardando" && <AguardandoScreen onReset={handleReset} brand={brand} />}
 
-        {phase.tag === "pagamento" && (() => {
-          const total = phase.services.reduce((s, ss) => s + Number(ss.service.preco), 0);
-          const serviceLabel = phase.services.length === 1
-            ? phase.services[0].service.nome
-            : `${phase.services.length} serviços`;
-          const isSingle = phase.appointmentIds.length === 1;
-          return (
-            <PaymentMethodScreen
-              professionalNome={professional.nomeCompleto}
-              serviceNome={serviceLabel}
-              valor={total}
-              dataLabel={`${phase.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "long" })} às ${phase.slot}`}
-              metodos={phase.metodos}
-              onlinePending={isSingle ? mpMutation.isPending : cartMPMutation.isPending}
-              cashPending={cashMutation.isPending}
-              onPickOnline={(metodo) =>
-                isSingle
-                  ? mpMutation.mutate({ appointmentId: phase.appointmentIds[0], metodo })
-                  : cartMPMutation.mutate({ appointmentIds: phase.appointmentIds, metodo })
-              }
-              onPickCash={() => cashMutation.mutate(phase.appointmentIds)}
-              onBack={handleReset}
-            />
-          );
-        })()}
+        {phase.tag === "pagamento" &&
+          (() => {
+            const total = phase.services.reduce((s, ss) => s + Number(ss.service.preco), 0);
+            const serviceLabel =
+              phase.services.length === 1
+                ? phase.services[0].service.nome
+                : `${phase.services.length} serviços`;
+            const isSingle = phase.appointmentIds.length === 1;
+            return (
+              <PaymentMethodScreen
+                professionalNome={professional.nomeCompleto}
+                serviceNome={serviceLabel}
+                valor={total}
+                dataLabel={`${phase.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "long" })} às ${phase.slot}`}
+                metodos={phase.metodos}
+                onlinePending={isSingle ? mpMutation.isPending : cartMPMutation.isPending}
+                cashPending={cashMutation.isPending}
+                onPickOnline={(metodo) =>
+                  isSingle
+                    ? mpMutation.mutate({ appointmentId: phase.appointmentIds[0], metodo })
+                    : cartMPMutation.mutate({ appointmentIds: phase.appointmentIds, metodo })
+                }
+                onPickCash={() => cashMutation.mutate(phase.appointmentIds)}
+                onBack={handleReset}
+              />
+            );
+          })()}
 
         {isClinic && phase.tag === "idle" && (
           <ClinicTeamSection
@@ -659,78 +706,85 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
           />
         )}
 
-        {phase.tag !== "confirmado" && phase.tag !== "aguardando" && phase.tag !== "pagamento" && !(isClinic && phase.tag === "idle") && (
-          <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
-            <div>
-              {isClinic && phase.tag === "servicos" && (
-                <ClinicMemberServicesSection
-                  member={phase.member}
-                  brand={brand}
-                  colors={colors}
-                  onBack={() => setPhase({ tag: "idle" })}
-                  onSelect={(svc) => {
-                    setSelectedSlot(null);
-                    setPhase({ tag: "data", services: [{ service: svc, member: phase.member }] });
-                  }}
-                />
-              )}
+        {phase.tag !== "confirmado" &&
+          phase.tag !== "aguardando" &&
+          phase.tag !== "pagamento" &&
+          !(isClinic && phase.tag === "idle") && (
+            <div className="grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
+              <div>
+                {isClinic && phase.tag === "servicos" && (
+                  <ClinicMemberServicesSection
+                    member={phase.member}
+                    brand={brand}
+                    colors={colors}
+                    onBack={() => setPhase({ tag: "idle" })}
+                    onSelect={(svc) => {
+                      setSelectedSlot(null);
+                      setPhase({ tag: "data", services: [{ service: svc, member: phase.member }] });
+                    }}
+                  />
+                )}
 
-              {!isClinic && phase.tag === "idle" && (
-                <ServicesSection
+                {!isClinic && phase.tag === "idle" && (
+                  <ServicesSection
+                    professional={professional}
+                    brand={brand}
+                    colors={colors}
+                    selectedServices={selectedServices}
+                    onToggle={(svc) => handleToggleService(svc)}
+                    onContinue={handleContinueToDate}
+                  />
+                )}
+
+                {phase.tag === "data" && (
+                  <StepDate
+                    professionalId={phase.services[0]?.member?.id ?? professional.id}
+                    services={phase.services}
+                    brand={brand}
+                    onBack={() => setPhase({ tag: "idle" })}
+                    onNext={(date) => setPhase({ tag: "hora", services: phase.services, date })}
+                  />
+                )}
+
+                {phase.tag === "hora" && (
+                  <StepTime
+                    professionalId={phase.services[0]?.member?.id ?? professional.id}
+                    services={phase.services}
+                    date={phase.date}
+                    selectedSlot={selectedSlot}
+                    brand={brand}
+                    onBack={() => setPhase({ tag: "data", services: phase.services })}
+                    onSelectSlot={(slot) => setSelectedSlot(slot)}
+                  />
+                )}
+              </div>
+
+              <div className="lg:sticky lg:top-6">
+                <SummaryPanel
+                  phase={phase}
+                  selectedSlot={selectedSlot}
                   professional={professional}
                   brand={brand}
-                  colors={colors}
-                  selectedServices={selectedServices}
-                  onToggle={(svc) => handleToggleService(svc)}
-                  onContinue={handleContinueToDate}
+                  nome={nome}
+                  setNome={setNome}
+                  email={email}
+                  setEmail={setEmail}
+                  telefone={telefone}
+                  setTelefone={setTelefone}
+                  modalidade={modalidadeEscolhida}
+                  setModalidade={setModalidadeEscolhida}
+                  canConfirm={canConfirm}
+                  isConfirming={isConfirming}
+                  onConfirm={handleConfirm}
+                  error={
+                    bookingMutation.error instanceof Error
+                      ? bookingMutation.error.message
+                      : undefined
+                  }
                 />
-              )}
-
-              {phase.tag === "data" && (
-                <StepDate
-                  professionalId={phase.services[0]?.member?.id ?? professional.id}
-                  services={phase.services}
-                  brand={brand}
-                  onBack={() => setPhase({ tag: "idle" })}
-                  onNext={(date) => setPhase({ tag: "hora", services: phase.services, date })}
-                />
-              )}
-
-              {phase.tag === "hora" && (
-                <StepTime
-                  professionalId={phase.services[0]?.member?.id ?? professional.id}
-                  services={phase.services}
-                  date={phase.date}
-                  selectedSlot={selectedSlot}
-                  brand={brand}
-                  onBack={() => setPhase({ tag: "data", services: phase.services })}
-                  onSelectSlot={(slot) => setSelectedSlot(slot)}
-                />
-              )}
+              </div>
             </div>
-
-            <div className="lg:sticky lg:top-6">
-              <SummaryPanel
-                phase={phase}
-                selectedSlot={selectedSlot}
-                professional={professional}
-                brand={brand}
-                nome={nome}
-                setNome={setNome}
-                email={email}
-                setEmail={setEmail}
-                telefone={telefone}
-                setTelefone={setTelefone}
-                modalidade={modalidadeEscolhida}
-                setModalidade={setModalidadeEscolhida}
-                canConfirm={canConfirm}
-                isConfirming={isConfirming}
-                onConfirm={handleConfirm}
-                error={bookingMutation.error instanceof Error ? bookingMutation.error.message : undefined}
-              />
-            </div>
-          </div>
-        )}
+          )}
       </section>
 
       {/* Footer */}
@@ -870,7 +924,9 @@ function ServicesSection({
   return (
     <div id="servicos">
       <div className="flex items-start gap-3 mb-6">
-        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black text-white shadow-sm ${colors.badge}`}>
+        <span
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black text-white shadow-sm ${colors.badge}`}
+        >
           01
         </span>
         <div>
@@ -902,7 +958,8 @@ function ServicesSection({
         <div className="mt-4 rounded-2xl bg-slate-900 text-white p-4 flex items-center justify-between gap-4">
           <div>
             <p className="text-xs text-slate-400">
-              {selectedServices.length} serviço{selectedServices.length !== 1 ? "s" : ""} selecionado{selectedServices.length !== 1 ? "s" : ""}
+              {selectedServices.length} serviço{selectedServices.length !== 1 ? "s" : ""}{" "}
+              selecionado{selectedServices.length !== 1 ? "s" : ""}
             </p>
             <p className="text-lg font-black mt-0.5">{fmt(total)}</p>
           </div>
@@ -937,9 +994,11 @@ function ServiceCard({
     <button
       onClick={() => onSelect(svc)}
       className="relative group flex flex-col text-left bg-white rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all duration-200"
-      style={isSelected
-        ? { border: `2px solid ${brand}`, boxShadow: `0 0 0 3px ${brand}22` }
-        : { border: "1px solid #f1f5f9" }}
+      style={
+        isSelected
+          ? { border: `2px solid ${brand}`, boxShadow: `0 0 0 3px ${brand}22` }
+          : { border: "1px solid #f1f5f9" }
+      }
     >
       {isSelected && (
         <div
@@ -1043,9 +1102,13 @@ function StepDate({
         <div>
           <h2 className="text-base font-bold text-slate-900">Escolha a data</h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            {services.length === 1
-              ? <><strong className="text-slate-600">{services[0].service.nome}</strong></>
-              : <>{services.length} serviços selecionados</>}
+            {services.length === 1 ? (
+              <>
+                <strong className="text-slate-600">{services[0].service.nome}</strong>
+              </>
+            ) : (
+              <>{services.length} serviços selecionados</>
+            )}
           </p>
         </div>
       </div>
@@ -1249,8 +1312,7 @@ function SummaryPanel({
   onConfirm: () => void;
   error?: string;
 }) {
-  const services =
-    phase.tag === "data" || phase.tag === "hora" ? phase.services : [];
+  const services = phase.tag === "data" || phase.tag === "hora" ? phase.services : [];
   const firstSvc = services[0]?.service ?? null;
   const date = phase.tag === "hora" ? phase.date : null;
   const slot = phase.tag === "hora" ? selectedSlot : null;
@@ -1261,7 +1323,9 @@ function SummaryPanel({
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
       <div className="px-6 pt-5 pb-4 border-b border-slate-100">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">SUA RESERVA</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">
+          SUA RESERVA
+        </p>
         <h3 className="text-base font-bold text-slate-900">Resumo do agendamento</h3>
       </div>
 
@@ -1269,7 +1333,13 @@ function SummaryPanel({
         <SummaryRow label="Profissional" value={professional.nomeCompleto} />
         <SummaryRow
           label="Data e hora"
-          value={date && slot ? `${date.toLocaleDateString("pt-BR")} · ${slot}` : date ? date.toLocaleDateString("pt-BR") : undefined}
+          value={
+            date && slot
+              ? `${date.toLocaleDateString("pt-BR")} · ${slot}`
+              : date
+                ? date.toLocaleDateString("pt-BR")
+                : undefined
+          }
         />
 
         {/* Lista de serviços selecionados */}
@@ -1281,7 +1351,9 @@ function SummaryPanel({
             <ul className="space-y-1">
               {services.map((ss) => (
                 <li key={ss.service.id} className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-semibold text-slate-800 truncate">{ss.service.nome}</span>
+                  <span className="text-xs font-semibold text-slate-800 truncate">
+                    {ss.service.nome}
+                  </span>
                   <span className="text-xs text-slate-500 shrink-0">{fmt(ss.service.preco)}</span>
                 </li>
               ))}
@@ -1320,7 +1392,10 @@ function SummaryPanel({
 
       <div className="mx-5 my-4 rounded-xl px-4 py-3" style={{ backgroundColor: `${brand}18` }}>
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: brand }}>
+          <span
+            className="text-[10px] font-bold uppercase tracking-widest"
+            style={{ color: brand }}
+          >
             VALOR TOTAL
           </span>
           {services.length > 0 ? (
@@ -1333,21 +1408,45 @@ function SummaryPanel({
 
       <div className="px-5 space-y-3 pb-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">NOME COMPLETO</p>
-          <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Como está no RG" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition" />
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            NOME COMPLETO
+          </p>
+          <input
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            placeholder="Como está no RG"
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition"
+          />
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">CELULAR / WHATSAPP</p>
-          <input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(11) 99999-9999" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition" />
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            CELULAR / WHATSAPP
+          </p>
+          <input
+            value={telefone}
+            onChange={(e) => setTelefone(e.target.value)}
+            placeholder="(11) 99999-9999"
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition"
+          />
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">E-MAIL <span className="normal-case font-normal text-slate-300">(opcional)</span></p>
-          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="para envio de confirmação" type="email" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition" />
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            E-MAIL <span className="normal-case font-normal text-slate-300">(opcional)</span>
+          </p>
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="para envio de confirmação"
+            type="email"
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition"
+          />
         </div>
       </div>
 
       {error && (
-        <p className="mx-5 mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">{error}</p>
+        <p className="mx-5 mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">
+          {error}
+        </p>
       )}
 
       <div className="px-5 pb-6 space-y-2">
@@ -1358,9 +1457,13 @@ function SummaryPanel({
           style={{ background: brand }}
         >
           {isConfirming ? (
-            <span className="flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Confirmando...</span>
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> Confirmando...
+            </span>
           ) : professional.mpAccountAtivo ? (
-            <span className="flex items-center justify-center gap-2"><CreditCard className="h-4 w-4" /> Ir para pagamento →</span>
+            <span className="flex items-center justify-center gap-2">
+              <CreditCard className="h-4 w-4" /> Ir para pagamento →
+            </span>
           ) : (
             "Confirmar agendamento →"
           )}
@@ -1373,8 +1476,12 @@ function SummaryPanel({
         )}
 
         <div className="mt-4 flex items-center justify-center gap-4 text-slate-400">
-          <span className="flex items-center gap-1 text-[10px]"><Shield className="h-3 w-3" /> Pagamento seguro</span>
-          <span className="flex items-center gap-1 text-[10px]"><CheckCircle2 className="h-3 w-3" /> Confirmação imediata</span>
+          <span className="flex items-center gap-1 text-[10px]">
+            <Shield className="h-3 w-3" /> Pagamento seguro
+          </span>
+          <span className="flex items-center gap-1 text-[10px]">
+            <CheckCircle2 className="h-3 w-3" /> Confirmação imediata
+          </span>
         </div>
       </div>
     </div>
@@ -1398,13 +1505,7 @@ function SummaryRow({ label, value }: { label: string; value?: string }) {
 
 // ─── AguardandoScreen ─────────────────────────────────────────────────────────
 
-function AguardandoScreen({
-  onReset,
-  brand,
-}: {
-  onReset: () => void;
-  brand: string;
-}) {
+function AguardandoScreen({ onReset, brand }: { onReset: () => void; brand: string }) {
   return (
     <div className="rounded-2xl border border-amber-200 bg-white p-8 text-center shadow-sm">
       <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50">
@@ -1412,15 +1513,15 @@ function AguardandoScreen({
       </div>
       <h2 className="text-xl font-black text-slate-900">Aguardando confirmação</h2>
       <p className="mt-2 text-sm text-slate-500">
-        Seu pagamento está sendo processado. Esta página atualiza automaticamente quando
-        confirmado — não é necessário fazer nada.
+        Seu pagamento está sendo processado. Esta página atualiza automaticamente quando confirmado
+        — não é necessário fazer nada.
       </p>
 
       <div className="mt-6 rounded-xl border border-amber-100 bg-amber-50 px-5 py-4 text-left">
         <p className="text-xs font-semibold text-amber-800 mb-1">Se pagou via PIX:</p>
         <p className="text-[11px] text-amber-700 leading-snug">
-          Após realizar o pagamento no seu banco, a confirmação pode levar alguns segundos.
-          Mantenha esta página aberta.
+          Após realizar o pagamento no seu banco, a confirmação pode levar alguns segundos. Mantenha
+          esta página aberta.
         </p>
       </div>
 
@@ -1473,7 +1574,9 @@ function SuccessScreen({
         {phase.services.length === 1 ? "Agendamento confirmado!" : "Agendamentos confirmados!"}
       </h2>
       <p className="mt-2 text-sm text-slate-500">
-        Olá, <strong>{phase.nome}</strong>! {phase.services.length === 1 ? "Sua consulta foi" : "Seus agendamentos foram"} confirmado{phase.services.length !== 1 ? "s" : ""} com sucesso.
+        Olá, <strong>{phase.nome}</strong>!{" "}
+        {phase.services.length === 1 ? "Sua consulta foi" : "Seus agendamentos foram"} confirmado
+        {phase.services.length !== 1 ? "s" : ""} com sucesso.
       </p>
 
       <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5 text-left space-y-3">
@@ -1482,7 +1585,10 @@ function SuccessScreen({
           {fmtDate(phase.date)}
         </div>
         {phase.services.map((ss, idx) => (
-          <div key={ss.service.id} className="flex items-start justify-between gap-3 pb-2 border-b border-slate-100 last:border-0 last:pb-0">
+          <div
+            key={ss.service.id}
+            className="flex items-start justify-between gap-3 pb-2 border-b border-slate-100 last:border-0 last:pb-0"
+          >
             <div>
               <p className="font-bold text-sm text-slate-900">{ss.service.nome}</p>
               <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500">
@@ -1490,7 +1596,9 @@ function SuccessScreen({
                 {times[idx]} · {ss.service.duracaoMinutos} min
               </div>
             </div>
-            <span className="text-sm font-bold text-slate-700 shrink-0">{fmt(ss.service.preco)}</span>
+            <span className="text-sm font-bold text-slate-700 shrink-0">
+              {fmt(ss.service.preco)}
+            </span>
           </div>
         ))}
         {phase.services.length > 1 && (
