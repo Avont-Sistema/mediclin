@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/tanstack-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
@@ -20,8 +20,6 @@ import {
   ChevronDown,
   ChevronUp,
   LifeBuoy,
-  MessageCircle,
-  Mail,
   CreditCard,
   Lock,
   Loader2,
@@ -45,6 +43,7 @@ import {
   type ClinicMember,
 } from "../lib/settings";
 import { METODOS_PAGAMENTO, type MetodoPagamento } from "../lib/payment-methods";
+import { createMPOAuthLink, activateMPAccount } from "../lib/mercadopago";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Configurações — CuidandoVC" }] }),
@@ -79,6 +78,25 @@ function SettingsContent() {
   const data = Route.useLoaderData() as SettingsData | null;
   const [tab, setTab] = useState<Tab>("perfil");
   const router = useRouter();
+
+  // Conclui a conexão do Mercado Pago quando o OAuth retorna para /settings
+  // (?code=...&state=...). O professionalId é resolvido da sessão no servidor.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const state = params.get("state");
+    if (code && state) {
+      setTab("pagamentos");
+      activateMPAccount({ data: { code, redirectPath: "/settings" } })
+        .then(() => router.invalidate())
+        .catch(() => {
+          /* erro silencioso — o banner continua pedindo conexão */
+        });
+      window.history.replaceState({}, "", "/settings");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!data) {
     return (
@@ -148,7 +166,7 @@ function SettingsContent() {
           (isClinic ? (
             <TeamTab data={data} onSaved={() => router.invalidate()} />
           ) : (
-            <ClinicUpgradePrompt onUpgrade={() => setTab("perfil")} />
+            <ClinicUpgradePrompt />
           ))}
         {tab === "suporte" && <SupportTab slug={data.professional.slug} />}
       </div>
@@ -1121,6 +1139,14 @@ function PaymentMethodsTab({ data, onSaved }: { data: SettingsData; onSaved: () 
     },
   });
 
+  // Atalho para conectar o Mercado Pago direto desta aba.
+  const connectMP = useMutation({
+    mutationFn: () => createMPOAuthLink({ data: { redirectPath: "/settings" } }),
+    onSuccess: ({ url }) => {
+      window.location.href = url;
+    },
+  });
+
   function toggle(m: MetodoPagamento) {
     setSelected((cur) => (cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m]));
   }
@@ -1135,13 +1161,29 @@ function PaymentMethodsTab({ data, onSaved }: { data: SettingsData; onSaved: () 
       </div>
 
       {!mpAtivo && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-          <p className="text-sm text-amber-800">
-            Conecte sua conta do <strong>Mercado Pago</strong> no painel para receber pagamentos
-            online (cartão e Pix). O método <strong>Dinheiro</strong> (presencial) funciona sem
-            isso.
-          </p>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-800">
+              Conecte sua conta do <strong>Mercado Pago</strong> para receber pagamentos online
+              (cartão e Pix). O método <strong>Dinheiro</strong> (presencial) funciona sem isso.
+            </p>
+          </div>
+          <button
+            onClick={() => connectMP.mutate()}
+            disabled={connectMP.isPending}
+            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#009ee3] hover:bg-[#008fcc] px-4 py-2.5 text-sm font-semibold text-white transition disabled:opacity-60"
+          >
+            {connectMP.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Abrindo…
+              </>
+            ) : (
+              <>
+                <ExternalLink className="h-4 w-4" /> Conectar Mercado Pago
+              </>
+            )}
+          </button>
         </div>
       )}
 
@@ -1217,56 +1259,22 @@ function PaymentMethodsTab({ data, onSaved }: { data: SettingsData; onSaved: () 
 function SupportTab({ slug: _slug }: { slug: string }) {
   return (
     <div className="space-y-6">
-      {/* ── Contato ── */}
+      {/* ── Contato — chat interno ── */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5">
         <div className="flex items-center gap-2 mb-1">
           <LifeBuoy className="h-4 w-4 text-slate-600" />
           <h3 className="text-sm font-semibold text-slate-800">Fale com a equipe</h3>
         </div>
         <p className="text-xs text-slate-500 mb-4">
-          Respondemos em até 24h em dias úteis. Prefira o WhatsApp para respostas mais rápidas.
+          Abra um chamado e converse diretamente com a nossa equipe de suporte pelo chat.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <a
-            href="https://wa.me/5511999999999?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20CuidandoVC"
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 px-4 py-3.5 transition group"
-          >
-            <div className="h-9 w-9 shrink-0 rounded-xl bg-emerald-500 grid place-items-center">
-              <MessageCircle className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-emerald-900">WhatsApp</p>
-              <p className="text-xs text-emerald-700">Suporte via mensagem</p>
-            </div>
-            <ExternalLink className="h-3.5 w-3.5 text-emerald-500 ml-auto opacity-0 group-hover:opacity-100 transition" />
-          </a>
-          <a
-            href="mailto:suporte@cuidandovc.com.br"
-            className="flex items-center gap-3 rounded-xl border border-sky-200 bg-sky-50 hover:bg-sky-100 px-4 py-3.5 transition group"
-          >
-            <div className="h-9 w-9 shrink-0 rounded-xl bg-sky-500 grid place-items-center">
-              <Mail className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-sky-900">E-mail</p>
-              <p className="text-xs text-sky-700">suporte@cuidandovc.com.br</p>
-            </div>
-            <ExternalLink className="h-3.5 w-3.5 text-sky-500 ml-auto opacity-0 group-hover:opacity-100 transition" />
-          </a>
-        </div>
-        <p className="mt-4 text-center text-[11px] text-slate-400">
-          CuidandoVC · versão 1.0 · Desenvolvido por{" "}
-          <a
-            href="https://avontsistemas.com.br"
-            target="_blank"
-            rel="noreferrer"
-            className="text-teal-600 hover:underline"
-          >
-            Avont Sistemas
-          </a>
-        </p>
+        <Link
+          to="/suporte"
+          className="inline-flex items-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white transition"
+        >
+          <LifeBuoy className="h-4 w-4" />
+          Abrir chamado de suporte
+        </Link>
       </div>
     </div>
   );
@@ -1274,38 +1282,43 @@ function SupportTab({ slug: _slug }: { slug: string }) {
 
 // ─── ClinicUpgradePrompt ──────────────────────────────────────────────────────
 
-function ClinicUpgradePrompt({ onUpgrade }: { onUpgrade: () => void }) {
+function ClinicUpgradePrompt() {
   return (
-    <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-8 text-center">
-      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-100">
-        <Users className="h-7 w-7 text-violet-600" />
+    <div className="relative rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-8 text-center overflow-hidden">
+      {/* Badge "Em breve" */}
+      <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-violet-600 px-2.5 py-1 text-[11px] font-bold text-white uppercase tracking-wide shadow-sm">
+        Em breve
+      </span>
+
+      {/* Conteúdo com opacidade reduzida (recurso ainda indisponível) */}
+      <div className="opacity-50 pointer-events-none select-none">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-100">
+          <Users className="h-7 w-7 text-violet-600" />
+        </div>
+        <h3 className="text-base font-bold text-slate-900">Plano Clínica</h3>
+        <p className="mt-2 text-sm text-slate-600 max-w-sm mx-auto">
+          Adicione toda a sua equipe de profissionais. Cada um ganha sua própria página pública,
+          serviços e agenda.
+        </p>
+        <ul className="mt-4 space-y-1.5 text-xs text-slate-600 text-left max-w-xs mx-auto">
+          {[
+            "Múltiplos profissionais em uma conta",
+            "Cada profissional com página própria",
+            "Serviços e agenda independentes",
+            "Página da clínica com grid da equipe",
+            "Cores personalizáveis por profissional",
+          ].map((f) => (
+            <li key={f} className="flex items-center gap-2">
+              <Check className="h-3.5 w-3.5 text-violet-500 shrink-0" />
+              {f}
+            </li>
+          ))}
+        </ul>
       </div>
-      <h3 className="text-base font-bold text-slate-900">Plano Clínica</h3>
-      <p className="mt-2 text-sm text-slate-600 max-w-sm mx-auto">
-        Adicione toda a sua equipe de profissionais. Cada um ganha sua própria página pública,
-        serviços e agenda.
+
+      <p className="mt-6 text-sm font-medium text-violet-700">
+        Estamos preparando o plano Clínica. Em breve disponível! 🚀
       </p>
-      <ul className="mt-4 space-y-1.5 text-xs text-slate-600 text-left max-w-xs mx-auto">
-        {[
-          "Múltiplos profissionais em uma conta",
-          "Cada profissional com página própria",
-          "Serviços e agenda independentes",
-          "Página da clínica com grid da equipe",
-          "Cores personalizáveis por profissional",
-        ].map((f) => (
-          <li key={f} className="flex items-center gap-2">
-            <Check className="h-3.5 w-3.5 text-violet-500 shrink-0" />
-            {f}
-          </li>
-        ))}
-      </ul>
-      <button
-        onClick={onUpgrade}
-        className="mt-6 inline-flex items-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 px-6 py-2.5 text-sm font-semibold text-white transition"
-      >
-        Ativar plano Clínica →
-      </button>
-      <p className="mt-2 text-xs text-slate-400">Acesse a aba Perfil e selecione "Clínica"</p>
     </div>
   );
 }

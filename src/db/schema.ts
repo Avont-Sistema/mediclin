@@ -369,6 +369,20 @@ export const supportConfig = pgTable("support_config", {
   atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
 });
 
+// ─── support_faq ──────────────────────────────────────────────────────────────
+// Perguntas frequentes exibidas na página de Suporte do médico. Editáveis pelo
+// admin na aba Personalização do App.
+
+export const supportFaq = pgTable("support_faq", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  pergunta: text("pergunta").notNull(),
+  resposta: text("resposta").notNull(),
+  ordem: integer("ordem").default(0).notNull(),
+  ativo: boolean("ativo").default(true).notNull(),
+  criadoEm: timestamp("criado_em").defaultNow().notNull(),
+  atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
 // ─── support_tickets ──────────────────────────────────────────────────────────
 
 export const ticketStatusEnum = pgEnum("ticket_status", [

@@ -1,10 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { getAuth } from "@clerk/tanstack-start/server";
 import { getWebRequest } from "vinxi/http";
 import { db } from "../db";
-import { supportConfig, supportTickets, supportMessages, users, professionals } from "../db/schema";
+import {
+  supportConfig,
+  supportFaq,
+  supportTickets,
+  supportMessages,
+  users,
+  professionals,
+} from "../db/schema";
 import { isAdminClerkId, requireAdmin } from "./admin-auth";
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
@@ -295,3 +302,95 @@ export const fetchAllTickets = createServerFn({ method: "GET" }).handler(
     }));
   },
 );
+
+// ─── FAQ (perguntas frequentes) ───────────────────────────────────────────────
+
+export type FaqItem = {
+  id: string;
+  pergunta: string;
+  resposta: string;
+  ordem: number;
+  ativo: boolean;
+};
+
+// Público (usado na página de Suporte do médico): só FAQs ativas, ordenadas.
+export const fetchFaqs = createServerFn({ method: "GET" }).handler(async (): Promise<FaqItem[]> => {
+  const rows = await db.query.supportFaq.findMany({
+    where: eq(supportFaq.ativo, true),
+    orderBy: [asc(supportFaq.ordem), asc(supportFaq.criadoEm)],
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    pergunta: r.pergunta,
+    resposta: r.resposta,
+    ordem: r.ordem,
+    ativo: r.ativo,
+  }));
+});
+
+// Admin: lista TODAS as FAQs (inclusive inativas) para edição.
+export const fetchAllFaqs = createServerFn({ method: "GET" }).handler(
+  async (): Promise<FaqItem[]> => {
+    await requireAdmin();
+    const rows = await db.query.supportFaq.findMany({
+      orderBy: [asc(supportFaq.ordem), asc(supportFaq.criadoEm)],
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      pergunta: r.pergunta,
+      resposta: r.resposta,
+      ordem: r.ordem,
+      ativo: r.ativo,
+    }));
+  },
+);
+
+export const createFaq = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      pergunta: z.string().min(3).max(255),
+      resposta: z.string().min(3).max(5000),
+      ordem: z.number().int().min(0).optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    const [row] = await db
+      .insert(supportFaq)
+      .values({ pergunta: data.pergunta, resposta: data.resposta, ordem: data.ordem ?? 0 })
+      .returning();
+    return { id: row.id };
+  });
+
+export const updateFaq = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      id: z.string().uuid(),
+      pergunta: z.string().min(3).max(255),
+      resposta: z.string().min(3).max(5000),
+      ordem: z.number().int().min(0).optional(),
+      ativo: z.boolean().optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    await db
+      .update(supportFaq)
+      .set({
+        pergunta: data.pergunta,
+        resposta: data.resposta,
+        ...(data.ordem != null ? { ordem: data.ordem } : {}),
+        ...(data.ativo != null ? { ativo: data.ativo } : {}),
+        atualizadoEm: new Date(),
+      })
+      .where(eq(supportFaq.id, data.id));
+    return { ok: true };
+  });
+
+export const deleteFaq = createServerFn({ method: "POST" })
+  .inputValidator(z.object({ id: z.string().uuid() }))
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    await db.delete(supportFaq).where(eq(supportFaq.id, data.id));
+    return { ok: true };
+  });

@@ -32,6 +32,7 @@ import { PublicLinkBox } from "../components/PublicLinkBox";
 import { fetchCurrentProfessional } from "../lib/auth";
 import {
   fetchSupportConfig,
+  fetchFaqs,
   fetchMyTickets,
   fetchTicketMessages,
   createTicket,
@@ -101,7 +102,8 @@ const TUTORIAL_PHASES = [
   },
 ] as const;
 
-const FAQ = [
+// Fallback exibido quando o admin ainda não cadastrou nenhuma FAQ.
+const DEFAULT_FAQ = [
   {
     q: "Como o paciente paga a consulta?",
     a: "O paciente paga diretamente pela sua página pública via Mercado Pago. O valor cai na sua conta automaticamente, com desconto da taxa da plataforma.",
@@ -192,6 +194,15 @@ function SuporteContent() {
   const slug = professional?.slug ?? "";
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
+  // FAQs gerenciadas pelo admin (fallback para a lista padrão se vazio)
+  const { data: dbFaqs = [] } = useQuery({
+    queryKey: ["faqs"],
+    queryFn: () => fetchFaqs(),
+    staleTime: 60_000,
+  });
+  const faqList =
+    dbFaqs.length > 0 ? dbFaqs.map((f) => ({ q: f.pergunta, a: f.resposta })) : DEFAULT_FAQ;
+
   return (
     <DashboardLayout>
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
@@ -247,7 +258,7 @@ function SuporteContent() {
                 <h3 className="text-sm font-semibold text-slate-800">Perguntas frequentes</h3>
               </div>
               <div className="space-y-1">
-                {FAQ.map((item, i) => (
+                {faqList.map((item, i) => (
                   <div key={i} className="rounded-xl border border-slate-100 overflow-hidden">
                     <button
                       onClick={() => setOpenFaq(openFaq === i ? null : i)}

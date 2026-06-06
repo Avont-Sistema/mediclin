@@ -43,6 +43,10 @@ import {
   ScrollText,
   Settings,
   Plug,
+  Palette,
+  Plus,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { fetchAdminOverview, runSeed, fetchPlanPrices, updatePlanPrice } from "../lib/admin";
 import type { AdminOverview, AdminMetrics } from "../lib/admin";
@@ -66,9 +70,14 @@ import {
   fetchTicketMessages,
   sendTicketMessage,
   updateTicketStatus,
+  fetchAllFaqs,
+  createFaq,
+  updateFaq,
+  deleteFaq,
   type SupportTicket,
   type TicketMessage,
   type TicketStatus,
+  type FaqItem,
 } from "../lib/support";
 
 // ─── Route ────────────────────────────────────────────────────────────────────
@@ -114,6 +123,7 @@ type AdminTab =
   | "flags"
   | "notificacoes"
   | "auditoria"
+  | "personalizacao"
   | "config";
 
 const NAV: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
@@ -129,6 +139,7 @@ const NAV: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "flags", label: "Feature Flags", icon: Flag },
   { id: "notificacoes", label: "Notificações", icon: Bell },
   { id: "auditoria", label: "Auditoria", icon: ScrollText },
+  { id: "personalizacao", label: "Personalização do App", icon: Palette },
   { id: "config", label: "Configurações do Sistema", icon: Settings },
 ];
 
@@ -260,6 +271,7 @@ function AdminContent() {
           {adminTab === "flags" && <FeatureFlagsSection />}
           {adminTab === "notificacoes" && <NotificationsSection />}
           {adminTab === "auditoria" && <AuditSection />}
+          {adminTab === "personalizacao" && <PersonalizacaoSection />}
           {adminTab === "config" && <SystemConfigSection />}
           {adminTab === "dashboard" && (
             <>
@@ -366,6 +378,216 @@ function AdminContent() {
             </>
           )}
         </main>
+      </div>
+    </div>
+  );
+}
+
+// ─── PersonalizacaoSection (editor de FAQ) ────────────────────────────────────
+
+function PersonalizacaoSection() {
+  const qc = useQueryClient();
+  const { data: faqs = [], isLoading } = useQuery({
+    queryKey: ["adminFaqs"],
+    queryFn: () => fetchAllFaqs(),
+  });
+
+  const [editing, setEditing] = useState<FaqItem | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  const invalidate = () => {
+    void qc.invalidateQueries({ queryKey: ["adminFaqs"] });
+    void qc.invalidateQueries({ queryKey: ["faqs"] });
+  };
+
+  const delMutation = useMutation({
+    mutationFn: (id: string) => deleteFaq({ data: { id } }),
+    onSuccess: invalidate,
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: (f: FaqItem) =>
+      updateFaq({
+        data: { id: f.id, pergunta: f.pergunta, resposta: f.resposta, ativo: !f.ativo },
+      }),
+    onSuccess: invalidate,
+  });
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold text-slate-100">Personalização do App</h2>
+        <p className="text-sm text-slate-400">
+          Gerencie o conteúdo exibido aos médicos. As perguntas abaixo aparecem na aba Suporte do
+          painel do médico.
+        </p>
+      </div>
+
+      {/* FAQ */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-200">Perguntas frequentes (FAQ)</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Edite respostas, ative/desative ou crie novas perguntas.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setEditing(null);
+              setCreating(true);
+            }}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 px-3 py-2 text-xs font-semibold text-white transition"
+          >
+            <Plus className="h-3.5 w-3.5" /> Nova pergunta
+          </button>
+        </div>
+
+        {(creating || editing) && (
+          <FaqForm
+            initial={editing}
+            onClose={() => {
+              setCreating(false);
+              setEditing(null);
+            }}
+            onSaved={() => {
+              invalidate();
+              setCreating(false);
+              setEditing(null);
+            }}
+          />
+        )}
+
+        {isLoading ? (
+          <p className="text-sm text-slate-500 py-6 text-center">Carregando…</p>
+        ) : faqs.length === 0 ? (
+          <div className="rounded-xl border-2 border-dashed border-slate-700 p-8 text-center">
+            <p className="text-sm text-slate-500">
+              Nenhuma pergunta cadastrada. Os médicos veem a lista padrão até você criar as suas.
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {faqs.map((f) => (
+              <li
+                key={f.id}
+                className={`rounded-xl border border-slate-800 bg-slate-900 p-4 ${f.ativo ? "" : "opacity-60"}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-slate-200">{f.pergunta}</p>
+                    <p className="text-xs text-slate-400 mt-1 line-clamp-2">{f.resposta}</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => toggleMutation.mutate(f)}
+                      title={f.ativo ? "Desativar" : "Ativar"}
+                      className="rounded-lg px-2 py-1 text-[10px] font-semibold text-slate-300 hover:bg-slate-800 transition"
+                    >
+                      {f.ativo ? "Ativa" : "Inativa"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCreating(false);
+                        setEditing(f);
+                      }}
+                      className="size-7 grid place-items-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition"
+                      title="Editar"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => delMutation.mutate(f.id)}
+                      disabled={delMutation.isPending}
+                      className="size-7 grid place-items-center rounded-lg text-slate-400 hover:bg-rose-900/40 hover:text-rose-400 transition"
+                      title="Excluir"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FaqForm({
+  initial,
+  onClose,
+  onSaved,
+}: {
+  initial: FaqItem | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [pergunta, setPergunta] = useState(initial?.pergunta ?? "");
+  const [resposta, setResposta] = useState(initial?.resposta ?? "");
+  const [error, setError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      if (initial) {
+        await updateFaq({ data: { id: initial.id, pergunta, resposta } });
+      } else {
+        await createFaq({ data: { pergunta, resposta } });
+      }
+    },
+    onSuccess: onSaved,
+    onError: (e) => setError(e instanceof Error ? e.message : "Erro ao salvar"),
+  });
+
+  return (
+    <div className="mb-4 rounded-xl border border-teal-800 bg-teal-950/30 p-4 space-y-3">
+      <h4 className="text-sm font-semibold text-slate-200">
+        {initial ? "Editar pergunta" : "Nova pergunta"}
+      </h4>
+      <div>
+        <label className="block text-xs font-medium text-slate-400 mb-1">Pergunta</label>
+        <input
+          value={pergunta}
+          onChange={(e) => setPergunta(e.target.value)}
+          maxLength={255}
+          placeholder="Ex: Como o paciente paga a consulta?"
+          className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-slate-400 mb-1">Resposta</label>
+        <textarea
+          value={resposta}
+          onChange={(e) => setResposta(e.target.value)}
+          maxLength={5000}
+          rows={3}
+          placeholder="Resposta exibida ao médico…"
+          className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500 resize-none"
+        />
+      </div>
+      {error && <p className="text-xs text-rose-400">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          onClick={() => {
+            if (pergunta.trim().length < 3 || resposta.trim().length < 3) {
+              setError("Preencha pergunta e resposta.");
+              return;
+            }
+            setError(null);
+            mutation.mutate();
+          }}
+          disabled={mutation.isPending}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 px-4 py-2 text-xs font-semibold text-white transition disabled:opacity-60"
+        >
+          {mutation.isPending ? "Salvando…" : "Salvar"}
+        </button>
+        <button
+          onClick={onClose}
+          className="rounded-lg border border-slate-700 px-4 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 transition"
+        >
+          Cancelar
+        </button>
       </div>
     </div>
   );
