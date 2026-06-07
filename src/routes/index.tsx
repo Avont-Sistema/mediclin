@@ -186,12 +186,30 @@ function Hero() {
           </ul>
         </div>
 
-        {/* Mockup do celular */}
+        {/* Animação do fluxo de agendamento */}
         <div className="flex justify-center lg:justify-end">
-          <PhoneMockup />
+          <AnimatedFlow />
         </div>
       </div>
     </section>
+  );
+}
+
+// ─── Animação do fluxo (iframe standalone) ────────────────────────────────────
+// Animação do fluxo de agendamento exportada como app autocontido em
+// public/fluxo-mobile.html. Embutida via iframe para isolar runtime/estilos.
+
+function AnimatedFlow() {
+  return (
+    <div className="w-full max-w-[390px]">
+      <iframe
+        src="/fluxo-mobile.html"
+        title="Demonstração do fluxo de agendamento CuidandoVC"
+        loading="lazy"
+        scrolling="no"
+        className="h-[760px] w-full rounded-[2.5rem] border-0 bg-transparent"
+      />
+    </div>
   );
 }
 
