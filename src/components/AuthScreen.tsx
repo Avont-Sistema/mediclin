@@ -1,13 +1,28 @@
-import { useState } from "react";
-import { useSignIn } from "@clerk/tanstack-start";
+import { useState, useEffect } from "react";
+import { useSignIn, useAuth } from "@clerk/tanstack-start";
+import { useNavigate } from "@tanstack/react-router";
 import { Loader2, ShieldCheck, CalendarCheck, Wallet } from "lucide-react";
 
 // ─── Tela de login/cadastro personalizada (CuidandoVC) ────────────────────────
 // Não mostra a UI do Clerk: dispara o OAuth do Google direto via useSignIn.
 // O cliente vê só a nossa marca; o Clerk/Google entram em cena depois do clique.
+// O mesmo botão serve para login E cadastro: o Clerk reconhece a conta existente
+// ou cria uma nova automaticamente (transfer no /sso-callback).
 
 interface Props {
   mode?: "sign-in" | "sign-up";
+}
+
+// Extrai a mensagem real de um erro do Clerk (em vez de uma genérica).
+function clerkErrorMessage(err: unknown): string {
+  const e = err as { errors?: { longMessage?: string; message?: string }[]; message?: string };
+  const first = e?.errors?.[0];
+  return (
+    first?.longMessage ||
+    first?.message ||
+    e?.message ||
+    "Não foi possível conectar com o Google. Tente novamente."
+  );
 }
 
 // Logo "G" oficial do Google (multicolor)
@@ -36,23 +51,32 @@ function GoogleIcon() {
 
 export function AuthScreen({ mode = "sign-in" }: Props) {
   const { isLoaded, signIn } = useSignIn();
+  const { isSignedIn } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isSignUp = mode === "sign-up";
 
+  // Se já existe uma sessão ativa, não tenta autenticar de novo (isso lançava
+  // erro "already signed in") — leva direto para o app.
+  useEffect(() => {
+    if (isSignedIn) void navigate({ to: "/onboarding" });
+  }, [isSignedIn, navigate]);
+
   async function handleGoogle() {
-    if (!isLoaded || !signIn) return;
+    if (!isLoaded || !signIn || loading) return;
     setError(null);
     setLoading(true);
     try {
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
       await signIn.authenticateWithRedirect({
         strategy: "oauth_google",
-        redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/onboarding",
+        redirectUrl: `${origin}/sso-callback`,
+        redirectUrlComplete: `${origin}/onboarding`,
       });
-    } catch {
-      setError("Não foi possível conectar com o Google. Tente novamente.");
+    } catch (err) {
+      setError(clerkErrorMessage(err));
       setLoading(false);
     }
   }
