@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { Lock, Crown } from "lucide-react";
 import { fetchMyAccess, type AccessLevel } from "../lib/access";
+import { ProUpgradeModal } from "./ProUpgradeModal";
 
 // ─── Acesso do médico (hook) ──────────────────────────────────────────────────
 // Enquanto carrega, assume "active" para não piscar bloqueio em quem tem acesso.
@@ -34,6 +35,26 @@ export function ProLock({
   message?: string;
   title?: string;
 }) {
+  return (
+    <LockedView locked={locked} message={message} title={title}>
+      {children}
+    </LockedView>
+  );
+}
+
+function LockedView({
+  locked,
+  children,
+  message,
+  title = "Recurso do plano PRO",
+}: {
+  locked: boolean;
+  children: React.ReactNode;
+  message?: string;
+  title?: string;
+}) {
+  const [showUpgrade, setShowUpgrade] = useState(false);
+
   if (!locked) return <>{children}</>;
 
   return (
@@ -49,14 +70,16 @@ export function ProLock({
           <p className="mt-1.5 text-sm text-slate-500">
             {message ?? "Assine o plano PRO para acessar este recurso."}
           </p>
-          <Link
-            to="/dashboard"
+          <button
+            onClick={() => setShowUpgrade(true)}
             className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:from-teal-700 hover:to-indigo-700"
           >
             <Crown className="h-4 w-4" /> Assinar plano PRO
-          </Link>
+          </button>
         </div>
       </div>
+
+      <ProUpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     </div>
   );
 }

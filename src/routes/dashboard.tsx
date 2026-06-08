@@ -56,6 +56,7 @@ import { DashboardLayout } from "../components/DashboardLayout";
 import { NovoAgendamentoModal } from "../components/NovoAgendamentoModal";
 import { NotificationsBell } from "../components/NotificationsBell";
 import { ProLock, useIsFree } from "../components/ProLock";
+import { computeAccessLevel } from "../lib/access";
 import { PlanCheckoutModal } from "../components/PlanCheckoutModal";
 import { updateAppointmentStatus } from "../lib/agenda";
 
@@ -77,7 +78,13 @@ export const Route = createFileRoute("/dashboard")({
   loader: async () => {
     const { hasProfile } = await checkOnboardingStatus();
     if (!hasProfile) throw redirect({ to: "/onboarding" });
-    return fetchDashboardData();
+    const data = await fetchDashboardData();
+    // Modo Free (teste expirado / sem assinatura): leva direto ao editor da
+    // página pública — única área liberada para o médico.
+    if (computeAccessLevel(data?.subscription) === "free") {
+      throw redirect({ to: "/pagina-publica" });
+    }
+    return data;
   },
   component: Dashboard,
 });
