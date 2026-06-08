@@ -14,13 +14,16 @@ interface Props {
 }
 
 // Benefícios padrão — usados quando o plano ainda não tem "Recursos" preenchidos
-// no admin, pra que o modal nunca fique vazio/feio.
+// no admin, pra que o modal nunca fique vazio/feio. Refletem o que o plano PRO
+// realmente entrega.
 const DEFAULT_PLAN_BENEFITS = [
-  "Agendamentos online ilimitados",
-  "Página pública personalizada para sua bio",
-  "Pagamentos online via Mercado Pago",
-  "Lembretes automáticos para os pacientes",
-  "Painel completo de métricas e faturamento",
+  "Pagamentos via Mercado Pago",
+  "Agendamentos ilimitados",
+  "Agenda inteligente",
+  "Suporte técnico",
+  "Estatísticas financeiras",
+  "Gestão de pacientes",
+  "Estatísticas gerais",
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
