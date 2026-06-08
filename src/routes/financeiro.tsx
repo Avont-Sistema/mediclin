@@ -130,7 +130,11 @@ function Financeiro() {
         <RedirectToSignIn />
       </SignedOut>
       <SignedIn>
-        <DashboardLayout>
+        <DashboardLayout
+          lockWhenFree
+          lockTitle="Financeiro — plano PRO"
+          lockMessage="Assine o plano PRO para acessar seus pagamentos e relatórios."
+        >
           <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
             {/* Header */}
             <div>

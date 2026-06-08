@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { getWebRequest } from "vinxi/http";
 import { db } from "../db";
 import { professionalCards, professionals, services } from "../db/schema";
+import { computeAccessLevel, isFree } from "./access";
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
@@ -56,7 +57,7 @@ type PublicProfileResult =
     };
 
 async function loadProfessional(slug: string) {
-  return db.query.professionals.findFirst({
+  const prof = await db.query.professionals.findFirst({
     where: and(eq(professionals.slug, slug), eq(professionals.ativo, true)),
     with: {
       services: {
@@ -67,8 +68,12 @@ async function loadProfessional(slug: string) {
         where: eq(professionalCards.ativo, true),
         orderBy: (c, { asc }) => [asc(c.ordem)],
       },
+      subscription: true,
     },
   });
+  if (!prof) return null;
+  // Modo Free: teste encerrado / sem assinatura → página pública limitada.
+  return { ...prof, modoFree: isFree(computeAccessLevel(prof.subscription)) };
 }
 
 /**

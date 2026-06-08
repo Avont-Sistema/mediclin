@@ -28,6 +28,7 @@ import {
 import { DashboardLayout } from "../components/DashboardLayout";
 import { PhotoUpload } from "../components/PhotoUpload";
 import { PublicLinkBox } from "../components/PublicLinkBox";
+import { ProLock, useIsFree } from "../components/ProLock";
 import { fetchCurrentProfessional } from "../lib/auth";
 import {
   listCards,
@@ -233,6 +234,7 @@ function getPreviewDates(): PreviewDate[] {
 
 function PaginaPublicaPage() {
   const qc = useQueryClient();
+  const isFree = useIsFree();
 
   const { data: prof, isLoading: profLoading } = useQuery({
     queryKey: ["currentProfessional"],
@@ -587,76 +589,82 @@ function PaginaPublicaPage() {
               )}
             </section>
 
-            {/* Section: Especialidades / Serviços */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-6">
-              <div className="flex items-center justify-between mb-1">
-                <div>
-                  <h2 className="text-base font-semibold text-slate-900">
-                    Especialidades &amp; Serviços
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Cada serviço vira uma opção de agendamento para o paciente
-                  </p>
+            {/* Section: Especialidades / Serviços — bloqueada no modo Free */}
+            <ProLock
+              locked={isFree}
+              title="Serviços — plano PRO"
+              message="No modo gratuito sua página mostra apenas seu perfil e cards de contato. Assine o PRO para oferecer serviços, agenda e pagamentos."
+            >
+              <section className="rounded-2xl border border-slate-200 bg-white p-6">
+                <div className="flex items-center justify-between mb-1">
+                  <div>
+                    <h2 className="text-base font-semibold text-slate-900">
+                      Especialidades &amp; Serviços
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Cada serviço vira uma opção de agendamento para o paciente
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setEditingSvc(null);
+                      setShowSvcForm(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3.5 py-2 text-sm font-medium text-teal-700 hover:bg-teal-100 transition-colors"
+                  >
+                    <Plus className="size-4" /> Adicionar
+                  </button>
                 </div>
-                <button
-                  onClick={() => {
-                    setEditingSvc(null);
-                    setShowSvcForm(true);
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3.5 py-2 text-sm font-medium text-teal-700 hover:bg-teal-100 transition-colors"
-                >
-                  <Plus className="size-4" /> Adicionar
-                </button>
-              </div>
 
-              <div className="mt-4">
-                {svcsLoading ? (
-                  <p className="text-sm text-slate-400 py-4 text-center">Carregando…</p>
-                ) : svcs.length === 0 && !showSvcForm ? (
-                  <div className="rounded-xl border-2 border-dashed border-slate-200 p-8 text-center">
-                    <Stethoscope className="size-7 text-slate-300 mx-auto mb-2" />
-                    <p className="text-sm text-slate-400">Nenhum serviço adicionado ainda.</p>
-                    <button
-                      onClick={() => setShowSvcForm(true)}
-                      className="mt-3 text-sm text-teal-600 hover:underline font-medium"
-                    >
-                      + Adicionar o primeiro serviço
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {svcs.map((svc) => (
-                      <ServiceRow
-                        key={svc.id}
-                        svc={svc}
-                        onEdit={() => {
-                          setEditingSvc(svc);
-                          setShowSvcForm(true);
-                        }}
-                        onDelete={() => deleteSvcMutation.mutate(svc.id)}
-                        onToggle={() => toggleSvcMutation.mutate(svc)}
-                        deleting={deleteSvcMutation.isPending}
-                      />
-                    ))}
-                  </div>
-                )}
+                <div className="mt-4">
+                  {svcsLoading ? (
+                    <p className="text-sm text-slate-400 py-4 text-center">Carregando…</p>
+                  ) : svcs.length === 0 && !showSvcForm ? (
+                    <div className="rounded-xl border-2 border-dashed border-slate-200 p-8 text-center">
+                      <Stethoscope className="size-7 text-slate-300 mx-auto mb-2" />
+                      <p className="text-sm text-slate-400">Nenhum serviço adicionado ainda.</p>
+                      <button
+                        onClick={() => setShowSvcForm(true)}
+                        className="mt-3 text-sm text-teal-600 hover:underline font-medium"
+                      >
+                        + Adicionar o primeiro serviço
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {svcs.map((svc) => (
+                        <ServiceRow
+                          key={svc.id}
+                          svc={svc}
+                          onEdit={() => {
+                            setEditingSvc(svc);
+                            setShowSvcForm(true);
+                          }}
+                          onDelete={() => deleteSvcMutation.mutate(svc.id)}
+                          onToggle={() => toggleSvcMutation.mutate(svc)}
+                          deleting={deleteSvcMutation.isPending}
+                        />
+                      ))}
+                    </div>
+                  )}
 
-                {showSvcForm && (
-                  <ServiceForm
-                    initial={editingSvc}
-                    onSave={() => {
-                      void qc.invalidateQueries({ queryKey: ["myServices"] });
-                      setShowSvcForm(false);
-                      setEditingSvc(null);
-                    }}
-                    onCancel={() => {
-                      setShowSvcForm(false);
-                      setEditingSvc(null);
-                    }}
-                  />
-                )}
-              </div>
-            </section>
+                  {showSvcForm && (
+                    <ServiceForm
+                      initial={editingSvc}
+                      onSave={() => {
+                        void qc.invalidateQueries({ queryKey: ["myServices"] });
+                        setShowSvcForm(false);
+                        setEditingSvc(null);
+                      }}
+                      onCancel={() => {
+                        setShowSvcForm(false);
+                        setEditingSvc(null);
+                      }}
+                    />
+                  )}
+                </div>
+              </section>
+            </ProLock>
           </div>
 
           {/* ── RIGHT: Phone mockup preview ──────────────────────────────── */}

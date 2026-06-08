@@ -118,7 +118,11 @@ function SettingsContent() {
   ];
 
   return (
-    <DashboardLayout>
+    <DashboardLayout
+      lockWhenFree
+      lockTitle="Configurações — plano PRO"
+      lockMessage="Assine o plano PRO para editar seu perfil e configurações. Você pode personalizar sua página pública na aba Página Pública."
+    >
       {/* Topbar */}
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
         <div className="px-6 py-4 flex items-center gap-3">

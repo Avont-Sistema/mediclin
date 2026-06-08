@@ -22,7 +22,13 @@ import {
 } from "lucide-react";
 import { z } from "zod";
 import { DashboardLayout } from "../components/DashboardLayout";
-import { fetchAgendaWeek, fetchAgendaRange, updateAppointmentStatus, getMonday, addDays } from "../lib/agenda";
+import {
+  fetchAgendaWeek,
+  fetchAgendaRange,
+  updateAppointmentStatus,
+  getMonday,
+  addDays,
+} from "../lib/agenda";
 import type { AgendaAppointment } from "../lib/agenda";
 import { listFolgas, removeFolga, type FolgaBlock } from "../lib/folga";
 import { ModoFolgaModal } from "../components/ModoFolgaModal";
@@ -241,10 +247,7 @@ function AgendaContent() {
   }, [byDay, searchQuery]);
 
   // ── Lista mode: próximos 28 dias ──────────────────────────────────────────
-  const listaDays = useMemo(
-    () => Array.from({ length: 28 }, (_, i) => addDays(today, i)),
-    [today],
-  );
+  const listaDays = useMemo(() => Array.from({ length: 28 }, (_, i) => addDays(today, i)), [today]);
 
   const byDayRange = useMemo(() => {
     const map = new Map<string, AgendaAppointment[]>();
@@ -297,7 +300,11 @@ function AgendaContent() {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout
+      lockWhenFree
+      lockTitle="Agenda — plano PRO"
+      lockMessage="Assine o plano PRO para gerenciar sua agenda e horários."
+    >
       {/* ── Sticky header: title · search · actions ──────────────────────── */}
       <header className="sticky top-14 lg:top-0 z-20 bg-white border-b border-slate-200">
         <div className="flex items-center gap-3 px-4 lg:px-6 py-3">
@@ -539,8 +546,12 @@ function AgendaContent() {
             </div>
             {visibleListaDays.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-200 py-16 text-center">
-                <p className="text-sm font-semibold text-slate-500">Nenhum agendamento nos próximos 28 dias</p>
-                <p className="text-xs text-slate-400 mt-1">Use "+ Novo agendamento" para adicionar.</p>
+                <p className="text-sm font-semibold text-slate-500">
+                  Nenhum agendamento nos próximos 28 dias
+                </p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Use "+ Novo agendamento" para adicionar.
+                </p>
               </div>
             ) : (
               <ListView

@@ -86,7 +86,11 @@ function PatientsContent() {
   }, [patients, search]);
 
   return (
-    <DashboardLayout>
+    <DashboardLayout
+      lockWhenFree
+      lockTitle="Pacientes — plano PRO"
+      lockMessage="Assine o plano PRO para acessar a gestão de pacientes."
+    >
       {/* ── Header ─────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200">
         <div className="px-6 py-4 flex items-center gap-4">

@@ -13,6 +13,7 @@ import {
 } from "../db/schema";
 import type { diasSemanaEnum } from "../db/schema";
 import { getPlanMetodosPagamento } from "./plans";
+import { computeAccessLevel, isFree } from "./access";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -50,12 +51,27 @@ function minutesToTime(min: number) {
 //  3. Não há conflito de horário com outro agendamento ativo.
 // Retorna o serviço validado (com a duração correta).
 
+// Bloqueia agendamentos quando o profissional está no modo Free (teste encerrado).
+// Server-side: protege mesmo que a UI pública seja burlada.
+async function assertProfessionalActive(professionalId: string): Promise<void> {
+  const prof = await db.query.professionals.findFirst({
+    where: eq(professionals.id, professionalId),
+    with: { subscription: true },
+  });
+  if (isFree(computeAccessLevel(prof?.subscription))) {
+    throw new Error("Este profissional não está aceitando agendamentos online no momento.");
+  }
+}
+
 async function assertSlotBookable(
   professionalId: string,
   serviceId: string,
   inicio: Date,
   fim: Date,
 ): Promise<void> {
+  // 0. Profissional precisa ter acesso ativo (não pode estar no modo Free)
+  await assertProfessionalActive(professionalId);
+
   // 1. Serviço pertence ao profissional
   const svc = await db.query.services.findFirst({
     where: and(eq(services.id, serviceId), eq(services.professionalId, professionalId)),
@@ -100,6 +116,7 @@ export const fetchProfessionalBySlug = createServerFn({ method: "GET" })
           where: eq(professionalCards.ativo, true),
           orderBy: [asc(professionalCards.ordem)],
         },
+        subscription: true,
         // Include clinic team members if this is a clinic-plan professional
         members: {
           where: and(eq(professionals.ativo, true)),
@@ -120,7 +137,10 @@ export const fetchProfessionalBySlug = createServerFn({ method: "GET" })
     const ativados = prof.metodosPagamento ?? [];
     const metodosPagamento = ativados.filter((m) => teto.includes(m));
 
-    return { ...prof, metodosPagamento };
+    // Modo Free: teste encerrado / sem assinatura → página pública limitada.
+    const modoFree = isFree(computeAccessLevel(prof.subscription));
+
+    return { ...prof, metodosPagamento, modoFree };
   });
 
 // ─── fetchAvailableDates ───────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ import {
   LifeBuoy,
 } from "lucide-react";
 import { fetchCurrentProfessional } from "../lib/auth";
+import { ProLock, useIsFree } from "./ProLock";
 
 // ─── Nav config ───────────────────────────────────────────────────────────────
 
@@ -36,9 +37,31 @@ const NAV_ITEMS: NavItem[] = [
 
 interface DashboardLayoutProps {
   children: ReactNode;
+  /** Quando true e o médico está no modo Free, bloqueia todo o conteúdo. */
+  lockWhenFree?: boolean;
+  lockTitle?: string;
+  lockMessage?: string;
 }
 
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+export function DashboardLayout({
+  children,
+  lockWhenFree,
+  lockTitle,
+  lockMessage,
+}: DashboardLayoutProps) {
+  const isFree = useIsFree();
+  const content =
+    lockWhenFree && isFree ? (
+      <ProLock locked title={lockTitle} message={lockMessage}>
+        {children}
+      </ProLock>
+    ) : (
+      children
+    );
+  return <DashboardLayoutInner>{content}</DashboardLayoutInner>;
+}
+
+function DashboardLayoutInner({ children }: { children: ReactNode }) {
   const { signOut } = useClerk();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });

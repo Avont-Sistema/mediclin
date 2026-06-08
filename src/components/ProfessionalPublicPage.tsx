@@ -70,6 +70,8 @@ export type ProfessionalPublic = InferSelectModel<typeof professionals> & {
   services: Service[];
   cards: ProfessionalCard[];
   members?: ClinicMember[];
+  // Modo Free (teste encerrado): página limitada a identidade + cards.
+  modoFree?: boolean;
 };
 
 interface Props {
@@ -268,9 +270,18 @@ function renderHeadline(text: string, highlight: string | null, textClass: strin
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── Main Page (wrapper) ──────────────────────────────────────────────────────
+// Decide entre a página completa (booking) e a versão Free (só identidade+cards).
+// O branch fica num wrapper sem hooks para respeitar as regras dos Hooks.
 
-export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
+export function ProfessionalPublicPage(props: Props) {
+  if (props.professional.modoFree) {
+    return <FreePublicPage professional={props.professional} />;
+  }
+  return <BookingPublicPage {...props} />;
+}
+
+function BookingPublicPage({ professional, homeUrl = "/" }: Props) {
   const brand = professional.corMarca ?? "#0d9488";
   const colors = getColors(professional.corPrimaria);
 
@@ -797,6 +808,76 @@ export function ProfessionalPublicPage({ professional, homeUrl = "/" }: Props) {
           · Agendamento online seguro
         </p>
       </footer>
+    </div>
+  );
+}
+
+// ─── Free Public Page ─────────────────────────────────────────────────────────
+// Modo Free (teste encerrado): só identidade do médico + cards de contato.
+// Sem serviços, agenda, pagamento ou checkout. Logo CUIDANDOVC grande no rodapé.
+
+function FreePublicPage({ professional }: { professional: ProfessionalPublic }) {
+  const colors = getColors(professional.corPrimaria);
+
+  return (
+    <div className="min-h-screen bg-slate-50 pb-10">
+      <div className="mx-auto max-w-md px-4 pt-8">
+        {/* Profile card */}
+        <section className="rounded-3xl border border-slate-200 bg-white px-6 py-8 mb-4 text-center">
+          <div className="mx-auto mb-4">
+            {professional.fotoUrl ? (
+              <img
+                src={professional.fotoUrl}
+                alt={professional.nomeCompleto}
+                width={120}
+                height={120}
+                className="mx-auto size-28 rounded-full object-cover ring-4 ring-white shadow-lg"
+              />
+            ) : (
+              <div
+                className={`mx-auto size-28 rounded-full bg-gradient-to-br ${colors.bgGradient} ring-4 ring-white shadow-lg grid place-items-center`}
+              >
+                <span className="text-3xl font-bold text-white">
+                  {initials(professional.nomeCompleto)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <h1 className="text-base font-semibold text-slate-900">{professional.nomeCompleto}</h1>
+          <p className={`text-sm ${colors.text} mt-0.5`}>{professional.especialidade}</p>
+
+          {professional.headline && (
+            <h2 className="mt-5 text-2xl font-extrabold leading-tight text-slate-900 tracking-tight">
+              {renderHeadline(professional.headline, professional.headlineDestaque, colors.text)}
+            </h2>
+          )}
+
+          {professional.bio && (
+            <p className="mt-3 text-sm text-slate-500 leading-relaxed">{professional.bio}</p>
+          )}
+        </section>
+
+        {/* Cards grid (contato, localização, redes) */}
+        {professional.cards.length > 0 && (
+          <section className="grid grid-cols-2 gap-3 mb-10">
+            {professional.cards.map((card) => (
+              <CardItem key={card.id} card={card} colors={colors} />
+            ))}
+          </section>
+        )}
+
+        {/* Logo CUIDANDOVC grande */}
+        <div className="mt-12 flex flex-col items-center gap-2">
+          <a href="/" className="flex items-center gap-2 opacity-90 transition hover:opacity-100">
+            <img src="/logo-icon.png" alt="CuidandoVC" className="h-9 w-9 object-contain" />
+            <span className="text-2xl font-extrabold tracking-tight text-slate-800">
+              CuidandoVC
+            </span>
+          </a>
+          <p className="text-xs text-slate-400">Crie sua página de agendamentos grátis</p>
+        </div>
+      </div>
     </div>
   );
 }
