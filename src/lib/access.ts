@@ -16,7 +16,14 @@ import { users } from "../db/schema";
 
 export type AccessLevel = "active" | "trial" | "free";
 
-type SubLike = { status: string; trialFimEm: Date | string | null } | null | undefined;
+type SubLike =
+  | {
+      status: string;
+      trialFimEm: Date | string | null;
+      periodoFimEm?: Date | string | null;
+    }
+  | null
+  | undefined;
 
 /** Função pura (usável no servidor e no cliente). */
 export function computeAccessLevel(sub: SubLike): AccessLevel {
@@ -26,7 +33,12 @@ export function computeAccessLevel(sub: SubLike): AccessLevel {
     const fim = sub.trialFimEm ? new Date(sub.trialFimEm) : null;
     return fim && fim.getTime() > Date.now() ? "trial" : "free";
   }
-  // cancelada / inadimplente / qualquer outro
+  // Cancelada: continua PRO até o fim do período já pago (não renova).
+  if (sub.status === "cancelada") {
+    const fim = sub.periodoFimEm ? new Date(sub.periodoFimEm) : null;
+    return fim && fim.getTime() > Date.now() ? "active" : "free";
+  }
+  // inadimplente / qualquer outro
   return "free";
 }
 

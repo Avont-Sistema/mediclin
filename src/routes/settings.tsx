@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/tanstack-start";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import {
   Settings,
@@ -24,6 +24,9 @@ import {
   Lock,
   Loader2,
   AlertTriangle,
+  Crown,
+  CalendarClock,
+  ShieldCheck,
 } from "lucide-react";
 import { DashboardLayout } from "../components/DashboardLayout";
 import { PhotoUpload } from "../components/PhotoUpload";
@@ -44,6 +47,12 @@ import {
 } from "../lib/settings";
 import { METODOS_PAGAMENTO, type MetodoPagamento } from "../lib/payment-methods";
 import { createMPOAuthLink, activateMPAccount } from "../lib/mercadopago";
+import {
+  fetchSubscriptionDetails,
+  cancelSubscription,
+  type SubscriptionDetails,
+} from "../lib/mp-subscription";
+import { ProUpgradeModal } from "../components/ProUpgradeModal";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Configurações — CuidandoVC" }] }),
@@ -57,7 +66,7 @@ function formatCurrency(v: string | number) {
   return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-type Tab = "perfil" | "pagamentos" | "equipe" | "suporte";
+type Tab = "perfil" | "assinatura" | "pagamentos" | "equipe" | "suporte";
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -112,6 +121,7 @@ function SettingsContent() {
 
   const tabs = [
     { id: "perfil" as const, label: "Perfil", icon: User },
+    { id: "assinatura" as const, label: "Minha assinatura", icon: Crown },
     { id: "pagamentos" as const, label: "Pagamentos", icon: CreditCard },
     { id: "equipe" as const, label: "Equipe", icon: Users },
     { id: "suporte" as const, label: "Suporte", icon: LifeBuoy },
@@ -163,6 +173,7 @@ function SettingsContent() {
         </div>
 
         {tab === "perfil" && <ProfileTab data={data} onSaved={() => router.invalidate()} />}
+        {tab === "assinatura" && <MinhaAssinaturaTab />}
         {tab === "pagamentos" && (
           <PaymentMethodsTab data={data} onSaved={() => router.invalidate()} />
         )}
@@ -1280,6 +1291,232 @@ function SupportTab({ slug: _slug }: { slug: string }) {
           Abrir chamado de suporte
         </Link>
       </div>
+    </div>
+  );
+}
+
+// ─── MinhaAssinaturaTab ───────────────────────────────────────────────────────
+
+function fmtDate(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function statusBadge(d: SubscriptionDetails): { label: string; cls: string } {
+  if (d.ativaAteFimDoPeriodo)
+    return { label: "Cancelada — ativa até o fim do período", cls: "bg-amber-100 text-amber-700" };
+  switch (d.status) {
+    case "ativa":
+      return { label: "Ativa", cls: "bg-emerald-100 text-emerald-700" };
+    case "trial":
+      return { label: "Período de teste", cls: "bg-amber-100 text-amber-700" };
+    case "inadimplente":
+      return { label: "Pagamento pendente", cls: "bg-rose-100 text-rose-700" };
+    case "cancelada":
+      return { label: "Cancelada", cls: "bg-slate-200 text-slate-600" };
+    default:
+      return { label: d.status, cls: "bg-slate-200 text-slate-600" };
+  }
+}
+
+function MinhaAssinaturaTab() {
+  const qc = useQueryClient();
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["subscriptionDetails"],
+    queryFn: () => fetchSubscriptionDetails(),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: () => cancelSubscription(),
+    onSuccess: () => {
+      setConfirmCancel(false);
+      void qc.invalidateQueries({ queryKey: ["subscriptionDetails"] });
+      void qc.invalidateQueries({ queryKey: ["myAccess"] });
+    },
+  });
+
+  if (isLoading) {
+    return <p className="py-10 text-center text-sm text-slate-400">Carregando…</p>;
+  }
+
+  if (!data) {
+    return (
+      <div className="max-w-xl rounded-2xl border border-slate-200 bg-white p-6 text-center">
+        <Crown className="mx-auto mb-3 h-8 w-8 text-slate-300" />
+        <h3 className="text-base font-semibold text-slate-900">
+          Você ainda não tem uma assinatura
+        </h3>
+        <p className="mt-1 text-sm text-slate-500">
+          Assine o plano PRO para desbloquear todos os recursos.
+        </p>
+        <button
+          onClick={() => setShowUpgrade(true)}
+          className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:from-teal-700 hover:to-indigo-700"
+        >
+          <Crown className="h-4 w-4" /> Assinar plano PRO
+        </button>
+        <ProUpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} />
+      </div>
+    );
+  }
+
+  const badge = statusBadge(data);
+  const podeCancelar = !data.cancelada && (data.status === "ativa" || data.status === "trial");
+
+  return (
+    <div className="max-w-xl space-y-5">
+      {/* Card do plano */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="flex items-center justify-between bg-gradient-to-br from-teal-600 to-indigo-600 px-6 py-5 text-white">
+          <div>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold">
+              <Crown className="h-3.5 w-3.5" /> Assinatura
+            </div>
+            <h2 className="mt-2 text-xl font-bold">{data.planoNome ?? "Plano CuidandoVC"}</h2>
+            {data.precoMensal && (
+              <p className="text-sm text-white/85">
+                {Number(data.precoMensal).toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL",
+                })}
+                /mês
+              </p>
+            )}
+          </div>
+          <span className={`rounded-full px-3 py-1 text-xs font-bold ${badge.cls}`}>
+            {badge.label}
+          </span>
+        </div>
+
+        {/* Métricas */}
+        <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
+          <div className="p-5 text-center">
+            <p className="text-2xl font-black text-slate-900">{data.diasComoAssinante}</p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {data.diasComoAssinante === 1 ? "dia como assinante" : "dias como assinante"}
+            </p>
+          </div>
+          <div className="p-5 text-center">
+            <p className="text-2xl font-black text-slate-900">{data.diasParaRenovar}</p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {data.cancelada ? "dias de acesso restantes" : "dias para renovar"}
+            </p>
+          </div>
+        </div>
+
+        {/* Detalhes */}
+        <div className="space-y-2 p-5 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500">Assinante desde</span>
+            <span className="font-medium text-slate-800">{fmtDate(data.assinanteDesde)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-slate-500">
+              <CalendarClock className="h-4 w-4" />
+              {data.cancelada ? "Acesso até" : "Próxima renovação"}
+            </span>
+            <span className="font-medium text-slate-800">{fmtDate(data.proximaRenovacao)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Cancelada — aviso + reativar */}
+      {data.cancelada && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm text-amber-800">
+            Sua assinatura foi cancelada e <strong>não será renovada</strong>. Você continua com o
+            plano PRO até <strong>{fmtDate(data.proximaRenovacao)}</strong>; depois disso sua conta
+            entra no modo gratuito.
+          </p>
+          <button
+            onClick={() => setShowUpgrade(true)}
+            className="mt-3 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:from-teal-700 hover:to-indigo-700"
+          >
+            <Crown className="h-4 w-4" /> Reativar assinatura
+          </button>
+        </div>
+      )}
+
+      {/* Ações */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h3 className="text-sm font-semibold text-slate-800">Gerenciar assinatura</h3>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          {/* Atualizar plano — em breve */}
+          <button
+            disabled
+            className="inline-flex cursor-not-allowed items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-400"
+          >
+            Atualizar plano
+            <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-500">
+              Em breve
+            </span>
+          </button>
+
+          {/* Cancelar */}
+          {podeCancelar && !confirmCancel && (
+            <button
+              onClick={() => setConfirmCancel(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
+            >
+              Cancelar assinatura
+            </button>
+          )}
+        </div>
+
+        {/* Confirmação de cancelamento */}
+        {confirmCancel && (
+          <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4">
+            <p className="text-sm text-rose-800">
+              Tem certeza? Você continua com o plano PRO até{" "}
+              <strong>{fmtDate(data.proximaRenovacao)}</strong> (sem nova cobrança). Depois disso a
+              conta entra no modo gratuito.
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={() => cancelMutation.mutate()}
+                disabled={cancelMutation.isPending}
+                className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:opacity-60"
+              >
+                {cancelMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Cancelando…
+                  </>
+                ) : (
+                  "Sim, cancelar"
+                )}
+              </button>
+              <button
+                onClick={() => setConfirmCancel(false)}
+                disabled={cancelMutation.isPending}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+              >
+                Voltar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Selos */}
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-slate-100 pt-4 text-xs text-slate-500">
+          <span className="inline-flex items-center gap-1.5">
+            <ShieldCheck className="h-3.5 w-3.5 text-teal-600" /> Cancele quando quiser, sem multa
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <CreditCard className="h-3.5 w-3.5 text-teal-600" /> Pagamento processado pelo Mercado
+            Pago
+          </span>
+        </div>
+      </div>
+
+      <ProUpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     </div>
   );
 }
