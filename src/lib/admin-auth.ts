@@ -1,27 +1,30 @@
 import { getAuth } from "@clerk/tanstack-start/server";
 import { getWebRequest } from "vinxi/http";
+import { eq } from "drizzle-orm";
+import { db } from "../db";
+import { adminUsers } from "../db/schema";
+import { isAdminClerkId } from "./admin-roles";
 
-// ─── Admin gating central ─────────────────────────────────────────────────────
-// Ponto único de autorização do painel administrativo da plataforma (/admin).
-// Um Clerk ID só é admin se estiver em ADMIN_CLERK_IDS (lista separada por vírgula,
-// configurada no Vercel). Sem a env var, NINGUÉM é admin (fail-closed).
+// ─── Admin gating (server-only) ───────────────────────────────────────────────
+// Dois níveis: ADMINS MASTER (ADMIN_CLERK_IDS, sempre super_admin) e ADMINS POR
+// CARGO (admin_users; bloqueados até um master aprovar). Constantes puras de
+// cargo/permissão ficam em admin-roles.ts (seguras para o cliente).
 
-export function isAdminClerkId(clerkId: string): boolean {
-  const ids = (process.env.ADMIN_CLERK_IDS ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return ids.includes(clerkId);
-}
+export { isAdminClerkId };
+export type { AdminRole, AdminContext } from "./admin-roles";
 
 /**
- * Exige que a requisição venha de um admin da plataforma.
- * Lança "Não autenticado" se não houver sessão, "Acesso negado" se a sessão
- * não for de um admin. Retorna o Clerk ID do admin (útil para auditoria).
+ * Exige um admin com acesso (master OU admin_user ativo). Lança caso contrário.
+ * Retorna o Clerk ID. (Gating por cargo de cada função fica para a Fase 2.)
  */
 export async function requireAdmin(): Promise<string> {
   const auth = await getAuth(getWebRequest());
   if (!auth.userId) throw new Error("Não autenticado");
-  if (!isAdminClerkId(auth.userId)) throw new Error("Acesso negado");
+  if (isAdminClerkId(auth.userId)) return auth.userId;
+
+  const record = await db.query.adminUsers.findFirst({
+    where: eq(adminUsers.clerkId, auth.userId),
+  });
+  if (!record?.ativo) throw new Error("Acesso negado");
   return auth.userId;
 }

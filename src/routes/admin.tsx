@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/tanstack-start";
+import { SignedIn, SignedOut, useSignIn } from "@clerk/tanstack-start";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -80,6 +80,8 @@ import {
   type TicketStatus,
   type FaqItem,
 } from "../lib/support";
+import { roleCanAccessTab, type AdminContext } from "../lib/admin-roles";
+import { getAdminContext } from "../lib/admin-context";
 import { fetchAppConfig, updateAppConfig } from "../lib/app-config";
 import {
   fetchTestProfessionals,
@@ -112,9 +114,138 @@ function AdminPage() {
         <AdminContent />
       </SignedIn>
       <SignedOut>
-        <RedirectToSignIn />
+        <AdminLoginScreen />
       </SignedOut>
     </>
+  );
+}
+
+// ─── Tela de login do admin (e-mail + senha via Clerk) ────────────────────────
+
+function AdminLoginScreen() {
+  const { isLoaded, signIn, setActive } = useSignIn();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!isLoaded || !signIn) return;
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await signIn.create({ identifier: email, password });
+      if (res.status === "complete") {
+        await setActive({ session: res.createdSessionId });
+        window.location.reload();
+      } else {
+        setError("Não foi possível concluir o login. Verifique seus dados.");
+        setLoading(false);
+      }
+    } catch (err) {
+      const e2 = err as { errors?: { longMessage?: string; message?: string }[] };
+      setError(
+        e2?.errors?.[0]?.longMessage || e2?.errors?.[0]?.message || "E-mail ou senha inválidos.",
+      );
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogle() {
+    if (!isLoaded || !signIn) return;
+    setError(null);
+    try {
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      await signIn.authenticateWithRedirect({
+        strategy: "oauth_google",
+        redirectUrl: `${origin}/sso-callback`,
+        redirectUrlComplete: `${origin}/admin`,
+      });
+    } catch {
+      setError("Falha ao entrar com Google.");
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
+      <div className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
+        <div className="mb-6 flex items-center justify-center gap-2">
+          <img
+            src="/logo-icon.png"
+            alt="CuidandoVC"
+            className="h-8 w-8 rounded-md object-contain"
+          />
+          <span className="text-lg font-bold text-slate-100">CuidandoVC</span>
+          <span className="rounded border border-slate-700 px-1.5 py-0.5 font-mono text-[10px] text-slate-500">
+            admin
+          </span>
+        </div>
+        <h1 className="text-center text-xl font-bold text-slate-100">Painel administrativo</h1>
+        <p className="mt-1 text-center text-sm text-slate-500">Acesso restrito à equipe.</p>
+
+        <form onSubmit={handleLogin} className="mt-6 space-y-3">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="E-mail"
+            autoComplete="username"
+            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 outline-none focus:border-teal-500"
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Senha"
+            autoComplete="current-password"
+            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 outline-none focus:border-teal-500"
+          />
+          {error && <p className="text-xs text-rose-400">{error}</p>}
+          <button
+            type="submit"
+            disabled={loading || !isLoaded}
+            className="w-full rounded-lg bg-teal-600 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-500 disabled:opacity-60"
+          >
+            {loading ? "Entrando…" : "Entrar"}
+          </button>
+        </form>
+
+        <div className="my-4 flex items-center gap-2 text-[11px] text-slate-600">
+          <div className="h-px flex-1 bg-slate-800" /> ou{" "}
+          <div className="h-px flex-1 bg-slate-800" />
+        </div>
+        <button
+          onClick={handleGoogle}
+          disabled={!isLoaded}
+          className="w-full rounded-lg border border-slate-700 bg-slate-800 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-slate-700 disabled:opacity-60"
+        >
+          Entrar com Google
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tela de "aguardando aprovação" (usuário sem cargo) ───────────────────────
+
+function PendingApprovalScreen({ ctx }: { ctx: AdminContext }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
+      <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center shadow-2xl">
+        <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-amber-900/30">
+          <Clock className="h-7 w-7 text-amber-400" />
+        </div>
+        <h1 className="text-xl font-bold text-slate-100">Acesso aguardando aprovação</h1>
+        <p className="mt-2 text-sm text-slate-400">
+          Sua conta foi registrada{ctx.email ? ` (${ctx.email})` : ""}, mas ainda não tem um cargo
+          atribuído. Um administrador precisa liberar seu acesso e definir suas permissões.
+        </p>
+        <p className="mt-4 text-xs text-slate-600">
+          Assim que for aprovado, recarregue esta página.
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -170,7 +301,43 @@ function AdminContent() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-overview"] }),
   });
 
+  // Contexto do admin (master / aprovado / cargo) — controla acesso e abas.
+  const { data: ctx, isLoading: ctxLoading } = useQuery({
+    queryKey: ["adminContext"],
+    queryFn: () => getAdminContext(),
+  });
+
   const origin = typeof window !== "undefined" ? window.location.origin : "";
+
+  // Abas visíveis conforme o cargo (master vê tudo).
+  const visibleNav = NAV.filter(
+    (n) => ctx?.isMaster || (ctx?.role ? roleCanAccessTab(ctx.role, n.id) : false),
+  );
+
+  // Se o usuário não pode ver a aba atual, cai na primeira permitida.
+  useEffect(() => {
+    if (visibleNav.length > 0 && !visibleNav.some((n) => n.id === adminTab)) {
+      setAdminTab(visibleNav[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx?.role, ctx?.isMaster]);
+
+  // Aguardando contexto
+  if (ctxLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950">
+        <div className="flex items-center gap-3 text-slate-400">
+          <RefreshCw className="h-5 w-5 animate-spin" />
+          <span className="text-sm">Carregando…</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Conta sem aprovação → tela de espera (bloqueado de tudo)
+  if (ctx && !ctx.isApproved) {
+    return <PendingApprovalScreen ctx={ctx} />;
+  }
 
   if (isLoading) {
     return (
@@ -239,7 +406,7 @@ function AdminContent() {
         {/* Sidebar */}
         <aside className="hidden md:block w-56 shrink-0 border-r border-slate-800 min-h-[calc(100vh-3rem)] py-4 px-3 sticky top-12 self-start">
           <nav className="space-y-0.5">
-            {NAV.map(({ id, label, icon: Icon }) => (
+            {visibleNav.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => setAdminTab(id)}
@@ -263,7 +430,7 @@ function AdminContent() {
             onChange={(e) => setAdminTab(e.target.value as AdminTab)}
             className="md:hidden w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-100"
           >
-            {NAV.map((n) => (
+            {visibleNav.map((n) => (
               <option key={n.id} value={n.id}>
                 {n.label}
               </option>

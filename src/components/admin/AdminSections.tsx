@@ -676,10 +676,10 @@ export function SystemConfigSection() {
             </div>
           ))}
         </div>
-        <p className="text-[11px] text-amber-400/70 mt-3">
-          ⚠️ Os níveis ainda não restringem o acesso (gating pendente). Definição das funções já
-          registrada — a aplicação das regras entra quando o ADMIN_CLERK_IDS / login admin estiver
-          configurado.
+        <p className="text-[11px] text-emerald-400/70 mt-3">
+          ✓ O cargo controla quais abas o admin enxerga. Novos usuários entram bloqueados
+          (aguardando aprovação) até um master atribuir um cargo e ativar. Admins master
+          (ADMIN_CLERK_IDS) têm acesso total.
         </p>
       </div>
 
