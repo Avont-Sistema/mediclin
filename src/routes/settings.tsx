@@ -85,7 +85,12 @@ function SettingsPage() {
 
 function SettingsContent() {
   const data = Route.useLoaderData() as SettingsData | null;
-  const [tab, setTab] = useState<Tab>("perfil");
+  const [tab, setTab] = useState<Tab>(() => {
+    if (typeof window === "undefined") return "perfil";
+    const t = new URLSearchParams(window.location.search).get("tab");
+    const valid: Tab[] = ["perfil", "assinatura", "pagamentos", "equipe", "suporte"];
+    return valid.includes(t as Tab) ? (t as Tab) : "perfil";
+  });
   const router = useRouter();
 
   // Conclui a conexão do Mercado Pago quando o OAuth retorna para /settings

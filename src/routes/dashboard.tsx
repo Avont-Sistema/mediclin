@@ -44,7 +44,7 @@ import {
 import { fetchCurrentProfessional } from "../lib/auth";
 import { checkOnboardingStatus } from "../lib/onboarding";
 import { createMPOAuthLink, activateMPAccount } from "../lib/mercadopago";
-import { createMPSubscriptionCheckout, getMPSubscriptionPortalUrl } from "../lib/mp-subscription";
+import { createMPSubscriptionCheckout } from "../lib/mp-subscription";
 import { fetchActivePlans, type PublicPlan } from "../lib/plans";
 import {
   fetchDashboardData,
@@ -1021,13 +1021,6 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
     },
   });
 
-  const portalMutation = useMutation({
-    mutationFn: () => getMPSubscriptionPortalUrl(),
-    onSuccess: ({ url }) => {
-      window.location.href = url;
-    },
-  });
-
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -1039,7 +1032,7 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
 
   if (!subscription) return null;
 
-  const { status, plano, trialFimEm, periodoFimEm, hasMPAccount } = subscription;
+  const { status, plano, trialFimEm, periodoFimEm } = subscription;
   const daysLeft = trialDaysLeft(trialFimEm);
   const isCheckoutPending = checkoutMutation.isPending;
   const pendingPlanId = isCheckoutPending ? (checkoutMutation.variables as string) : null;
@@ -1122,16 +1115,13 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
             </span>
           )}
         </p>
-        {hasMPAccount && (
-          <button
-            disabled={portalMutation.isPending}
-            onClick={() => portalMutation.mutate()}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-900 disabled:opacity-60 transition shrink-0"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-            {portalMutation.isPending ? "Abrindo..." : "Gerenciar assinatura"}
-          </button>
-        )}
+        <a
+          href="/settings?tab=assinatura"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 hover:text-emerald-900 transition shrink-0"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          Gerenciar assinatura
+        </a>
       </div>
     );
   }
@@ -1150,16 +1140,13 @@ function SubscriptionCard({ subscription }: { subscription: SubscriptionInfo | n
             CuidandoVC.
           </p>
         </div>
-        {hasMPAccount && (
-          <button
-            disabled={portalMutation.isPending}
-            onClick={() => portalMutation.mutate()}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-60 px-4 py-2 text-sm font-semibold text-white transition"
-          >
-            <ExternalLink className="h-4 w-4" />
-            {portalMutation.isPending ? "Abrindo..." : "Atualizar pagamento"}
-          </button>
-        )}
+        <a
+          href="/settings?tab=assinatura"
+          className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 px-4 py-2 text-sm font-semibold text-white transition"
+        >
+          <ExternalLink className="h-4 w-4" />
+          Gerenciar assinatura
+        </a>
       </div>
     );
   }
