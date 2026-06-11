@@ -47,6 +47,7 @@ import {
   Plus,
   Pencil,
   Trash2,
+  FlaskConical,
 } from "lucide-react";
 import { fetchAdminOverview, runSeed, fetchPlanPrices, updatePlanPrice } from "../lib/admin";
 import type { AdminOverview, AdminMetrics } from "../lib/admin";
@@ -79,6 +80,13 @@ import {
   type TicketStatus,
   type FaqItem,
 } from "../lib/support";
+import { fetchAppConfig, updateAppConfig } from "../lib/app-config";
+import {
+  fetchTestProfessionals,
+  simulateSubscription,
+  simulatePayment,
+  type TestScenario,
+} from "../lib/admin-testmode";
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
@@ -124,6 +132,7 @@ type AdminTab =
   | "notificacoes"
   | "auditoria"
   | "personalizacao"
+  | "modo-teste"
   | "config";
 
 const NAV: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
@@ -140,6 +149,7 @@ const NAV: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "notificacoes", label: "Notificações", icon: Bell },
   { id: "auditoria", label: "Auditoria", icon: ScrollText },
   { id: "personalizacao", label: "Personalização do App", icon: Palette },
+  { id: "modo-teste", label: "Modo Teste", icon: FlaskConical },
   { id: "config", label: "Configurações do Sistema", icon: Settings },
 ];
 
@@ -272,6 +282,7 @@ function AdminContent() {
           {adminTab === "notificacoes" && <NotificationsSection />}
           {adminTab === "auditoria" && <AuditSection />}
           {adminTab === "personalizacao" && <PersonalizacaoSection />}
+          {adminTab === "modo-teste" && <TestModeSection />}
           {adminTab === "config" && <SystemConfigSection />}
           {adminTab === "dashboard" && (
             <>
@@ -385,6 +396,259 @@ function AdminContent() {
 
 // ─── PersonalizacaoSection (editor de FAQ) ────────────────────────────────────
 
+// ─── DomainConfig (domínio do app) ────────────────────────────────────────────
+
+function DomainConfig() {
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ["appConfig"],
+    queryFn: () => fetchAppConfig(),
+  });
+  const [dominio, setDominio] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const value = dominio ?? data?.dominio ?? "";
+
+  const mutation = useMutation({
+    mutationFn: () => updateAppConfig({ data: { dominio: value } }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["appConfig"] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    },
+  });
+
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+      <div className="flex items-center gap-2 mb-1">
+        <Globe className="h-4 w-4 text-teal-400" />
+        <h3 className="text-sm font-semibold text-slate-200">Domínio do app</h3>
+      </div>
+      <p className="text-xs text-slate-500 mb-4">
+        Domínio usado nos links de e-mail e como endereço oficial do app. Deixe vazio para usar o
+        padrão.
+      </p>
+
+      {isLoading ? (
+        <p className="text-sm text-slate-500">Carregando…</p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-1 min-w-[240px] items-center rounded-lg border border-slate-700 bg-slate-900 px-3">
+            <span className="text-xs text-slate-500">https://</span>
+            <input
+              value={value}
+              onChange={(e) => setDominio(e.target.value)}
+              placeholder="cuidandovc.com.br"
+              className="flex-1 bg-transparent px-2 py-2.5 text-sm text-slate-100 placeholder-slate-600 outline-none"
+            />
+          </div>
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 px-4 py-2.5 text-sm font-semibold text-white transition disabled:opacity-60"
+          >
+            {mutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : saved ? (
+              <CheckCircle2 className="h-4 w-4" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            {saved ? "Salvo!" : "Salvar"}
+          </button>
+        </div>
+      )}
+
+      <div className="mt-4 rounded-lg border border-amber-700/40 bg-amber-900/20 p-3 text-[11px] leading-relaxed text-amber-300/80">
+        ⚠️ Ao contratar um domínio: primeiro adicione-o no painel da <strong>Vercel</strong>{" "}
+        (Settings → Domains) e configure o DNS. Depois informe o mesmo domínio aqui. Os links
+        públicos dos médicos seguem automaticamente o domínio ativo na Vercel.
+      </div>
+    </div>
+  );
+}
+
+// ─── TestModeSection (simular cenários) ───────────────────────────────────────
+
+const TEST_SCENARIOS: { id: TestScenario; label: string; desc: string; cls: string }[] = [
+  {
+    id: "trial_ativo",
+    label: "Teste ativo (14 dias)",
+    desc: "Período de teste em dia",
+    cls: "border-amber-700 text-amber-300",
+  },
+  {
+    id: "trial_expirado",
+    label: "Teste expirado (Free)",
+    desc: "Modo gratuito / bloqueado",
+    cls: "border-slate-600 text-slate-300",
+  },
+  {
+    id: "ativa",
+    label: "Assinatura ativa",
+    desc: "PRO pago, renova em 30d",
+    cls: "border-emerald-700 text-emerald-300",
+  },
+  {
+    id: "cancelada",
+    label: "Cancelada (ativa até +10d)",
+    desc: "PRO até o fim do período",
+    cls: "border-amber-700 text-amber-300",
+  },
+  {
+    id: "inadimplente",
+    label: "Inadimplente",
+    desc: "Pagamento pendente",
+    cls: "border-rose-700 text-rose-300",
+  },
+];
+
+function TestModeSection() {
+  const qc = useQueryClient();
+  const { data: profs = [], isLoading } = useQuery({
+    queryKey: ["testProfessionals"],
+    queryFn: () => fetchTestProfessionals(),
+  });
+  const [selectedId, setSelectedId] = useState<string>("");
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const selected = profs.find((p) => p.id === selectedId) ?? profs[0];
+
+  const refresh = () => void qc.invalidateQueries({ queryKey: ["testProfessionals"] });
+
+  const subMutation = useMutation({
+    mutationFn: (scenario: TestScenario) =>
+      simulateSubscription({ data: { professionalId: selected!.id, scenario } }),
+    onSuccess: (r) => {
+      setMsg(`Cenário aplicado: ${r.scenario}`);
+      refresh();
+    },
+    onError: (e) => setMsg(e instanceof Error ? e.message : "Erro ao simular"),
+  });
+
+  const payMutation = useMutation({
+    mutationFn: () => simulatePayment({ data: { professionalId: selected!.id } }),
+    onSuccess: (r) => {
+      setMsg(`Pagamento simulado: ${r.servico} — R$ ${r.valor}`);
+      refresh();
+    },
+    onError: (e) => setMsg(e instanceof Error ? e.message : "Erro ao simular pagamento"),
+  });
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold text-slate-100">Modo Teste</h2>
+        <p className="text-sm text-slate-400">
+          Simule cenários de assinatura e pagamentos sem dinheiro real e sem esperar datas. As
+          mudanças são aplicadas de verdade no profissional escolhido — use uma conta de teste.
+        </p>
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-slate-500">Carregando…</p>
+      ) : profs.length === 0 ? (
+        <p className="text-sm text-slate-500">Nenhum profissional cadastrado.</p>
+      ) : (
+        <>
+          {/* Seletor de profissional */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+            <label className="block text-xs font-semibold uppercase tracking-widest text-slate-500 mb-2">
+              Profissional de teste
+            </label>
+            <select
+              value={selected?.id ?? ""}
+              onChange={(e) => {
+                setSelectedId(e.target.value);
+                setMsg(null);
+              }}
+              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-teal-500"
+            >
+              {profs.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nomeCompleto} (/{p.slug}) — {p.subStatus ?? "sem assinatura"}
+                </option>
+              ))}
+            </select>
+
+            {selected && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+                <span className="rounded bg-slate-800 px-2 py-0.5">
+                  Status: <strong className="text-slate-200">{selected.subStatus ?? "—"}</strong>
+                </span>
+                {selected.trialFimEm && (
+                  <span className="rounded bg-slate-800 px-2 py-0.5">
+                    Teste até {new Date(selected.trialFimEm).toLocaleDateString("pt-BR")}
+                  </span>
+                )}
+                {selected.periodoFimEm && (
+                  <span className="rounded bg-slate-800 px-2 py-0.5">
+                    Período até {new Date(selected.periodoFimEm).toLocaleDateString("pt-BR")}
+                  </span>
+                )}
+                <a
+                  href={`${origin}/${selected.slug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 rounded bg-teal-900/40 px-2 py-0.5 text-teal-300 hover:bg-teal-900/70"
+                >
+                  <ExternalLink className="h-3 w-3" /> Ver página pública
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* Cenários de assinatura */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+            <h3 className="text-sm font-semibold text-slate-200 mb-3">Simular assinatura</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+              {TEST_SCENARIOS.map((s) => (
+                <button
+                  key={s.id}
+                  disabled={!selected || subMutation.isPending}
+                  onClick={() => subMutation.mutate(s.id)}
+                  className={`rounded-xl border bg-slate-900 px-4 py-3 text-left transition hover:bg-slate-800 disabled:opacity-50 ${s.cls}`}
+                >
+                  <p className="text-sm font-semibold">{s.label}</p>
+                  <p className="text-[11px] text-slate-500">{s.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Simular pagamento */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+            <h3 className="text-sm font-semibold text-slate-200 mb-1">Simular pagamento</h3>
+            <p className="text-xs text-slate-500 mb-3">
+              Cria uma consulta confirmada e paga (paciente de teste), refletindo no financeiro e
+              nas notificações do médico.
+            </p>
+            <button
+              disabled={!selected || payMutation.isPending}
+              onClick={() => payMutation.mutate()}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition disabled:opacity-60"
+            >
+              {payMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <DollarSign className="h-4 w-4" />
+              )}
+              Simular pagamento de consulta
+            </button>
+          </div>
+
+          {msg && (
+            <div className="rounded-xl border border-teal-700/40 bg-teal-900/20 px-4 py-3 text-sm text-teal-300">
+              {msg}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function PersonalizacaoSection() {
   const qc = useQueryClient();
   const { data: faqs = [], isLoading } = useQuery({
@@ -418,10 +682,12 @@ function PersonalizacaoSection() {
       <div>
         <h2 className="text-lg font-semibold text-slate-100">Personalização do App</h2>
         <p className="text-sm text-slate-400">
-          Gerencie o conteúdo exibido aos médicos. As perguntas abaixo aparecem na aba Suporte do
-          painel do médico.
+          Domínio do app, conteúdo do suporte e outras configurações globais.
         </p>
       </div>
+
+      {/* Domínio do app */}
+      <DomainConfig />
 
       {/* FAQ */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">

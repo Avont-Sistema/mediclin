@@ -361,6 +361,16 @@ export const planPrices = pgTable("plan_prices", {
 // ─── support_config ───────────────────────────────────────────────────────────
 // Singleton — configurações de contato do suporte CuidandoVC (gerenciado pelo admin)
 
+// ─── app_config (configurações globais do app, geridas no admin) ──────────────
+// Singleton. Por enquanto guarda só o domínio do app (para quando contratar um
+// domínio personalizado), mas serve de casa para futuras configs globais.
+
+export const appConfig = pgTable("app_config", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  dominio: varchar("dominio", { length: 255 }), // ex: "cuidandovc.com.br" (sem protocolo)
+  atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
+});
+
 export const supportConfig = pgTable("support_config", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: varchar("email", { length: 255 }),

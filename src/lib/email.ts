@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { getAppBaseUrl } from "./app-config";
 
 function getResend(): Resend {
   const key = process.env.RESEND_API_KEY;
@@ -193,6 +194,7 @@ export async function sendNewBookingNotification(
   data: ProfessionalBookingNotificationData,
 ): Promise<void> {
   const resend = getResend();
+  const baseUrl = await getAppBaseUrl();
 
   const content = `
     <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0f172a;">
@@ -225,7 +227,7 @@ export async function sendNewBookingNotification(
 
     <p style="margin:0;font-size:14px;color:#64748b;">
       O valor já foi depositado na sua conta Mercado Pago, descontada a taxa da plataforma. Acesse seu
-      <a href="https://cuidandovc.com.br/dashboard" style="color:#0d9488;">painel</a> para ver todos os detalhes.
+      <a href="${baseUrl}/dashboard" style="color:#0d9488;">painel</a> para ver todos os detalhes.
     </p>
   `;
 
