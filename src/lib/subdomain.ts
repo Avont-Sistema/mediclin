@@ -10,16 +10,16 @@ import { computeAccessLevel, isFree } from "./access";
 /**
  * Extracts the subdomain slug from a Host header.
  *
- * Production:  dr-ricardo.cuidandovc.com.br  → "dr-ricardo"
+ * Production:  dr-ricardo.cuidandovc.com  → "dr-ricardo"
  * Local dev:   dr-test.localhost:3000   → "dr-test"
- * Root domain: cuidandovc.com.br             → null
+ * Root domain: cuidandovc.com             → null
  */
 export function getSubdomain(host: string): string | null {
   const hostname = host.split(":")[0]; // strip port
-  const baseDomain = process.env.APP_DOMAIN ?? "cuidandovc.com.br";
+  const baseDomain = process.env.APP_DOMAIN ?? "cuidandovc.com";
   const reserved = new Set(["www", "app", "dashboard", "api"]);
 
-  // Production: *.cuidandovc.com.br
+  // Production: *.cuidandovc.com
   if (hostname.endsWith(`.${baseDomain}`)) {
     const sub = hostname.slice(0, hostname.length - baseDomain.length - 1);
     if (sub && !reserved.has(sub)) return sub;

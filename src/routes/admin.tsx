@@ -605,7 +605,7 @@ function DomainConfig() {
             <input
               value={value}
               onChange={(e) => setDominio(e.target.value)}
-              placeholder="cuidandovc.com.br"
+              placeholder="cuidandovc.com"
               className="flex-1 bg-transparent px-2 py-2.5 text-sm text-slate-100 placeholder-slate-600 outline-none"
             />
           </div>

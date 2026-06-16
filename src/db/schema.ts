@@ -367,7 +367,7 @@ export const planPrices = pgTable("plan_prices", {
 
 export const appConfig = pgTable("app_config", {
   id: uuid("id").primaryKey().defaultRandom(),
-  dominio: varchar("dominio", { length: 255 }), // ex: "cuidandovc.com.br" (sem protocolo)
+  dominio: varchar("dominio", { length: 255 }), // ex: "cuidandovc.com" (sem protocolo)
   atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
 });
 

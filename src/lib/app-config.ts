@@ -19,7 +19,7 @@ export async function getAppDomain(): Promise<string> {
   const row = await db.query.appConfig.findFirst();
   const fromDb = row?.dominio?.trim();
   if (fromDb) return fromDb.replace(/^https?:\/\//, "").replace(/\/$/, "");
-  return (process.env.APP_DOMAIN ?? "cuidandovc.com.br").replace(/^https?:\/\//, "");
+  return (process.env.APP_DOMAIN ?? "cuidandovc.com").replace(/^https?:\/\//, "");
 }
 
 /** URL absoluta do app (https), usada em e-mails e links server-side. */

@@ -965,7 +965,7 @@ function LinkPhoneScreen() {
         <p className="text-[8px] text-teal-600 font-medium mb-1.5">Seu link de agendamento:</p>
         <div className="flex items-center gap-1.5">
           <code className="flex-1 text-[8px] font-mono text-teal-800 truncate font-bold">
-            cuidandovc.com.br/dr-joao
+            cuidandovc.com/dr-joao
           </code>
           <div className="shrink-0 rounded-md bg-teal-600 px-1.5 py-0.5 text-[8px] text-white font-bold">
             Copiar
@@ -989,7 +989,7 @@ function LinkPhoneScreen() {
         </div>
         <div className="rounded-lg bg-slate-50 border border-slate-100 px-2 py-1.5 flex items-center gap-1">
           <LinkIcon className="h-2.5 w-2.5 text-blue-500 shrink-0" />
-          <span className="text-[8px] text-blue-600 font-semibold">cuidandovc.com.br/dr-joao</span>
+          <span className="text-[8px] text-blue-600 font-semibold">cuidandovc.com/dr-joao</span>
         </div>
       </div>
     </div>
