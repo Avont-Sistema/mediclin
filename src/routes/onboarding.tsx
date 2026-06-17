@@ -1,5 +1,6 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState, useId, useRef, useEffect } from "react";
+import { createFileRoute, useNavigate, Link, redirect } from "@tanstack/react-router";
+import { z } from "zod";
+import { useState, useId, useRef, useEffect, useCallback } from "react";
 import { useSignIn, useUser, useAuth } from "@clerk/tanstack-start";
 import {
   Stethoscope,
@@ -21,11 +22,12 @@ import {
   slugify,
   checkOnboardingStatus,
 } from "../lib/onboarding";
-import { registerAffiliateConversion } from "../lib/affiliates";
+import { registerAffiliateConversion, trackAffiliateClick } from "../lib/affiliates";
 import { buildPublicUrl } from "../lib/subdomain";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({ meta: [{ title: "CuidandoVC — Configure seu perfil" }] }),
+  validateSearch: z.object({ ref: z.string().optional() }),
   component: OnboardingPage,
 });
 
@@ -34,6 +36,16 @@ export const Route = createFileRoute("/onboarding")({
 // DEPOIS que o cliente responde a primeira etapa.
 
 function OnboardingPage() {
+  const { ref } = Route.useSearch();
+
+  // Captura silenciosa do código de afiliado — sem UI visível
+  useEffect(() => {
+    if (!ref) return;
+    const codigo = ref.toUpperCase();
+    localStorage.setItem("affiliate_ref", codigo);
+    trackAffiliateClick({ data: { codigo } }).catch(() => {});
+  }, [ref]);
+
   return <OnboardingWizard />;
 }
 

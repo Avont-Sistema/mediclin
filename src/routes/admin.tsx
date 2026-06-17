@@ -327,7 +327,7 @@ function AdminContent() {
 
   function copyMyLink() {
     if (!myCode) return;
-    navigator.clipboard.writeText(`${origin}/cadastro?ref=${myCode.codigo}`);
+    navigator.clipboard.writeText(`${origin}/onboarding?ref=${myCode.codigo}`);
     setLinkCopied(true);
     setTimeout(() => setLinkCopied(false), 2500);
   }
