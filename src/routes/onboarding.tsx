@@ -21,6 +21,7 @@ import {
   slugify,
   checkOnboardingStatus,
 } from "../lib/onboarding";
+import { registerAffiliateConversion } from "../lib/affiliates";
 import { buildPublicUrl } from "../lib/subdomain";
 
 export const Route = createFileRoute("/onboarding")({
@@ -378,7 +379,17 @@ function OnboardingWizard() {
       await createProfessional({
         data: { nomeCompleto: nome, especialidade, registro, uf: uf || undefined, slug },
       });
-      if (typeof window !== "undefined") sessionStorage.removeItem("onb_situacao");
+
+      // Registra conversão de afiliado se o médico veio via link de afiliado
+      if (typeof window !== "undefined") {
+        const ref = localStorage.getItem("affiliate_ref");
+        if (ref) {
+          registerAffiliateConversion({ data: { codigo: ref } }).catch(() => {});
+          localStorage.removeItem("affiliate_ref");
+        }
+        sessionStorage.removeItem("onb_situacao");
+      }
+
       await navigate({ to: "/dashboard" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao criar perfil.");

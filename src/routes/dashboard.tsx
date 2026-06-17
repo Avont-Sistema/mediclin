@@ -314,7 +314,7 @@ function DashboardContent() {
     [data?.upcomingAppointments],
   );
 
-  const maxConsultas = Math.max(...weekData.map((d) => d.consultas), 1);
+  const maxConsultas = Math.max(...weekData.map((d: { consultas: number }) => d.consultas), 1);
   const today = new Date().toLocaleDateString("pt-BR", {
     weekday: "long",
     day: "2-digit",
@@ -898,12 +898,12 @@ function DashboardContent() {
                     <div className="text-xs text-slate-500">
                       Últimos 7 dias:{" "}
                       <span className="font-semibold text-slate-900">
-                        {weekData.reduce((s, d) => s + d.consultas, 0)} consultas
+                        {weekData.reduce((s: number, d: { consultas: number }) => s + d.consultas, 0)} consultas
                       </span>
                     </div>
                   </div>
                   <div className="flex items-end gap-3 h-48">
-                    {weekData.map((d) => {
+                    {weekData.map((d: { day: string; consultas: number; receita: number }) => {
                       const h = maxConsultas > 0 ? (d.consultas / maxConsultas) * 100 : 0;
                       return (
                         <div key={d.day} className="flex-1 flex flex-col items-center gap-2 group">

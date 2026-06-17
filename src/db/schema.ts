@@ -647,6 +647,9 @@ export const affiliateCodes = pgTable(
     valorDesconto: decimal("valor_desconto", { precision: 10, scale: 2 }), // % ou R$
     diasFree: integer("dias_free").default(0).notNull(), // dias extra de trial
 
+    // Admin user (vendedor) que detém esse código
+    adminUserId: uuid("admin_user_id").references(() => adminUsers.id, { onDelete: "set null" }),
+
     // Vigência e limite
     ativo: boolean("ativo").default(true).notNull(),
     dataInicio: timestamp("data_inicio"),
@@ -817,7 +820,11 @@ export const supportMessagesRelations = relations(supportMessages, ({ one }) => 
   }),
 }));
 
-export const affiliateCodesRelations = relations(affiliateCodes, ({ many }) => ({
+export const affiliateCodesRelations = relations(affiliateCodes, ({ one, many }) => ({
+  adminUser: one(adminUsers, {
+    fields: [affiliateCodes.adminUserId],
+    references: [adminUsers.id],
+  }),
   clicks: many(affiliateClicks),
   conversions: many(affiliateConversions),
 }));

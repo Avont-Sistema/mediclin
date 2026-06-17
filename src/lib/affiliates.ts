@@ -1,14 +1,33 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { and, count, eq } from "drizzle-orm";
+import { getAuth } from "@clerk/tanstack-start/server";
+import { getWebRequest } from "vinxi/http";
 import { requireAdmin } from "./admin-auth";
 import { db } from "../db";
 import {
   affiliateCodes,
   affiliateClicks,
   affiliateConversions,
+  adminUsers,
+  professionals,
   auditLog,
 } from "../db/schema";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function slugifyNome(nome: string): string {
+  return nome
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9 ]/g, "")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .join("-")
+    .slice(0, 20);
+}
 
 // ─── Guard ────────────────────────────────────────────────────────────────────
 
@@ -267,3 +286,126 @@ export const fetchAffiliateStats = createServerFn({ method: "GET" }).handler(
     };
   },
 );
+
+// ─── fetchOrCreateMyCode ──────────────────────────────────────────────────────
+// Cada admin user tem um código pessoal fixo. Cria automaticamente na 1ª chamada.
+
+export type MyAffiliateCode = {
+  codigo: string;
+  totalCliques: number;
+  totalConversoes: number;
+};
+
+export const fetchOrCreateMyCode = createServerFn({ method: "GET" }).handler(
+  async (): Promise<MyAffiliateCode> => {
+    const clerkId = await requireAdminAccess();
+
+    const adminUser = await db.query.adminUsers.findFirst({
+      where: eq(adminUsers.clerkId, clerkId),
+      columns: { id: true, nome: true },
+    });
+
+    // Master admins que não têm linha em adminUsers: usa clerkId como fallback de código
+    if (!adminUser) {
+      const codigo = `ADMIN-${clerkId.slice(-6).toUpperCase()}`;
+      const existing = await db.query.affiliateCodes.findFirst({
+        where: eq(affiliateCodes.codigo, codigo),
+        with: { clicks: { columns: { id: true } }, conversions: { columns: { id: true } } },
+      });
+      if (!existing) {
+        await db.insert(affiliateCodes).values({ codigo, nome: "Admin Master" });
+      }
+      return {
+        codigo,
+        totalCliques: existing?.clicks.length ?? 0,
+        totalConversoes: existing?.conversions.length ?? 0,
+      };
+    }
+
+    // Busca código já existente para esse admin user
+    const existing = await db.query.affiliateCodes.findFirst({
+      where: eq(affiliateCodes.adminUserId, adminUser.id),
+      with: {
+        clicks: { columns: { id: true } },
+        conversions: { columns: { id: true } },
+      },
+    });
+
+    if (existing) {
+      return {
+        codigo: existing.codigo,
+        totalCliques: existing.clicks.length,
+        totalConversoes: existing.conversions.length,
+      };
+    }
+
+    // Auto-gera código a partir do nome
+    const base = slugifyNome(adminUser.nome ?? "VENDEDOR");
+    let codigo = base;
+    let attempt = 0;
+
+    while (attempt < 10) {
+      const suffix = attempt === 0 ? "" : `-${attempt}`;
+      codigo = `${base}${suffix}`.slice(0, 20);
+      const conflict = await db.query.affiliateCodes.findFirst({
+        where: eq(affiliateCodes.codigo, codigo),
+        columns: { id: true },
+      });
+      if (!conflict) break;
+      attempt++;
+    }
+
+    await db.insert(affiliateCodes).values({
+      codigo,
+      nome: adminUser.nome ?? "Vendedor",
+      adminUserId: adminUser.id,
+    });
+
+    return { codigo, totalCliques: 0, totalConversoes: 0 };
+  },
+);
+
+// ─── registerAffiliateConversion ──────────────────────────────────────────────
+// Chamado no onboarding após createProfessional para registrar a conversão.
+// Público (qualquer usuário autenticado pode chamar).
+
+export const registerAffiliateConversion = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ codigo: z.string() }).parse(d))
+  .handler(async ({ data }): Promise<{ ok: boolean }> => {
+    const auth = await getAuth(getWebRequest());
+    if (!auth.userId) return { ok: false };
+
+    const { users } = await import("../db/schema");
+
+    const userRow = await db.query.users.findFirst({
+      where: eq(users.clerkId, auth.userId),
+      columns: { id: true },
+    });
+    if (!userRow) return { ok: false };
+
+    const [codeRow, profRow] = await Promise.all([
+      db.query.affiliateCodes.findFirst({
+        where: and(
+          eq(affiliateCodes.codigo, data.codigo.toUpperCase()),
+          eq(affiliateCodes.ativo, true),
+        ),
+        columns: { id: true },
+      }),
+      db.query.professionals.findFirst({
+        where: eq(professionals.userId, userRow.id),
+        columns: { id: true },
+      }),
+    ]);
+
+    if (!codeRow || !profRow) return { ok: false };
+
+    try {
+      await db
+        .insert(affiliateConversions)
+        .values({ codigoId: codeRow.id, professionalId: profRow.id });
+    } catch {
+      // já registrado — ignora silenciosamente
+    }
+
+    return { ok: true };
+  });

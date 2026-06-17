@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { SignedIn, SignedOut, useSignIn } from "@clerk/tanstack-start";
+import { SignedIn, SignedOut, useSignIn, useClerk } from "@clerk/tanstack-start";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -49,6 +49,7 @@ import {
   Trash2,
   FlaskConical,
   Link2,
+  LogOut,
 } from "lucide-react";
 import { fetchAdminOverview, runSeed, fetchPlanPrices, updatePlanPrice } from "../lib/admin";
 import type { AdminOverview, AdminMetrics } from "../lib/admin";
@@ -85,6 +86,7 @@ import { roleCanAccessTab, type AdminContext } from "../lib/admin-roles";
 import { getAdminContext } from "../lib/admin-context";
 import { fetchAppConfig, updateAppConfig } from "../lib/app-config";
 import { AfiliadosSection } from "../components/admin/AfiliadosSection";
+import { fetchOrCreateMyCode } from "../lib/affiliates";
 import {
   fetchTestProfessionals,
   simulateSubscription,
@@ -290,9 +292,11 @@ const NAV: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
 
 function AdminContent() {
   const qc = useQueryClient();
+  const { signOut } = useClerk();
   const [adminTab, setAdminTab] = useState<AdminTab>("dashboard");
   const [previewSlug, setPreviewSlug] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<"patient" | "split">("patient");
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const { data, isLoading, error } = useQuery<AdminOverview>({
     queryKey: ["admin-overview"],
@@ -311,7 +315,22 @@ function AdminContent() {
     queryFn: () => getAdminContext(),
   });
 
+  // Código de afiliado pessoal do admin logado
+  const { data: myCode } = useQuery({
+    queryKey: ["my-affiliate-code"],
+    queryFn: () => fetchOrCreateMyCode(),
+    enabled: !!ctx?.isApproved,
+    staleTime: Infinity,
+  });
+
   const origin = typeof window !== "undefined" ? window.location.origin : "";
+
+  function copyMyLink() {
+    if (!myCode) return;
+    navigator.clipboard.writeText(`${origin}/cadastro?ref=${myCode.codigo}`);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2500);
+  }
 
   // Abas visíveis conforme o cargo (master vê tudo).
   const visibleNav = NAV.filter(
@@ -401,6 +420,27 @@ function AdminContent() {
               className="grid size-8 place-items-center rounded-md border border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-200 transition"
             >
               <RefreshCw className="h-3.5 w-3.5" />
+            </button>
+
+            {/* Meu link de afiliado */}
+            {myCode && (
+              <button
+                onClick={copyMyLink}
+                title={`Copiar meu link: ${origin}/cadastro?ref=${myCode.codigo}`}
+                className="flex items-center gap-1.5 rounded-md border border-teal-700/60 bg-teal-900/30 px-3 py-1.5 text-xs font-medium text-teal-300 hover:bg-teal-900/60 transition"
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                {linkCopied ? "Link copiado!" : `Meu link · ${myCode.codigo}`}
+              </button>
+            )}
+
+            {/* Logout */}
+            <button
+              onClick={() => signOut({ redirectUrl: "/admin" })}
+              title="Desconectar"
+              className="grid size-8 place-items-center rounded-md border border-slate-700 bg-slate-800 text-slate-400 hover:text-rose-400 transition"
+            >
+              <LogOut className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
