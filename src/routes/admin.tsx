@@ -48,6 +48,7 @@ import {
   Pencil,
   Trash2,
   FlaskConical,
+  Link2,
 } from "lucide-react";
 import { fetchAdminOverview, runSeed, fetchPlanPrices, updatePlanPrice } from "../lib/admin";
 import type { AdminOverview, AdminMetrics } from "../lib/admin";
@@ -83,6 +84,7 @@ import {
 import { roleCanAccessTab, type AdminContext } from "../lib/admin-roles";
 import { getAdminContext } from "../lib/admin-context";
 import { fetchAppConfig, updateAppConfig } from "../lib/app-config";
+import { AfiliadosSection } from "../components/admin/AfiliadosSection";
 import {
   fetchTestProfessionals,
   simulateSubscription,
@@ -254,6 +256,7 @@ type AdminTab =
   | "clientes"
   | "assinaturas"
   | "leads"
+  | "afiliados"
   | "suporte"
   | "automacoes"
   | "analytics"
@@ -271,6 +274,7 @@ const NAV: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "clientes", label: "Clientes", icon: Users },
   { id: "assinaturas", label: "Assinaturas", icon: CreditCard },
   { id: "leads", label: "Leads CRM", icon: Briefcase },
+  { id: "afiliados", label: "Afiliados", icon: Link2 },
   { id: "suporte", label: "Suporte", icon: LifeBuoy },
   { id: "automacoes", label: "Automações", icon: Zap },
   { id: "analytics", label: "Analytics", icon: Activity },
@@ -444,6 +448,7 @@ function AdminContent() {
           {adminTab === "clientes" && <ClientesSection professionals={data.professionals} />}
           {adminTab === "assinaturas" && <AssinaturasSection professionals={data.professionals} />}
           {adminTab === "leads" && <LeadsSection />}
+          {adminTab === "afiliados" && <AfiliadosSection />}
           {adminTab === "automacoes" && <AutomacoesSection />}
           {adminTab === "flags" && <FeatureFlagsSection />}
           {adminTab === "notificacoes" && <NotificationsSection />}

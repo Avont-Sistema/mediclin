@@ -17,7 +17,7 @@ export const ROLE_TABS: Record<AdminRole, string[]> = {
   super_admin: ["*"],
   financeiro: ["dashboard", "financeiro", "assinaturas", "analytics"],
   suporte: ["dashboard", "suporte", "clientes"],
-  comercial: ["dashboard", "leads", "clientes", "analytics"],
+  comercial: ["dashboard", "leads", "afiliados", "clientes", "analytics"],
   operacional: ["dashboard", "clientes", "suporte", "automacoes"],
 };
 

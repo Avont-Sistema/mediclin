@@ -138,6 +138,12 @@ export const professionals = pgTable(
     // Valores: "credito" | "debito" | "pix" | "dinheiro".
     metodosPagamento: jsonb("metodos_pagamento").$type<string[]>().notNull().default([]),
 
+    // Código de afiliado usado no cadastro
+    affiliateCodeId: uuid("affiliate_code_id").references(
+      (): AnyPgColumn => affiliateCodes.id,
+      { onDelete: "set null" },
+    ),
+
     // Plano de assinatura com o CuidandoVC
     plano: planoEnum("plano").default("free").notNull(),
 
@@ -619,6 +625,76 @@ export const integrationConfig = pgTable("integration_config", {
   atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
 });
 
+// ─── affiliate_codes ──────────────────────────────────────────────────────────
+// Códigos de afiliado usados por vendedores para captar médicos com desconto/free
+
+export const tipoDescontoEnum = pgEnum("tipo_desconto", [
+  "percentual", // % de desconto no plano
+  "valor_fixo", // R$ fixo de desconto
+  "periodo_free", // dias extras de trial
+]);
+
+export const affiliateCodes = pgTable(
+  "affiliate_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    codigo: varchar("codigo", { length: 50 }).notNull().unique(), // JOAO2024, PARCEIRO10
+    nome: varchar("nome", { length: 255 }).notNull(), // "João Silva — Vendedor"
+    descricao: text("descricao"),
+
+    // Benefício concedido ao médico que usar o código
+    tipoDesconto: tipoDescontoEnum("tipo_desconto"),
+    valorDesconto: decimal("valor_desconto", { precision: 10, scale: 2 }), // % ou R$
+    diasFree: integer("dias_free").default(0).notNull(), // dias extra de trial
+
+    // Vigência e limite
+    ativo: boolean("ativo").default(true).notNull(),
+    dataInicio: timestamp("data_inicio"),
+    dataFim: timestamp("data_fim"),
+    limiteUsos: integer("limite_usos"), // null = ilimitado
+
+    criadoEm: timestamp("criado_em").defaultNow().notNull(),
+    atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
+  },
+  (t) => [index("affiliate_codes_codigo_idx").on(t.codigo)],
+);
+
+// ─── affiliate_clicks ─────────────────────────────────────────────────────────
+
+export const affiliateClicks = pgTable(
+  "affiliate_clicks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    codigoId: uuid("codigo_id")
+      .notNull()
+      .references(() => affiliateCodes.id, { onDelete: "cascade" }),
+    ip: varchar("ip", { length: 45 }),
+    userAgent: text("user_agent"),
+    criadoEm: timestamp("criado_em").defaultNow().notNull(),
+  },
+  (t) => [index("affiliate_clicks_codigo_idx").on(t.codigoId, t.criadoEm)],
+);
+
+// ─── affiliate_conversions ────────────────────────────────────────────────────
+
+export const affiliateConversions = pgTable(
+  "affiliate_conversions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    codigoId: uuid("codigo_id")
+      .notNull()
+      .references(() => affiliateCodes.id, { onDelete: "cascade" }),
+    professionalId: uuid("professional_id")
+      .notNull()
+      .references(() => professionals.id, { onDelete: "cascade" }),
+    plano: planoEnum("plano"),
+    descontoAplicado: decimal("desconto_aplicado", { precision: 10, scale: 2 }),
+    diasFreeAplicados: integer("dias_free_aplicados").default(0),
+    criadoEm: timestamp("criado_em").defaultNow().notNull(),
+  },
+  (t) => [index("affiliate_conversions_codigo_idx").on(t.codigoId, t.criadoEm)],
+);
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -738,5 +814,28 @@ export const supportMessagesRelations = relations(supportMessages, ({ one }) => 
   ticket: one(supportTickets, {
     fields: [supportMessages.ticketId],
     references: [supportTickets.id],
+  }),
+}));
+
+export const affiliateCodesRelations = relations(affiliateCodes, ({ many }) => ({
+  clicks: many(affiliateClicks),
+  conversions: many(affiliateConversions),
+}));
+
+export const affiliateClicksRelations = relations(affiliateClicks, ({ one }) => ({
+  codigo: one(affiliateCodes, {
+    fields: [affiliateClicks.codigoId],
+    references: [affiliateCodes.id],
+  }),
+}));
+
+export const affiliateConversionsRelations = relations(affiliateConversions, ({ one }) => ({
+  codigo: one(affiliateCodes, {
+    fields: [affiliateConversions.codigoId],
+    references: [affiliateCodes.id],
+  }),
+  professional: one(professionals, {
+    fields: [affiliateConversions.professionalId],
+    references: [professionals.id],
   }),
 }));
