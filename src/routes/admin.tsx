@@ -50,6 +50,7 @@ import {
   FlaskConical,
   Link2,
   LogOut,
+  ShieldCheck,
 } from "lucide-react";
 import { fetchAdminOverview, runSeed, fetchPlanPrices, updatePlanPrice } from "../lib/admin";
 import type { AdminOverview, AdminMetrics } from "../lib/admin";
@@ -86,7 +87,9 @@ import { roleCanAccessTab, type AdminContext } from "../lib/admin-roles";
 import { getAdminContext } from "../lib/admin-context";
 import { fetchAppConfig, updateAppConfig } from "../lib/app-config";
 import { AfiliadosSection } from "../components/admin/AfiliadosSection";
+import { PermissoesSection } from "../components/admin/PermissoesSection";
 import { fetchOrCreateMyCode } from "../lib/affiliates";
+import { fetchMyAllowedTabs } from "../lib/role-permissions";
 import {
   fetchTestProfessionals,
   simulateSubscription,
@@ -269,6 +272,7 @@ type AdminTab =
   | "auditoria"
   | "personalizacao"
   | "modo-teste"
+  | "permissoes"
   | "config";
 
 const NAV: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
@@ -287,6 +291,7 @@ const NAV: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "auditoria", label: "Auditoria", icon: ScrollText },
   { id: "personalizacao", label: "Personalização do App", icon: Palette },
   { id: "modo-teste", label: "Modo Teste", icon: FlaskConical },
+  { id: "permissoes", label: "Permissões", icon: ShieldCheck },
   { id: "config", label: "Configurações do Sistema", icon: Settings },
 ];
 
@@ -332,9 +337,17 @@ function AdminContent() {
     setTimeout(() => setLinkCopied(false), 2500);
   }
 
-  // Abas visíveis conforme o cargo (master vê tudo).
-  const visibleNav = NAV.filter(
-    (n) => ctx?.isMaster || (ctx?.role ? roleCanAccessTab(ctx.role, n.id) : false),
+  // Abas visíveis: carregadas do banco (DB-driven) para usuários aprovados.
+  const { data: allowedTabs } = useQuery({
+    queryKey: ["my-allowed-tabs"],
+    queryFn: () => fetchMyAllowedTabs(),
+    enabled: !!ctx?.isApproved,
+    staleTime: 30_000,
+  });
+
+  const allowedIds = new Set(allowedTabs?.map((t) => t.id) ?? []);
+  const visibleNav = NAV.filter((n) =>
+    ctx?.isMaster ? true : allowedIds.has(n.id),
   );
 
   // Se o usuário não pode ver a aba atual, cai na primeira permitida.
@@ -489,6 +502,7 @@ function AdminContent() {
           {adminTab === "assinaturas" && <AssinaturasSection professionals={data.professionals} />}
           {adminTab === "leads" && <LeadsSection />}
           {adminTab === "afiliados" && <AfiliadosSection />}
+          {adminTab === "permissoes" && <PermissoesSection />}
           {adminTab === "automacoes" && <AutomacoesSection />}
           {adminTab === "flags" && <FeatureFlagsSection />}
           {adminTab === "notificacoes" && <NotificationsSection />}

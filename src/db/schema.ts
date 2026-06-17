@@ -625,6 +625,22 @@ export const integrationConfig = pgTable("integration_config", {
   atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
 });
 
+// ─── role_tab_permissions ─────────────────────────────────────────────────────
+// Quais abas cada cargo pode ver — editável pelo super_admin no painel.
+// Se não houver linha para role+tabId, usa o fallback hardcoded em admin-roles.ts.
+
+export const roleTabPermissions = pgTable(
+  "role_tab_permissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    role: adminRoleEnum("role").notNull(),
+    tabId: varchar("tab_id", { length: 50 }).notNull(),
+    visivel: boolean("visivel").notNull().default(true),
+    atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
+  },
+  (t) => [unique("role_tab_unique").on(t.role, t.tabId)],
+);
+
 // ─── affiliate_codes ──────────────────────────────────────────────────────────
 // Códigos de afiliado usados por vendedores para captar médicos com desconto/free
 

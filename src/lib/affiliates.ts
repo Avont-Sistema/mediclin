@@ -35,6 +35,16 @@ async function requireAdminAccess(): Promise<string> {
   return requireAdmin();
 }
 
+// Retorna o adminUser do chamador (null = master sem row em adminUsers)
+async function getCallerAdminUser() {
+  const auth = await getAuth(getWebRequest());
+  if (!auth.userId) return null;
+  return db.query.adminUsers.findFirst({
+    where: eq(adminUsers.clerkId, auth.userId),
+    columns: { id: true, role: true },
+  });
+}
+
 async function logAudit(actorClerkId: string, acao: string, detalhe?: string) {
   try {
     await db.insert(auditLog).values({ actorClerkId, acao, entidade: "affiliate_codes", detalhe });
@@ -68,7 +78,15 @@ export const fetchAffiliateCodes = createServerFn({ method: "GET" }).handler(
   async (): Promise<AffiliateCode[]> => {
     await requireAdminAccess();
 
+    const caller = await getCallerAdminUser();
+    // comercial: vê apenas seus próprios códigos
+    const scopeFilter =
+      caller?.role === "comercial"
+        ? eq(affiliateCodes.adminUserId, caller.id)
+        : undefined;
+
     const rows = await db.query.affiliateCodes.findMany({
+      where: scopeFilter,
       orderBy: (t, { desc: d }) => [d(t.criadoEm)],
       with: {
         clicks: { columns: { id: true } },
@@ -272,11 +290,35 @@ export const fetchAffiliateStats = createServerFn({ method: "GET" }).handler(
   async (): Promise<AffiliateStats> => {
     await requireAdminAccess();
 
-    const [[{ totalCodigos }], [{ totalCliques }], [{ totalConversoes }]] = await Promise.all([
-      db.select({ totalCodigos: count() }).from(affiliateCodes),
-      db.select({ totalCliques: count() }).from(affiliateClicks),
-      db.select({ totalConversoes: count() }).from(affiliateConversions),
-    ]);
+    const caller = await getCallerAdminUser();
+    const isComercial = caller?.role === "comercial";
+
+    // Para comercial: conta apenas seus próprios códigos/cliques/conversões
+    let totalCodigos: number;
+    let totalCliques: number;
+    let totalConversoes: number;
+
+    if (isComercial) {
+      const myCode = await db.query.affiliateCodes.findFirst({
+        where: eq(affiliateCodes.adminUserId, caller!.id),
+        with: {
+          clicks: { columns: { id: true } },
+          conversions: { columns: { id: true } },
+        },
+      });
+      totalCodigos = myCode ? 1 : 0;
+      totalCliques = myCode?.clicks.length ?? 0;
+      totalConversoes = myCode?.conversions.length ?? 0;
+    } else {
+      const [[c1], [c2], [c3]] = await Promise.all([
+        db.select({ v: count() }).from(affiliateCodes),
+        db.select({ v: count() }).from(affiliateClicks),
+        db.select({ v: count() }).from(affiliateConversions),
+      ]);
+      totalCodigos = c1.v;
+      totalCliques = c2.v;
+      totalConversoes = c3.v;
+    }
 
     return {
       totalCodigos,
@@ -284,6 +326,55 @@ export const fetchAffiliateStats = createServerFn({ method: "GET" }).handler(
       totalConversoes,
       taxaConversao: totalCliques > 0 ? Math.round((totalConversoes / totalCliques) * 100) : 0,
     };
+  },
+);
+
+// ─── fetchMyConversions ───────────────────────────────────────────────────────
+// Lista de médicos convertidos pelo próprio link (para o comercial ver comissões)
+
+export type MyConversion = {
+  id: string;
+  nomeCompleto: string;
+  especialidade: string;
+  plano: string;
+  subscriptionStatus: string | null;
+  criadoEm: string;
+};
+
+export const fetchMyConversions = createServerFn({ method: "GET" }).handler(
+  async (): Promise<MyConversion[]> => {
+    await requireAdminAccess();
+
+    const caller = await getCallerAdminUser();
+    if (!caller) return [];
+
+    const myCode = await db.query.affiliateCodes.findFirst({
+      where: eq(affiliateCodes.adminUserId, caller.id),
+      columns: { id: true },
+    });
+    if (!myCode) return [];
+
+    const { subscriptions } = await import("../db/schema");
+
+    const convs = await db.query.affiliateConversions.findMany({
+      where: eq(affiliateConversions.codigoId, myCode.id),
+      with: {
+        professional: {
+          columns: { nomeCompleto: true, especialidade: true, plano: true, criadoEm: true },
+          with: { subscription: { columns: { status: true } } },
+        },
+      },
+      orderBy: (t, { desc: d }) => [d(t.criadoEm)],
+    });
+
+    return convs.map((c) => ({
+      id: c.id,
+      nomeCompleto: c.professional.nomeCompleto,
+      especialidade: c.professional.especialidade,
+      plano: c.professional.plano,
+      subscriptionStatus: c.professional.subscription?.status ?? null,
+      criadoEm: c.criadoEm.toISOString(),
+    }));
   },
 );
 

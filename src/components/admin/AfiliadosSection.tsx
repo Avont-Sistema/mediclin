@@ -15,6 +15,8 @@ import {
   Tags,
   TrendingUp,
   X,
+  Crown,
+  CalendarDays,
 } from "lucide-react";
 import {
   fetchAffiliateCodes,
@@ -23,8 +25,11 @@ import {
   toggleAffiliateCode,
   deleteAffiliateCode,
   fetchAffiliateStats,
+  fetchMyConversions,
+  fetchOrCreateMyCode,
   type AffiliateCode,
 } from "../../lib/affiliates";
+import { fetchMyAdminRecord } from "../../lib/role-permissions";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -422,12 +427,161 @@ function CodeRow({
   );
 }
 
-// ─── Seção principal ──────────────────────────────────────────────────────────
+// ─── View do comercial (seus dados pessoais) ──────────────────────────────────
+
+const PLANO_CLS: Record<string, string> = {
+  free:   "bg-slate-700 text-slate-300",
+  pro:    "bg-violet-900/40 text-violet-300 ring-1 ring-violet-700",
+  clinic: "bg-amber-900/40 text-amber-300 ring-1 ring-amber-700",
+};
+
+const SUB_CLS: Record<string, string> = {
+  ativa:        "text-teal-400",
+  trial:        "text-amber-400",
+  cancelada:    "text-rose-400",
+  inadimplente: "text-rose-500",
+};
+
+function ComercialView() {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const [copied, setCopied] = useState(false);
+
+  const { data: myCode } = useQuery({
+    queryKey: ["my-affiliate-code"],
+    queryFn: () => fetchOrCreateMyCode(),
+    staleTime: Infinity,
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: ["affiliate-stats"],
+    queryFn: () => fetchAffiliateStats(),
+  });
+
+  const { data: conversions = [], isLoading } = useQuery({
+    queryKey: ["my-conversions"],
+    queryFn: () => fetchMyConversions(),
+  });
+
+  const link = myCode ? `${origin}/onboarding?ref=${myCode.codigo}` : "";
+
+  function copyLink() {
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-lg font-bold text-slate-100">Meus afiliados</h1>
+        <p className="text-xs text-slate-500">Médicos cadastrados pelo seu link e desempenho.</p>
+      </div>
+
+      {/* Meu link */}
+      {myCode && (
+        <div className="rounded-xl border border-teal-700/40 bg-teal-900/20 p-4">
+          <p className="text-xs font-semibold text-teal-400 mb-1">Meu link de captação</p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-teal-300 font-mono truncate">
+              {link}
+            </code>
+            <button
+              onClick={copyLink}
+              className="flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-500 shrink-0"
+            >
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {copied ? "Copiado!" : "Copiar"}
+            </button>
+          </div>
+          <p className="mt-1.5 text-xs text-slate-500">
+            Código: <span className="font-mono text-slate-300">{myCode.codigo}</span>
+          </p>
+        </div>
+      )}
+
+      {/* Métricas */}
+      <div className="grid grid-cols-3 gap-4">
+        <StatCard icon={MousePointerClick} label="Cliques no link" value={stats?.totalCliques ?? "—"} />
+        <StatCard icon={UserCheck} label="Médicos captados" value={stats?.totalConversoes ?? "—"} />
+        <StatCard
+          icon={TrendingUp}
+          label="Taxa de conversão"
+          value={stats ? `${stats.taxaConversao}%` : "—"}
+          sub="cliques → cadastros"
+        />
+      </div>
+
+      {/* Lista de convertidos */}
+      <div>
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">
+          Médicos captados
+        </h2>
+        <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12 text-slate-500">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
+          ) : conversions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-14 text-center">
+              <UserCheck className="mb-3 h-8 w-8 text-slate-700" />
+              <p className="text-sm text-slate-500">Nenhum médico captado ainda.</p>
+              <p className="mt-1 text-xs text-slate-600">Compartilhe seu link para começar.</p>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-800 text-left text-[11px] text-slate-500">
+                  <th className="px-4 py-2.5 font-medium">Profissional</th>
+                  <th className="px-4 py-2.5 font-medium">Especialidade</th>
+                  <th className="px-4 py-2.5 font-medium">Plano</th>
+                  <th className="px-4 py-2.5 font-medium">Assinatura</th>
+                  <th className="px-4 py-2.5 font-medium">Captado em</th>
+                </tr>
+              </thead>
+              <tbody>
+                {conversions.map((c) => (
+                  <tr key={c.id} className="border-t border-slate-800 hover:bg-slate-800/30">
+                    <td className="px-4 py-3 font-medium text-slate-200">{c.nomeCompleto}</td>
+                    <td className="px-4 py-3 text-slate-400 text-xs">{c.especialidade}</td>
+                    <td className="px-4 py-3">
+                      <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${PLANO_CLS[c.plano] ?? PLANO_CLS.free}`}>
+                        {c.plano}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {c.subscriptionStatus ? (
+                        <span className={`text-xs font-medium ${SUB_CLS[c.subscriptionStatus] ?? "text-slate-400"}`}>
+                          {c.subscriptionStatus}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-600">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-500">
+                      {new Date(c.criadoEm).toLocaleDateString("pt-BR")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Seção principal (adaptativa por cargo) ───────────────────────────────────
 
 export function AfiliadosSection() {
   const [modal, setModal] = useState<"new" | AffiliateCode | null>(null);
-
   const origin = typeof window !== "undefined" ? window.location.origin : "";
+
+  const { data: myRecord } = useQuery({
+    queryKey: ["my-admin-record"],
+    queryFn: () => fetchMyAdminRecord(),
+    staleTime: 60_000,
+  });
 
   const { data: codes, isLoading: codesLoading } = useQuery({
     queryKey: ["affiliate-codes"],
@@ -439,13 +593,17 @@ export function AfiliadosSection() {
     queryFn: () => fetchAffiliateStats(),
   });
 
+  // Comercial: view isolada com apenas seus dados
+  if (myRecord?.role === "comercial") return <ComercialView />;
+
+  // Super admin / outros cargos com acesso: view completa de gestão
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-lg font-bold text-slate-100">Afiliados</h1>
           <p className="text-xs text-slate-500">
-            Gerencie códigos e links de afiliado para vendedores captarem médicos com benefícios.
+            Gerencie códigos e links de afiliado para vendedores captarem médicos.
           </p>
         </div>
         <button
@@ -457,44 +615,13 @@ export function AfiliadosSection() {
         </button>
       </div>
 
-      {/* Estatísticas gerais */}
       <div className="grid grid-cols-4 gap-4">
-        <StatCard
-          icon={Tags}
-          label="Códigos ativos"
-          value={stats?.totalCodigos ?? "—"}
-        />
-        <StatCard
-          icon={MousePointerClick}
-          label="Cliques totais"
-          value={stats?.totalCliques ?? "—"}
-        />
-        <StatCard
-          icon={UserCheck}
-          label="Conversões"
-          value={stats?.totalConversoes ?? "—"}
-          sub="médicos cadastrados via afiliado"
-        />
-        <StatCard
-          icon={TrendingUp}
-          label="Taxa de conversão"
-          value={stats ? `${stats.taxaConversao}%` : "—"}
-          sub="cliques → cadastros"
-        />
+        <StatCard icon={Tags}             label="Códigos ativos"    value={stats?.totalCodigos ?? "—"} />
+        <StatCard icon={MousePointerClick} label="Cliques totais"    value={stats?.totalCliques ?? "—"} />
+        <StatCard icon={UserCheck}         label="Conversões"        value={stats?.totalConversoes ?? "—"} sub="médicos cadastrados via afiliado" />
+        <StatCard icon={TrendingUp}        label="Taxa de conversão" value={stats ? `${stats.taxaConversao}%` : "—"} sub="cliques → cadastros" />
       </div>
 
-      {/* Como funciona */}
-      <div className="rounded-xl border border-slate-700/60 bg-slate-800/40 px-4 py-3 text-xs text-slate-400">
-        <strong className="text-slate-300">Como funciona:</strong> ao criar um código, o link de
-        afiliado fica no formato{" "}
-        <code className="rounded bg-slate-700 px-1 py-0.5 font-mono text-teal-300">
-          {origin}/cadastro?ref=CODIGO
-        </code>
-        . O vendedor compartilha esse link; quando o médico se cadastra via ele, o desconto ou
-        período free configurado é aplicado automaticamente na assinatura.
-      </div>
-
-      {/* Tabela de códigos */}
       <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden">
         {codesLoading ? (
           <div className="flex items-center justify-center py-16 text-slate-500">
@@ -504,15 +631,11 @@ export function AfiliadosSection() {
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Link2 className="mb-3 h-8 w-8 text-slate-700" />
             <p className="text-sm font-medium text-slate-400">Nenhum código de afiliado criado</p>
-            <p className="mt-1 text-xs text-slate-600">
-              Crie um código para seus vendedores começarem a usar.
-            </p>
             <button
               onClick={() => setModal("new")}
               className="mt-4 flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200"
             >
-              <Plus className="h-3.5 w-3.5" />
-              Criar primeiro código
+              <Plus className="h-3.5 w-3.5" /> Criar primeiro código
             </button>
           </div>
         ) : (
@@ -529,12 +652,7 @@ export function AfiliadosSection() {
             </thead>
             <tbody>
               {codes.map((c) => (
-                <CodeRow
-                  key={c.id}
-                  code={c}
-                  origin={origin}
-                  onEdit={(code) => setModal(code)}
-                />
+                <CodeRow key={c.id} code={c} origin={origin} onEdit={(code) => setModal(code)} />
               ))}
             </tbody>
           </table>
@@ -542,10 +660,7 @@ export function AfiliadosSection() {
       </div>
 
       {modal !== null && (
-        <AffiliateModal
-          editing={modal === "new" ? null : modal}
-          onClose={() => setModal(null)}
-        />
+        <AffiliateModal editing={modal === "new" ? null : modal} onClose={() => setModal(null)} />
       )}
     </div>
   );
