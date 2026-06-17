@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { and, count, desc, eq, sql as dsql } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { requireAdmin } from "./admin-auth";
 import { db } from "../db";
 import {
@@ -95,7 +95,7 @@ const CreateSchema = z.object({
 });
 
 export const createAffiliateCode = createServerFn({ method: "POST" })
-  .validator(CreateSchema)
+  .inputValidator((d: unknown) => CreateSchema.parse(d))
   .handler(async ({ data }) => {
     const actorId = await requireAdminAccess();
 
@@ -123,7 +123,7 @@ export const createAffiliateCode = createServerFn({ method: "POST" })
 const UpdateSchema = CreateSchema.extend({ id: z.string().uuid() });
 
 export const updateAffiliateCode = createServerFn({ method: "POST" })
-  .validator(UpdateSchema)
+  .inputValidator((d: unknown) => UpdateSchema.parse(d))
   .handler(async ({ data }) => {
     const actorId = await requireAdminAccess();
 
@@ -149,7 +149,7 @@ export const updateAffiliateCode = createServerFn({ method: "POST" })
 // ─── toggleAffiliateCode ──────────────────────────────────────────────────────
 
 export const toggleAffiliateCode = createServerFn({ method: "POST" })
-  .validator(z.object({ id: z.string().uuid(), ativo: z.boolean() }))
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid(), ativo: z.boolean() }).parse(d))
   .handler(async ({ data }) => {
     const actorId = await requireAdminAccess();
 
@@ -158,13 +158,17 @@ export const toggleAffiliateCode = createServerFn({ method: "POST" })
       .set({ ativo: data.ativo, atualizadoEm: new Date() })
       .where(eq(affiliateCodes.id, data.id));
 
-    await logAudit(actorId, data.ativo ? "ativar_codigo_afiliado" : "desativar_codigo_afiliado", `id=${data.id}`);
+    await logAudit(
+      actorId,
+      data.ativo ? "ativar_codigo_afiliado" : "desativar_codigo_afiliado",
+      `id=${data.id}`,
+    );
   });
 
 // ─── deleteAffiliateCode ──────────────────────────────────────────────────────
 
 export const deleteAffiliateCode = createServerFn({ method: "POST" })
-  .validator(z.object({ id: z.string().uuid() }))
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     const actorId = await requireAdminAccess();
 
@@ -175,7 +179,7 @@ export const deleteAffiliateCode = createServerFn({ method: "POST" })
 // ─── trackAffiliateClick (público — chamado quando alguém abre o link) ────────
 
 export const trackAffiliateClick = createServerFn({ method: "POST" })
-  .validator(z.object({ codigo: z.string() }))
+  .inputValidator((d: unknown) => z.object({ codigo: z.string() }).parse(d))
   .handler(async ({ data }) => {
     const row = await db.query.affiliateCodes.findFirst({
       where: and(
@@ -203,7 +207,7 @@ export type AffiliateCodeInfo = {
 };
 
 export const resolveAffiliateCode = createServerFn({ method: "GET" })
-  .validator(z.object({ codigo: z.string() }))
+  .inputValidator((d: unknown) => z.object({ codigo: z.string() }).parse(d))
   .handler(async ({ data }): Promise<AffiliateCodeInfo | null> => {
     const now = new Date();
 
