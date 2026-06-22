@@ -19,7 +19,16 @@ import { Route as PaginaPublicaRouteImport } from './routes/pagina-publica'
 import { Route as OnboardingPreviewRouteImport } from './routes/onboarding-preview'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as FinanceiroRouteImport } from './routes/financeiro'
+import { Route as DemoPerfilRouteImport } from './routes/demo-perfil'
+import { Route as DemoPaginaPublicaRouteImport } from './routes/demo-pagina-publica'
+import { Route as DemoPagamentoRouteImport } from './routes/demo-pagamento'
+import { Route as DemoPacientesRouteImport } from './routes/demo-pacientes'
+import { Route as DemoFinanceiroRouteImport } from './routes/demo-financeiro'
+import { Route as DemoDashboardRouteImport } from './routes/demo-dashboard'
+import { Route as DemoAgendaRouteImport } from './routes/demo-agenda'
+import { Route as DemoRouteImport } from './routes/demo'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as AgendaRouteImport } from './routes/agenda'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as SlugRouteImport } from './routes/$slug'
@@ -75,9 +84,54 @@ const FinanceiroRoute = FinanceiroRouteImport.update({
   path: '/financeiro',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DemoPerfilRoute = DemoPerfilRouteImport.update({
+  id: '/demo-perfil',
+  path: '/demo-perfil',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoPaginaPublicaRoute = DemoPaginaPublicaRouteImport.update({
+  id: '/demo-pagina-publica',
+  path: '/demo-pagina-publica',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoPagamentoRoute = DemoPagamentoRouteImport.update({
+  id: '/demo-pagamento',
+  path: '/demo-pagamento',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoPacientesRoute = DemoPacientesRouteImport.update({
+  id: '/demo-pacientes',
+  path: '/demo-pacientes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoFinanceiroRoute = DemoFinanceiroRouteImport.update({
+  id: '/demo-financeiro',
+  path: '/demo-financeiro',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoDashboardRoute = DemoDashboardRouteImport.update({
+  id: '/demo-dashboard',
+  path: '/demo-dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoAgendaRoute = DemoAgendaRouteImport.update({
+  id: '/demo-agenda',
+  path: '/demo-agenda',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CadastroRoute = CadastroRouteImport.update({
+  id: '/cadastro',
+  path: '/cadastro',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AgendaRoute = AgendaRouteImport.update({
@@ -106,7 +160,16 @@ export interface FileRoutesByFullPath {
   '/$slug': typeof SlugRoute
   '/admin': typeof AdminRoute
   '/agenda': typeof AgendaRoute
+  '/cadastro': typeof CadastroRoute
   '/dashboard': typeof DashboardRoute
+  '/demo': typeof DemoRoute
+  '/demo-agenda': typeof DemoAgendaRoute
+  '/demo-dashboard': typeof DemoDashboardRoute
+  '/demo-financeiro': typeof DemoFinanceiroRoute
+  '/demo-pacientes': typeof DemoPacientesRoute
+  '/demo-pagamento': typeof DemoPagamentoRoute
+  '/demo-pagina-publica': typeof DemoPaginaPublicaRoute
+  '/demo-perfil': typeof DemoPerfilRoute
   '/financeiro': typeof FinanceiroRoute
   '/onboarding': typeof OnboardingRoute
   '/onboarding-preview': typeof OnboardingPreviewRoute
@@ -123,7 +186,16 @@ export interface FileRoutesByTo {
   '/$slug': typeof SlugRoute
   '/admin': typeof AdminRoute
   '/agenda': typeof AgendaRoute
+  '/cadastro': typeof CadastroRoute
   '/dashboard': typeof DashboardRoute
+  '/demo': typeof DemoRoute
+  '/demo-agenda': typeof DemoAgendaRoute
+  '/demo-dashboard': typeof DemoDashboardRoute
+  '/demo-financeiro': typeof DemoFinanceiroRoute
+  '/demo-pacientes': typeof DemoPacientesRoute
+  '/demo-pagamento': typeof DemoPagamentoRoute
+  '/demo-pagina-publica': typeof DemoPaginaPublicaRoute
+  '/demo-perfil': typeof DemoPerfilRoute
   '/financeiro': typeof FinanceiroRoute
   '/onboarding': typeof OnboardingRoute
   '/onboarding-preview': typeof OnboardingPreviewRoute
@@ -141,7 +213,16 @@ export interface FileRoutesById {
   '/$slug': typeof SlugRoute
   '/admin': typeof AdminRoute
   '/agenda': typeof AgendaRoute
+  '/cadastro': typeof CadastroRoute
   '/dashboard': typeof DashboardRoute
+  '/demo': typeof DemoRoute
+  '/demo-agenda': typeof DemoAgendaRoute
+  '/demo-dashboard': typeof DemoDashboardRoute
+  '/demo-financeiro': typeof DemoFinanceiroRoute
+  '/demo-pacientes': typeof DemoPacientesRoute
+  '/demo-pagamento': typeof DemoPagamentoRoute
+  '/demo-pagina-publica': typeof DemoPaginaPublicaRoute
+  '/demo-perfil': typeof DemoPerfilRoute
   '/financeiro': typeof FinanceiroRoute
   '/onboarding': typeof OnboardingRoute
   '/onboarding-preview': typeof OnboardingPreviewRoute
@@ -160,7 +241,16 @@ export interface FileRouteTypes {
     | '/$slug'
     | '/admin'
     | '/agenda'
+    | '/cadastro'
     | '/dashboard'
+    | '/demo'
+    | '/demo-agenda'
+    | '/demo-dashboard'
+    | '/demo-financeiro'
+    | '/demo-pacientes'
+    | '/demo-pagamento'
+    | '/demo-pagina-publica'
+    | '/demo-perfil'
     | '/financeiro'
     | '/onboarding'
     | '/onboarding-preview'
@@ -177,7 +267,16 @@ export interface FileRouteTypes {
     | '/$slug'
     | '/admin'
     | '/agenda'
+    | '/cadastro'
     | '/dashboard'
+    | '/demo'
+    | '/demo-agenda'
+    | '/demo-dashboard'
+    | '/demo-financeiro'
+    | '/demo-pacientes'
+    | '/demo-pagamento'
+    | '/demo-pagina-publica'
+    | '/demo-perfil'
     | '/financeiro'
     | '/onboarding'
     | '/onboarding-preview'
@@ -194,7 +293,16 @@ export interface FileRouteTypes {
     | '/$slug'
     | '/admin'
     | '/agenda'
+    | '/cadastro'
     | '/dashboard'
+    | '/demo'
+    | '/demo-agenda'
+    | '/demo-dashboard'
+    | '/demo-financeiro'
+    | '/demo-pacientes'
+    | '/demo-pagamento'
+    | '/demo-pagina-publica'
+    | '/demo-perfil'
     | '/financeiro'
     | '/onboarding'
     | '/onboarding-preview'
@@ -212,7 +320,16 @@ export interface RootRouteChildren {
   SlugRoute: typeof SlugRoute
   AdminRoute: typeof AdminRoute
   AgendaRoute: typeof AgendaRoute
+  CadastroRoute: typeof CadastroRoute
   DashboardRoute: typeof DashboardRoute
+  DemoRoute: typeof DemoRoute
+  DemoAgendaRoute: typeof DemoAgendaRoute
+  DemoDashboardRoute: typeof DemoDashboardRoute
+  DemoFinanceiroRoute: typeof DemoFinanceiroRoute
+  DemoPacientesRoute: typeof DemoPacientesRoute
+  DemoPagamentoRoute: typeof DemoPagamentoRoute
+  DemoPaginaPublicaRoute: typeof DemoPaginaPublicaRoute
+  DemoPerfilRoute: typeof DemoPerfilRoute
   FinanceiroRoute: typeof FinanceiroRoute
   OnboardingRoute: typeof OnboardingRoute
   OnboardingPreviewRoute: typeof OnboardingPreviewRoute
@@ -297,11 +414,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FinanceiroRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/demo-perfil': {
+      id: '/demo-perfil'
+      path: '/demo-perfil'
+      fullPath: '/demo-perfil'
+      preLoaderRoute: typeof DemoPerfilRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo-pagina-publica': {
+      id: '/demo-pagina-publica'
+      path: '/demo-pagina-publica'
+      fullPath: '/demo-pagina-publica'
+      preLoaderRoute: typeof DemoPaginaPublicaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo-pagamento': {
+      id: '/demo-pagamento'
+      path: '/demo-pagamento'
+      fullPath: '/demo-pagamento'
+      preLoaderRoute: typeof DemoPagamentoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo-pacientes': {
+      id: '/demo-pacientes'
+      path: '/demo-pacientes'
+      fullPath: '/demo-pacientes'
+      preLoaderRoute: typeof DemoPacientesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo-financeiro': {
+      id: '/demo-financeiro'
+      path: '/demo-financeiro'
+      fullPath: '/demo-financeiro'
+      preLoaderRoute: typeof DemoFinanceiroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo-dashboard': {
+      id: '/demo-dashboard'
+      path: '/demo-dashboard'
+      fullPath: '/demo-dashboard'
+      preLoaderRoute: typeof DemoDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo-agenda': {
+      id: '/demo-agenda'
+      path: '/demo-agenda'
+      fullPath: '/demo-agenda'
+      preLoaderRoute: typeof DemoAgendaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cadastro': {
+      id: '/cadastro'
+      path: '/cadastro'
+      fullPath: '/cadastro'
+      preLoaderRoute: typeof CadastroRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/agenda': {
@@ -340,7 +520,16 @@ const rootRouteChildren: RootRouteChildren = {
   SlugRoute: SlugRoute,
   AdminRoute: AdminRoute,
   AgendaRoute: AgendaRoute,
+  CadastroRoute: CadastroRoute,
   DashboardRoute: DashboardRoute,
+  DemoRoute: DemoRoute,
+  DemoAgendaRoute: DemoAgendaRoute,
+  DemoDashboardRoute: DemoDashboardRoute,
+  DemoFinanceiroRoute: DemoFinanceiroRoute,
+  DemoPacientesRoute: DemoPacientesRoute,
+  DemoPagamentoRoute: DemoPagamentoRoute,
+  DemoPaginaPublicaRoute: DemoPaginaPublicaRoute,
+  DemoPerfilRoute: DemoPerfilRoute,
   FinanceiroRoute: FinanceiroRoute,
   OnboardingRoute: OnboardingRoute,
   OnboardingPreviewRoute: OnboardingPreviewRoute,

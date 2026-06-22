@@ -17,6 +17,8 @@ interface Props {
   especialidade: string;
   slug: string;
   uf?: string;
+  /** Se fornecido, sobrescreve o comportamento padrão de mostrar o preview interno */
+  onLinkClick?: () => void;
 }
 
 // ─── Fake Instagram grid colors ───────────────────────────────────────────────
@@ -35,7 +37,7 @@ const GRID_COLORS = [
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function InstagramSimulator({ nome, especialidade, slug, uf }: Props) {
+export function InstagramSimulator({ nome, especialidade, slug, uf, onLinkClick }: Props) {
   const [showBooking, setShowBooking] = useState(false);
 
   const initials =
@@ -155,7 +157,7 @@ export function InstagramSimulator({ nome, especialidade, slug, uf }: Props) {
 
               {/* Link in bio */}
               <button
-                onClick={() => setShowBooking(true)}
+                onClick={() => onLinkClick ? onLinkClick() : setShowBooking(true)}
                 className="w-full text-left bg-slate-100 hover:bg-slate-200 active:scale-95 transition-all rounded-lg px-2.5 py-1.5 mb-2 group"
               >
                 <span className="text-[10px] font-bold text-blue-600 group-hover:underline break-all">

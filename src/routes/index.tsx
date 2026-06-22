@@ -163,12 +163,12 @@ function Hero() {
             >
               Criar minha página grátis <ArrowRight className="h-4 w-4" />
             </Link>
-            <a
-              href="#demonstracao"
+            <Link
+              to="/demo"
               className="inline-flex h-12 items-center gap-2 rounded-full border border-border bg-card px-6 text-sm font-medium text-foreground hover:bg-accent transition"
             >
               <Play className="h-4 w-4" /> Ver demonstração
-            </a>
+            </Link>
           </div>
 
           {/* Benefícios rápidos */}
@@ -533,7 +533,7 @@ function Demonstracao() {
             ))}
           </ul>
           <Link
-            to="/onboarding"
+            to="/demo"
             className="mt-8 inline-flex h-12 items-center gap-2 rounded-full bg-brand px-7 text-sm font-medium text-brand-foreground shadow-lg shadow-brand/20 transition hover:shadow-xl hover:shadow-brand/30"
           >
             Testar demonstração <ArrowRight className="h-4 w-4" />
