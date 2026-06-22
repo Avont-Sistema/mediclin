@@ -317,10 +317,14 @@ export const createConsecutiveBookings = createServerFn({ method: "POST" })
         email: z.string().email().optional().or(z.literal("")),
         telefone: z.string().min(8),
       }),
+      convenioInfo: z
+        .object({ planoNome: z.string().min(1), carteirinha: z.string().optional() })
+        .optional(),
     }),
   )
   .handler(async ({ data }) => {
-    const { professionalId, services, dateStr, startTimeSlot, modalidade, patient } = data;
+    const { professionalId, services, dateStr, startTimeSlot, modalidade, patient, convenioInfo } =
+      data;
     const [y, mo, d] = dateStr.split("-").map(Number);
 
     const emailToUse =
@@ -356,6 +360,10 @@ export const createConsecutiveBookings = createServerFn({ method: "POST" })
       // Valida cada agendamento: serviço do profissional, sem folga, sem conflito.
       await assertSlotBookable(professionalId, svc.serviceId, inicio, fim);
 
+      const observacoes = convenioInfo
+        ? `Convênio: ${convenioInfo.planoNome}${convenioInfo.carteirinha ? ` | Carteirinha: ${convenioInfo.carteirinha}` : ""}`
+        : null;
+
       const [appt] = await db
         .insert(appointments)
         .values({
@@ -366,7 +374,8 @@ export const createConsecutiveBookings = createServerFn({ method: "POST" })
           fim,
           modalidade,
           meetLink,
-          status: "aguardando_pagamento",
+          status: convenioInfo ? "confirmado" : "aguardando_pagamento",
+          observacoes,
         })
         .returning();
 

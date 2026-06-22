@@ -104,6 +104,8 @@ type Phase =
       nome: string;
       meetLink?: string | null;
       modalidade?: "presencial" | "online";
+      via?: "convenio";
+      convenioPlano?: string;
     };
 
 // Modalidade efetiva = resolve "ambos" pela escolha do paciente
@@ -292,6 +294,9 @@ function BookingPublicPage({ professional, homeUrl = "/" }: Props) {
   const [telefone, setTelefone] = useState("");
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [modalidadeEscolhida, setModalidadeEscolhida] = useState<Modalidade>("presencial");
+  const [usaConvenio, setUsaConvenio] = useState(false);
+  const [convenioPlano, setConvenioPlano] = useState("");
+  const [convenioCarteirinha, setConvenioCarteirinha] = useState("");
 
   // Serviços selecionados (multi-select na tela de serviços)
   const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
@@ -504,6 +509,10 @@ function BookingPublicPage({ professional, homeUrl = "/" }: Props) {
           startTimeSlot: selectedSlot,
           modalidade,
           patient: { nome, email, telefone },
+          convenioInfo:
+            usaConvenio && convenioPlano.trim()
+              ? { planoNome: convenioPlano.trim(), carteirinha: convenioCarteirinha.trim() || undefined }
+              : undefined,
         },
       });
     },
@@ -517,6 +526,23 @@ function BookingPublicPage({ professional, homeUrl = "/" }: Props) {
       const modalidade = resolveModalidade(firstSvc, modalidadeEscolhida);
       const meetLink =
         modalidade === "online" ? (firstMember?.meetLink ?? professional.meetLink) : null;
+
+      if (usaConvenio) {
+        setPhase({
+          tag: "confirmado",
+          services: phase.services,
+          date: phase.date,
+          slot: selectedSlot,
+          nome,
+          meetLink,
+          modalidade,
+          via: "convenio",
+          convenioPlano: convenioPlano.trim(),
+        });
+        return;
+      }
+
+
       const metodos = (professional.metodosPagamento ?? []).filter(
         (m) => m === "dinheiro" || professional.mpAccountAtivo,
       );
@@ -550,7 +576,8 @@ function BookingPublicPage({ professional, homeUrl = "/" }: Props) {
     phase.tag === "hora" &&
     !!selectedSlot &&
     nome.trim().length >= 2 &&
-    telefone.trim().length >= 8;
+    telefone.trim().length >= 8 &&
+    (!usaConvenio || convenioPlano.trim().length >= 2);
 
   const isConfirming =
     bookingMutation.isPending || mpMutation.isPending || cartMPMutation.isPending;
@@ -567,6 +594,9 @@ function BookingPublicPage({ professional, homeUrl = "/" }: Props) {
     setEmail("");
     setTelefone("");
     setModalidadeEscolhida("presencial");
+    setUsaConvenio(false);
+    setConvenioPlano("");
+    setConvenioCarteirinha("");
     setSelectedServices([]);
     bookingMutation.reset();
     mpMutation.reset();
@@ -784,6 +814,12 @@ function BookingPublicPage({ professional, homeUrl = "/" }: Props) {
                   setTelefone={setTelefone}
                   modalidade={modalidadeEscolhida}
                   setModalidade={setModalidadeEscolhida}
+                  usaConvenio={usaConvenio}
+                  setUsaConvenio={setUsaConvenio}
+                  convenioPlano={convenioPlano}
+                  setConvenioPlano={setConvenioPlano}
+                  convenioCarteirinha={convenioCarteirinha}
+                  setConvenioCarteirinha={setConvenioCarteirinha}
                   canConfirm={canConfirm}
                   isConfirming={isConfirming}
                   onConfirm={handleConfirm}
@@ -1371,6 +1407,12 @@ function SummaryPanel({
   setTelefone,
   modalidade,
   setModalidade,
+  usaConvenio,
+  setUsaConvenio,
+  convenioPlano,
+  setConvenioPlano,
+  convenioCarteirinha,
+  setConvenioCarteirinha,
   canConfirm,
   isConfirming,
   onConfirm,
@@ -1388,6 +1430,12 @@ function SummaryPanel({
   setTelefone: (v: string) => void;
   modalidade: Modalidade;
   setModalidade: (v: Modalidade) => void;
+  usaConvenio: boolean;
+  setUsaConvenio: (v: boolean) => void;
+  convenioPlano: string;
+  setConvenioPlano: (v: string) => void;
+  convenioCarteirinha: string;
+  setConvenioCarteirinha: (v: string) => void;
   canConfirm: boolean;
   isConfirming: boolean;
   onConfirm: () => void;
@@ -1522,6 +1570,53 @@ function SummaryPanel({
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition"
           />
         </div>
+
+        {phase.tag === "hora" && (
+          <div className="pt-1">
+            <label className="flex cursor-pointer items-center gap-2.5">
+              <input
+                type="checkbox"
+                checked={usaConvenio}
+                onChange={(e) => setUsaConvenio(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 accent-blue-600"
+              />
+              <span className="text-xs font-semibold text-slate-700">
+                Vou pagar com plano de saúde / convênio
+              </span>
+            </label>
+
+            {usaConvenio && (
+              <div className="mt-3 space-y-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700 mb-1.5">
+                    NOME DO PLANO *
+                  </p>
+                  <input
+                    value={convenioPlano}
+                    onChange={(e) => setConvenioPlano(e.target.value)}
+                    placeholder="Ex: Unimed, Bradesco Saúde, Amil..."
+                    className="w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
+                  />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700 mb-1.5">
+                    Nº DA CARTEIRINHA{" "}
+                    <span className="normal-case font-normal text-blue-400">(opcional)</span>
+                  </p>
+                  <input
+                    value={convenioCarteirinha}
+                    onChange={(e) => setConvenioCarteirinha(e.target.value)}
+                    placeholder="Número impresso na carteirinha"
+                    className="w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
+                  />
+                </div>
+                <p className="text-[11px] text-blue-600 leading-snug">
+                  O profissional verificará sua cobertura e confirmará o atendimento na consulta.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {error && (
@@ -1540,6 +1635,10 @@ function SummaryPanel({
           {isConfirming ? (
             <span className="flex items-center justify-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" /> Confirmando...
+            </span>
+          ) : usaConvenio ? (
+            <span className="flex items-center justify-center gap-2">
+              <Shield className="h-4 w-4" /> Confirmar com convênio →
             </span>
           ) : professional.mpAccountAtivo ? (
             <span className="flex items-center justify-center gap-2">
@@ -1689,6 +1788,19 @@ function SuccessScreen({
           </div>
         )}
       </div>
+
+      {phase.via === "convenio" && (
+        <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-left">
+          <p className="text-xs font-semibold text-blue-800 mb-1">
+            🏥 Agendamento via plano de saúde
+          </p>
+          <p className="text-[11px] text-blue-700 leading-snug">
+            Lembre-se de levar sua carteirinha
+            {phase.convenioPlano ? ` do ${phase.convenioPlano}` : ""} na consulta. O profissional
+            verificará sua cobertura e confirmará o atendimento no dia.
+          </p>
+        </div>
+      )}
 
       <div className="mt-5 rounded-xl border border-[#25d366]/30 bg-[#f0fdf4] px-4 py-3 text-left">
         <p className="text-xs font-semibold text-emerald-800 mb-1">
@@ -1936,8 +2048,9 @@ function buildWhatsAppUrl(
     `📋 *Serviços:*`,
     servicelines,
     ``,
-    `💰 *Valor total:* ${fmt(total)}`,
-    ``,
+    ...(phase.via === "convenio" && phase.convenioPlano
+      ? [`🏥 *Plano de saúde:* ${phase.convenioPlano}`, ``]
+      : [`💰 *Valor total:* ${fmt(total)}`, ``]),
     `Agendado via CuidandoVC 🩺`,
   ].join("\n");
   const base = phone ? `https://wa.me/${phone}` : `https://wa.me`;
