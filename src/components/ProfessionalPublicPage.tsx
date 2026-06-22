@@ -1392,6 +1392,116 @@ function StepTime({
   );
 }
 
+// ─── PatientFields ────────────────────────────────────────────────────────────
+// Celular primeiro → lookup → preenche nome automaticamente se paciente recorrente.
+
+function PatientFields({
+  professionalId,
+  nome,
+  setNome,
+  telefone,
+  setTelefone,
+  email,
+  setEmail,
+}: {
+  professionalId: string;
+  nome: string;
+  setNome: (v: string) => void;
+  telefone: string;
+  setTelefone: (v: string) => void;
+  email: string;
+  setEmail: (v: string) => void;
+}) {
+  const [nomeAutoPreenchido, setNomeAutoPreenchido] = useState(false);
+  const [lookingUp, setLookingUp] = useState(false);
+
+  useEffect(() => {
+    const digits = telefone.replace(/\D/g, "");
+    if (digits.length < 8) {
+      if (nomeAutoPreenchido) {
+        setNome("");
+        setNomeAutoPreenchido(false);
+      }
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setLookingUp(true);
+      try {
+        const result = await lookupReturningPatient({ data: { professionalId, telefone } });
+        if (result) {
+          setNome(result.nome);
+          setNomeAutoPreenchido(true);
+        } else if (nomeAutoPreenchido) {
+          setNome("");
+          setNomeAutoPreenchido(false);
+        }
+      } catch {
+        // lookup silencioso — não bloqueia o checkout
+      } finally {
+        setLookingUp(false);
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [telefone]);
+
+  return (
+    <div className="px-5 space-y-3 pb-4">
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+          CELULAR / WHATSAPP
+        </p>
+        <div className="relative">
+          <input
+            value={telefone}
+            onChange={(e) => setTelefone(e.target.value)}
+            placeholder="(11) 99999-9999"
+            inputMode="tel"
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition"
+          />
+          {lookingUp && (
+            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-slate-400" />
+          )}
+        </div>
+      </div>
+
+      {nomeAutoPreenchido && (
+        <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2">
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+          <p className="text-xs text-emerald-700">
+            Olá, <strong>{nome}</strong>! Cadastro encontrado.
+          </p>
+        </div>
+      )}
+
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+          NOME COMPLETO
+        </p>
+        <input
+          value={nome}
+          onChange={(e) => { setNomeAutoPreenchido(false); setNome(e.target.value); }}
+          placeholder="Como está no RG"
+          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition"
+        />
+      </div>
+
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+          E-MAIL <span className="normal-case font-normal text-slate-300">(opcional)</span>
+        </p>
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="para envio de confirmação"
+          type="email"
+          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition"
+        />
+      </div>
+    </div>
+  );
+}
+
 // ─── SummaryPanel ─────────────────────────────────────────────────────────────
 
 function SummaryPanel({
@@ -1535,89 +1645,62 @@ function SummaryPanel({
         </div>
       </div>
 
-      <div className="px-5 space-y-3 pb-4">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-            NOME COMPLETO
-          </p>
-          <input
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            placeholder="Como está no RG"
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition"
-          />
-        </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-            CELULAR / WHATSAPP
-          </p>
-          <input
-            value={telefone}
-            onChange={(e) => setTelefone(e.target.value)}
-            placeholder="(11) 99999-9999"
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition"
-          />
-        </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-            E-MAIL <span className="normal-case font-normal text-slate-300">(opcional)</span>
-          </p>
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="para envio de confirmação"
-            type="email"
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition"
-          />
-        </div>
+      <PatientFields
+        professionalId={professional.id}
+        nome={nome}
+        setNome={setNome}
+        telefone={telefone}
+        setTelefone={setTelefone}
+        email={email}
+        setEmail={setEmail}
+      />
 
-        {phase.tag === "hora" && (
-          <div className="pt-1">
-            <label className="flex cursor-pointer items-center gap-2.5">
-              <input
-                type="checkbox"
-                checked={usaConvenio}
-                onChange={(e) => setUsaConvenio(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 accent-blue-600"
-              />
-              <span className="text-xs font-semibold text-slate-700">
-                Vou pagar com plano de saúde / convênio
-              </span>
-            </label>
+      {phase.tag === "hora" && (
+        <div className="px-5 pb-4">
+          <label className="flex cursor-pointer items-center gap-2.5">
+            <input
+              type="checkbox"
+              checked={usaConvenio}
+              onChange={(e) => setUsaConvenio(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 accent-blue-600"
+            />
+            <span className="text-xs font-semibold text-slate-700">
+              Vou pagar com plano de saúde / convênio
+            </span>
+          </label>
 
-            {usaConvenio && (
-              <div className="mt-3 space-y-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700 mb-1.5">
-                    NOME DO PLANO *
-                  </p>
-                  <input
-                    value={convenioPlano}
-                    onChange={(e) => setConvenioPlano(e.target.value)}
-                    placeholder="Ex: Unimed, Bradesco Saúde, Amil..."
-                    className="w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-                  />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700 mb-1.5">
-                    Nº DA CARTEIRINHA{" "}
-                    <span className="normal-case font-normal text-blue-400">(opcional)</span>
-                  </p>
-                  <input
-                    value={convenioCarteirinha}
-                    onChange={(e) => setConvenioCarteirinha(e.target.value)}
-                    placeholder="Número impresso na carteirinha"
-                    className="w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
-                  />
-                </div>
-                <p className="text-[11px] text-blue-600 leading-snug">
-                  O profissional verificará sua cobertura e confirmará o atendimento na consulta.
+          {usaConvenio && (
+            <div className="mt-3 space-y-2.5 rounded-xl border border-blue-100 bg-blue-50 p-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700 mb-1.5">
+                  NOME DO PLANO *
                 </p>
+                <input
+                  value={convenioPlano}
+                  onChange={(e) => setConvenioPlano(e.target.value)}
+                  placeholder="Ex: Unimed, Bradesco Saúde, Amil..."
+                  className="w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
+                />
               </div>
-            )}
-          </div>
-        )}
-      </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700 mb-1.5">
+                  Nº DA CARTEIRINHA{" "}
+                  <span className="normal-case font-normal text-blue-400">(opcional)</span>
+                </p>
+                <input
+                  value={convenioCarteirinha}
+                  onChange={(e) => setConvenioCarteirinha(e.target.value)}
+                  placeholder="Número impresso na carteirinha"
+                  className="w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition"
+                />
+              </div>
+              <p className="text-[11px] text-blue-600 leading-snug">
+                O profissional verificará sua cobertura e confirmará o atendimento na consulta.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {error && (
         <p className="mx-5 mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">
